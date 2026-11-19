@@ -362,7 +362,7 @@ export function CityBoard(props: {
       : mode.kind === "bulldoze"
         ? "Drag over things to demolish them (you get half the price back)."
         : mode.kind === "idle" || mode.kind === "selected"
-          ? "Tap a building to select it. On a phone: one finger scrolls the page, two fingers move and zoom the map. On a computer: drag to move, Ctrl/⌘ + scroll to zoom, right-drag to rotate."
+          ? "Tap a building to select it. On a phone, swiping scrolls the page; tap ⛶ (full screen) to move around and zoom the map. On a computer: drag to move, Ctrl/⌘ + scroll to zoom, right-drag to rotate."
           : null;
 
   const selectedType = selected ? typeById.get(selected.type_id) : undefined;

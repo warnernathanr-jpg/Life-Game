@@ -39,17 +39,66 @@ export type City3DProps = {
 export type City3DHandle = { zoom: (factor: number) => void; rotate: (radians: number) => void; reset: () => void };
 
 /** The 3D city. Client-only (loaded with next/dynamic, ssr: false). */
+/** Phones and tablets (touch is the main pointer). */
+const isCoarse = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+
+/**
+ * Animations (cars, water) only keep the map redrawing while it's on screen and the page isn't being scrolled,
+ * so a phone's scrolling never competes with the 3D view.
+ */
+const motion = { on: true };
+
+function MotionGate() {
+  const { gl, invalidate } = useThree();
+  useLayoutEffect(() => {
+    let visible = true;
+    let scrolling = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const update = () => {
+      const was = motion.on;
+      motion.on = visible && !scrolling && document.visibilityState === "visible";
+      if (motion.on && !was) invalidate();
+    };
+    const io = new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      update();
+    });
+    io.observe(gl.domElement);
+    const onScroll = () => {
+      scrolling = true;
+      update();
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        scrolling = false;
+        update();
+      }, 250);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      io.disconnect();
+      clearTimeout(timer);
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("visibilitychange", update);
+      motion.on = true;
+    };
+  }, [gl, invalidate]);
+  return null;
+}
+
 const City3D = forwardRef<City3DHandle, City3DProps>(function City3D(props, ref) {
+  const [coarse] = useState(isCoarse);
   return (
     <Canvas
       shadows
       frameloop="demand"
-      dpr={[1, 2]}
+      dpr={coarse ? [1, 1.5] : [1, 2]}
       camera={{ fov: 40, near: 0.1, far: 500 }}
       gl={{ antialias: true }}
       aria-label="3D city map"
     >
       <ThemeSky />
+      <MotionGate />
       <Scene {...props} handleRef={ref} />
     </Canvas>
   );
@@ -159,7 +208,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
         position={[size * 0.4 + 8, 18, size * 0.2 - 4]}
         intensity={1.6}
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={isCoarse() ? [1024, 1024] : [2048, 2048]}
         shadow-camera-left={-size}
         shadow-camera-right={size}
         shadow-camera-top={size}
@@ -235,6 +284,7 @@ function CameraRig({
   fullscreen: boolean;
 }) {
   const controls = useRef<MapControlsImpl>(null);
+  const [coarse] = useState(isCoarse);
   const { camera, invalidate } = useThree();
   const center = useMemo(() => new THREE.Vector3(size / 2, 0, size / 2), [size]);
 
@@ -298,6 +348,8 @@ function CameraRig({
       dampingFactor={0.12}
       screenSpacePanning={false}
       enablePan={panEnabled}
+      // Phones outside full screen: the map leaves every swipe to the page (taps still select; ⛶ to move around).
+      enabled={!(coarse && !fullscreen && !painting)}
       minDistance={3}
       maxDistance={size * 2.6 + 10}
       minPolarAngle={0.15}
@@ -556,135 +608,175 @@ function tileHash(x: number, y: number, salt = 0): number {
   return (h >>> 0) / 4294967296;
 }
 
-const WATER_PARTS = { shore: mat("#fde68a") };
+// The bank: lusher, darker grass than the lawn, with mossy rocks and reeds.
+const WATER_PARTS = { bank: mat("#4a8a32"), rock: mat("#8b8f87"), rockDark: mat("#62675f"), reed: mat("#5b8c22"), reedTip: mat("#8a6a3b") };
 
 /** Shared clock for the water shader (seconds). */
 const waterTime = { value: 0 };
 
 /**
- * Water that moves: two crossing swells shade the surface lighter and darker as they roll by (worked out per pixel from
- * world position, so neighboring tiles flow into each other), plus a slow bob of the surface.
+ * Stylized water: one smooth surface per pond, deep blue in the middle fading to lighter shallows at the shore
+ * (a per-vertex "shallow" value), faint ripples drifting across it and a soft foam line breathing along the shore.
  */
-const WATER_MATERIAL = (() => {
-  const m = new THREE.MeshStandardMaterial({ color: "#3b82f6", roughness: 0.75, metalness: 0 });
-  m.onBeforeCompile = (shader) => {
-    shader.uniforms.uTime = waterTime;
-    shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nuniform float uTime;\nvarying vec2 vWaterXZ;")
-      .replace(
-        "#include <begin_vertex>",
-        `#include <begin_vertex>
-        vec4 wp = vec4(transformed, 1.0);
-        #ifdef USE_INSTANCING
-          wp = instanceMatrix * wp;
-        #endif
-        wp = modelMatrix * wp;
-        vWaterXZ = wp.xz;
-        transformed.y += sin(wp.x * 1.7 + uTime * 1.1) * sin(wp.z * 1.3 + uTime * 0.9) * 0.15;`,
-      );
-    shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform float uTime;\nvarying vec2 vWaterXZ;")
-      .replace(
-        "#include <color_fragment>",
-        `#include <color_fragment>
-        float w1 = sin(vWaterXZ.x * 3.1 + vWaterXZ.y * 1.7 + uTime * 1.6);
-        float w2 = sin(vWaterXZ.y * 3.7 - vWaterXZ.x * 1.3 - uTime * 1.25);
-        float w = (w1 + w2) * 0.5;
-        // Linear colors: deep to light blue.
-        diffuseColor.rgb = mix(vec3(0.006, 0.06, 0.38), vec3(0.03, 0.2, 0.72), w * 0.5 + 0.5);
-        // Thin bright crests where both swells peak.
-        diffuseColor.rgb += vec3(0.25, 0.35, 0.4) * smoothstep(0.88, 1.0, w);`,
-      );
+const WATER_MATERIAL = new THREE.ShaderMaterial({
+  uniforms: { uTime: waterTime },
+  vertexShader: `
+    attribute float aShallow;
+    varying float vShallow;
+    varying vec2 vXZ;
+    void main() {
+      vShallow = aShallow;
+      vXZ = position.xz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: `
+    uniform float uTime;
+    varying float vShallow;
+    varying vec2 vXZ;
+    void main() {
+      vec3 deep = vec3(0.010, 0.095, 0.30); // linear, about #1a5596
+      vec3 shallow = vec3(0.04, 0.28, 0.45); // linear, about #3a8fb3
+      vec3 col = mix(deep, shallow, smoothstep(0.0, 1.0, vShallow));
+      // Faint ripples: two slow, crossing wave trains, only lightening a little where they meet.
+      float r1 = sin(vXZ.x * 5.0 + vXZ.y * 2.0 + uTime * 1.2);
+      float r2 = sin(vXZ.y * 6.0 - vXZ.x * 1.5 - uTime * 0.9);
+      col += vec3(0.025, 0.04, 0.05) * smoothstep(0.55, 1.0, r1 * r2);
+      // Shore foam: a thin light band that slowly moves in and out.
+      float edge = vShallow + 0.06 * sin(uTime * 1.4 + vXZ.x * 3.0 + vXZ.y * 2.3);
+      float foam = smoothstep(0.95, 1.0, edge);
+      col = mix(col, vec3(0.55, 0.72, 0.78), foam * 0.35);
+      gl_FragColor = vec4(col, 1.0);
+      #include <colorspace_fragment>
+    }`,
+});
+
+/** One surface for all water tiles, 3x3 vertices per tile; shallow = 1 at land, 0 a tile or more away. */
+function waterGeometry(tiles: Lot[]) {
+  const water = new Set(tiles.map((t) => key(t.x, t.y)));
+  const shallowAt = (px: number, pz: number) => {
+    let d = 9;
+    for (let tx = Math.floor(px) - 2; tx <= Math.floor(px) + 1; tx++) {
+      for (let tz = Math.floor(pz) - 2; tz <= Math.floor(pz) + 1; tz++) {
+        if (water.has(key(tx, tz))) continue;
+        const dx = Math.max(tx - px, 0, px - (tx + 1));
+        const dz = Math.max(tz - pz, 0, pz - (tz + 1));
+        d = Math.min(d, Math.hypot(dx, dz));
+      }
+    }
+    return 1 - Math.min(d / 0.9, 1);
   };
-  return m;
-})();
+  const pos: number[] = [];
+  const shallow: number[] = [];
+  const index: number[] = [];
+  const Y = 0.02;
+  for (const t of tiles) {
+    const base = pos.length / 3;
+    for (let j = 0; j <= 2; j++) {
+      for (let i = 0; i <= 2; i++) {
+        const x = t.x + i / 2;
+        const z = t.y + j / 2;
+        pos.push(x, Y, z);
+        shallow.push(shallowAt(x, z));
+      }
+    }
+    for (let j = 0; j < 2; j++) {
+      for (let i = 0; i < 2; i++) {
+        const a = base + j * 3 + i;
+        index.push(a, a + 3, a + 1, a + 1, a + 3, a + 4);
+      }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("aShallow", new THREE.Float32BufferAttribute(shallow, 1));
+  g.setIndex(index);
+  g.computeBoundingSphere();
+  return g;
+}
 
-const GLINT_MATERIAL = new THREE.MeshBasicMaterial({ color: "#f8fafc", transparent: true, opacity: 0.85, depthWrite: false });
-
-/** Water tiles joined into ponds and lakes: moving water, a sandy shore on sides without water, and drifting glints. */
-function Water({ tiles }: { tiles: Lot[] }) {
-  const waterRef = useRef<THREE.InstancedMesh>(null);
-  const shoreRef = useRef<THREE.InstancedMesh>(null);
-  const glintRef = useRef<THREE.InstancedMesh>(null);
+/** Instanced boxes from a list of matrices (re-uploaded when the list changes). */
+function Boxes({ list, material, shadow }: { list: THREE.Matrix4[]; material: THREE.Material; shadow?: boolean }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
   const { invalidate } = useThree();
-  const parts = useMemo(() => {
-    const set = new Set(tiles.map((t) => key(t.x, t.y)));
-    const water: THREE.Matrix4[] = [];
-    const shore: THREE.Matrix4[] = [];
-    const m = (x: number, y: number, z: number, sx: number, sy: number, sz: number) =>
-      new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(sx, sy, sz));
-    const S = 0.14;
-    for (const t of tiles) {
-      const cx = t.x + 0.5;
-      const cz = t.y + 0.5;
-      water.push(m(cx, 0.012, cz, 1, 0.02, 1));
-      const s = roadShape(t.x, t.y, set);
-      if (!s.n) shore.push(m(cx, 0.024, t.y + S / 2, 1, 0.02, S));
-      if (!s.s) shore.push(m(cx, 0.024, t.y + 1 - S / 2, 1, 0.02, S));
-      if (!s.w) shore.push(m(t.x + S / 2, 0.024, cz, S, 0.02, 1));
-      if (!s.e) shore.push(m(t.x + 1 - S / 2, 0.024, cz, S, 0.02, 1));
-    }
-    return { water, shore };
-  }, [tiles]);
-  // One glint per tile (up to 60): each fades in, drifts a little and fades out, then moves to another spot.
-  const glints = useMemo(
-    () =>
-      tiles.slice(0, 60).map((t, i) => ({
-        x: t.x + 0.2 + tileHash(t.x, t.y, 5) * 0.6,
-        z: t.y + 0.2 + tileHash(t.x, t.y, 6) * 0.6,
-        phase: tileHash(i, t.x, 7) * 4,
-        speed: 0.18 + tileHash(t.y, i, 8) * 0.12,
-      })),
-    [tiles],
-  );
   useLayoutEffect(() => {
-    for (const [ref, list] of [[waterRef, parts.water], [shoreRef, parts.shore]] as const) {
-      const mesh = ref.current;
-      if (!mesh) continue;
-      list.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
-      mesh.count = list.length;
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.computeBoundingSphere();
-    }
+    const mesh = ref.current;
+    if (!mesh) return;
+    list.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
+    mesh.count = list.length;
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
     invalidate();
-  }, [parts, invalidate]);
+  }, [list, invalidate]);
+  const cap = Math.max(1, list.length);
+  return <instancedMesh key={cap} ref={ref} args={[BOX, material, cap]} castShadow={shadow} receiveShadow raycast={() => null} />;
+}
 
-  const tmp = useMemo(() => new THREE.Matrix4(), []);
+/** Water tiles joined into ponds and lakes, edged by a grassy bank with rocks and reeds on sides without water. */
+function Water({ tiles }: { tiles: Lot[] }) {
+  const { invalidate } = useThree();
+  const geometry = useMemo(() => waterGeometry(tiles), [tiles]);
+  useLayoutEffect(() => () => geometry.dispose(), [geometry]);
+  const bank = useMemo(() => {
+    const set = new Set(tiles.map((t) => key(t.x, t.y)));
+    const banks: THREE.Matrix4[] = [];
+    const rocks: THREE.Matrix4[] = [];
+    const darkRocks: THREE.Matrix4[] = [];
+    const reeds: THREE.Matrix4[] = [];
+    const tips: THREE.Matrix4[] = [];
+    const q = new THREE.Quaternion();
+    const box = (x: number, y: number, z: number, sx: number, sy: number, sz: number, rot = 0) =>
+      new THREE.Matrix4().compose(new THREE.Vector3(x, y + sy / 2, z), rot ? new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rot) : q, new THREE.Vector3(sx, sy, sz));
+    const W = 0.13; // bank width
+    for (const t of tiles) {
+      const s = roadShape(t.x, t.y, set);
+      // Each open side: [along-x?, fixed coordinate of the bank's centre line]
+      const sides: [boolean, number, number][] = [];
+      if (!s.n) sides.push([true, t.y + W / 2, 0]);
+      if (!s.s) sides.push([true, t.y + 1 - W / 2, 1]);
+      if (!s.w) sides.push([false, t.x + W / 2, 2]);
+      if (!s.e) sides.push([false, t.x + 1 - W / 2, 3]);
+      for (const [alongX, c, side] of sides) {
+        banks.push(alongX ? box(t.x + 0.5, 0, c, 1, 0.035, W) : box(c, 0, t.y + 0.5, W, 0.035, 1));
+        // 0–2 rocks and 0–2 reed clumps per side, placed by the tile's hash so they stay put.
+        for (let k = 0; k < 4; k++) {
+          const h = tileHash(t.x * 4 + side, t.y * 4 + k, 31);
+          const along = 0.12 + tileHash(t.x, t.y * 7 + side * 3 + k, 32) * 0.76;
+          const x = alongX ? t.x + along : c;
+          const z = alongX ? c : t.y + along;
+          if (k < 2 && h < 0.55) {
+            const sz = 0.05 + tileHash(t.y, t.x + k, 33) * 0.06;
+            (h < 0.25 ? darkRocks : rocks).push(box(x, 0.02, z, sz * 1.3, sz * 0.8, sz, h * 6));
+          } else if (k >= 2 && h < 0.5) {
+            for (let r = 0; r < 3; r++) {
+              const ox = (r - 1) * 0.025;
+              const hgt = 0.1 + tileHash(t.x + r, t.y + k, 34) * 0.08;
+              const rx = x + (alongX ? ox : 0);
+              const rz = z + (alongX ? 0 : ox);
+              reeds.push(box(rx, 0.02, rz, 0.012, hgt, 0.012));
+              if (r === 1) tips.push(box(rx, 0.02 + hgt, rz, 0.022, 0.04, 0.022));
+            }
+          }
+        }
+      }
+    }
+    return { banks, rocks, darkRocks, reeds, tips };
+  }, [tiles]);
+
   useFrame((_, delta) => {
     if (tiles.length === 0) return;
     waterTime.value += Math.min(delta, 0.05);
-    const t = waterTime.value;
-    const mesh = glintRef.current;
-    if (mesh) {
-      glints.forEach((g, i) => {
-        const cycle = (t * g.speed + g.phase) % 1; // 0 → 1 over a few seconds
-        const size = Math.sin(cycle * Math.PI); // grow then shrink
-        const drift = (cycle - 0.5) * 0.25;
-        tmp.compose(
-          new THREE.Vector3(g.x + drift, 0.03, g.z + drift * 0.4),
-          new THREE.Quaternion(),
-          new THREE.Vector3(0.16 * size, 0.004, 0.035 * size),
-        );
-        mesh.setMatrixAt(i, tmp);
-      });
-      mesh.count = glints.length;
-      mesh.instanceMatrix.needsUpdate = true;
-    }
-    invalidate(); // keep the water moving
+    if (motion.on) invalidate(); // keep the water moving
   });
 
-  const cap = (n: number) => Math.max(1, n);
+  if (tiles.length === 0) return null;
   return (
     <>
-      <instancedMesh key={`w${cap(parts.water.length)}`} ref={waterRef} args={[BOX, WATER_MATERIAL, cap(parts.water.length)]} receiveShadow />
-      <instancedMesh key={`s${cap(parts.shore.length)}`} ref={shoreRef} args={[BOX, WATER_PARTS.shore, cap(parts.shore.length)]} receiveShadow />
-      <instancedMesh
-        key={`g${cap(glints.length)}`}
-        ref={glintRef}
-        args={[BOX, GLINT_MATERIAL, cap(glints.length)]}
-        frustumCulled={false}
-        raycast={() => null}
-      />
+      <mesh geometry={geometry} material={WATER_MATERIAL} raycast={() => null} />
+      <Boxes list={bank.banks} material={WATER_PARTS.bank} />
+      <Boxes list={bank.rocks} material={WATER_PARTS.rock} shadow />
+      <Boxes list={bank.darkRocks} material={WATER_PARTS.rockDark} shadow />
+      <Boxes list={bank.reeds} material={WATER_PARTS.reed} />
+      <Boxes list={bank.tips} material={WATER_PARTS.reedTip} />
     </>
   );
 }
@@ -875,7 +967,7 @@ function Cars({ tiles }: { tiles: Lot[] }) {
       g.position.set(c.from[0] + 0.5 + dx * c.t + ox, 0.03, c.from[1] + 0.5 + dz * c.t + oz);
       g.rotation.y = Math.atan2(dx, dz);
     });
-    invalidate(); // keep animating (the canvas otherwise only redraws on change)
+    if (motion.on) invalidate(); // keep animating (the canvas otherwise only redraws on change)
   });
 
   return (

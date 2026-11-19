@@ -239,13 +239,19 @@ _Last updated: 2026-11-25_
 - Roads and bridges never offer Rotate.
 - Fix: the Stats history calendar showed nothing (the month query used an impossible date, e.g. Nov 31).
 
-### 15. Moving water, varied tree tiles (2026-11-25)
-- **Water moves**: a shader on the water tiles rolls two crossing swells across ponds (deep to light blue, soft foam where
-  they meet, flowing across tile edges) with a slight bob, plus drifting glints (one per tile, up to 60). The map keeps
-  redrawing while there's water (like cars).
+### 15. Water redone, varied tree tiles, phone scrolling (2026-11-25)
+- **Water** is one smooth surface per pond (`waterGeometry()`, 3×3 vertices per tile, custom shader): deep blue in the middle
+  fading to lighter shallows near land (per-vertex distance to the nearest non-water tile), faint drifting ripples and a
+  thin, gently moving foam line at the very edge. The sand border is replaced by a **grassy bank** (darker, lusher green than
+  the lawn) with seeded mossy rocks and reed clumps. Shader colors are linear and the shader source is ASCII-only.
 - **Trees tiles** pick one of six styles from the tile's seed (mixed grove of 4, pine stand of 5, big shade tree with
   shrubs, slim clump with rocks, dense woods of 6, meadow with two trees and flowers), with jittered positions, sizes and
-  crown colors, so painted forests look natural.
+  crown colors.
+- **Phone scrolling**: outside full screen on touch devices the map's controls are off, so every swipe scrolls the page
+  (taps still select; full screen is where you move and zoom the map). The whole map box is `touch-action: pan-y`.
+  Animations (cars, water) pause while the page scrolls, when the map is off screen and when the tab is hidden
+  (`MotionGate`); phones render at most 1.5× resolution with 1024px shadows. Checked with real touch events in an iPhone 13
+  emulation: swipe on the map scrolls 219px; one finger moves the map in full screen.
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
