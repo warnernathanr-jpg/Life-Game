@@ -340,11 +340,12 @@ export function lotsOverlap(
 export function lotFree(
   citySize: number,
   lot: { x: number; y: number; size: number },
-  placed: { id: string; x: number; y: number; size: number }[],
+  placed: { id: string; x: number; y: number; size: number; type_id?: string }[],
   exceptId?: string,
 ): boolean {
   if (lot.x < 0 || lot.y < 0 || lot.x + lot.size > citySize || lot.y + lot.size > citySize) return false;
-  return !placed.some((b) => b.id !== exceptId && lotsOverlap(lot, b));
+  // Trees never block: whatever is built on them clears them (as the database does).
+  return !placed.some((b) => b.id !== exceptId && b.type_id !== "tree" && lotsOverlap(lot, b));
 }
 
 export function formatCoins(n: number): string {

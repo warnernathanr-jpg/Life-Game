@@ -4,9 +4,12 @@ export type Tile = { x: number; y: number };
 export type Lot = { id: string; type_id: string; x: number; y: number; size: number; facing?: Facing | null };
 
 export const ROAD_TYPE = "road";
+export const DIRT_ROAD_TYPE = "dirt_road";
+export const AVENUE_TYPE = "avenue";
 export const BRIDGE_TYPE = "bridge";
-/** Roads and bridges both carry traffic and connect buildings. */
-export const isRoadType = (typeId: string) => typeId === ROAD_TYPE || typeId === BRIDGE_TYPE;
+/** Every kind of road (dirt, 2-lane, 4-lane) and bridges carry traffic and connect buildings. */
+export const ROAD_TYPES = new Set([DIRT_ROAD_TYPE, ROAD_TYPE, AVENUE_TYPE, BRIDGE_TYPE]);
+export const isRoadType = (typeId: string) => ROAD_TYPES.has(typeId);
 
 export const key = (x: number, y: number) => `${x},${y}`;
 

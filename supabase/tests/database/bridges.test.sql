@@ -9,10 +9,10 @@ select set_config('request.jwt.claims', '{"sub":"91111111-1111-1111-1111-1111111
 -- Water at (1,0) and (2,0): 12 coins, balance 88.
 select results_eq($$ select built, cost, balance from public.buy_tiles('water', '[[1,0],[2,0]]') $$,
   $$ values (2, 12::bigint, 88::bigint) $$, 'dig two water tiles');
--- Road from (0,0) to (3,0): 2 road tiles (1 each) + 2 bridge tiles (10 each) = 22.
-select results_eq($$ select built, cost, balance from public.buy_tiles('road', '[[0,0],[1,0],[2,0],[3,0]]') $$,
+-- Dirt road from (0,0) to (3,0): 2 road tiles (1 each) + 2 bridge tiles (10 each) = 22.
+select results_eq($$ select built, cost, balance from public.buy_tiles('dirt_road', '[[0,0],[1,0],[2,0],[3,0]]') $$,
   $$ values (4, 22::bigint, 66::bigint) $$, 'road across water: 2 road + 2 bridge tiles');
-select is((select reason from public.coin_ledger order by id desc limit 1), 'Built 2 road tiles and built 2 bridge tiles', 'ledger names both');
+select is((select reason from public.coin_ledger order by id desc limit 1), 'Built 2 dirt road tiles and built 2 bridge tiles', 'ledger names both');
 select is((select count(*)::int from public.placed_buildings where type_id = 'bridge'), 2, 'two bridge tiles');
 select is((select count(*)::int from public.placed_buildings where type_id = 'water'), 0, 'water turned into bridges');
 select results_eq($$ select built, cost from public.buy_tiles('road', '[[1,0],[2,0]]') $$,

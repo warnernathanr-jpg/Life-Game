@@ -280,6 +280,23 @@ _Last updated: 2026-11-25_
   paused car shows "Ben Ivanova, 38 · Works at School · Driving to work at School · arrives about 7:57 AM", house lists its 4
   residents and Find opens the card.
 
+### 18. Road types, build preview + Confirm, one-finger building, trees cleared (2026-11-25)
+- **Road types**: Dirt Road (1 coin; packed earth with wheel ruts, no curbs), **2-Lane Road** (5; the old road, existing roads
+  keep it), **4-Lane Road** (10; dark asphalt, double yellow centre line, white lane dashes). All join up and carry traffic;
+  any of them across water builds a bridge (10); drawing one kind over another replaces those tiles (pay the new price).
+  `ROAD_TYPES` / `isRoadType()` in `src/lib/roads.ts`; `Roads` draws each kind (`variant`).
+- **Build preview + Confirm**: tapping a spot while placing or moving shows the building there and a bar ("🏠 House · 🪙 40 ·
+  Build here / Cancel", or why it can't go there); tap elsewhere to move the preview. Drawn road/trees/water strokes are
+  added to a highlighted preview (several strokes can be drawn) with "N tiles · cost · bridges / replaced roads / trees
+  cleared" and Build / Cancel. Nothing is bought without Confirm; switching tools drops the preview.
+- **One finger only**: a second finger on the map cancels the stroke being drawn and nothing is drawn until all fingers lift.
+- **Building over trees** clears them (no refund): `private.lot_free` ignores tree tiles, and the trigger
+  `placed_buildings_clear_trees` deletes trees under anything placed, moved, upgraded or painted (water, roads). The app's
+  `lotFree` matches.
+- Migration `20261125000100_road_types_trees.sql` (applied live). 13 pgTAP tests (`road_types_trees.test.sql`, 216 total);
+  older road/bridge tests pin or switch the road type. Browser check: road types render, stroke shows the bar without buying,
+  Cancel clears it, house preview bar, pinch while drawing leaves no preview.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

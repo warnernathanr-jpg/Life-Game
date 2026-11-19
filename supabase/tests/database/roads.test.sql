@@ -6,6 +6,9 @@ insert into auth.users (id, email) values
   ('31111111-1111-1111-1111-111111111111', 'r1@example.com'),
   ('32222222-2222-2222-2222-222222222222', 'r2@example.com');
 
+-- These tests are about how strokes work, not prices: pin the 2-lane road at 1 coin (rolled back at the end).
+update public.building_types set cost = 1 where id = 'road';
+
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"31111111-1111-1111-1111-111111111111"}', true);
 

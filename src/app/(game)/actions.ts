@@ -142,7 +142,7 @@ export async function buyTiles(
   typeId: string,
   points: [number, number][],
 ): Promise<ActionResult<{ built: number; cost: number }>> {
-  if (!["road", "tree", "water"].includes(typeId)) return { ok: false, error: gameError(null) };
+  if (!["dirt_road", "road", "avenue", "tree", "water"].includes(typeId)) return { ok: false, error: gameError(null) };
   const parsed = tiles.safeParse(points);
   if (!parsed.success) return { ok: false, error: gameError({ message: "too_many_tiles" }) };
   const { supabase } = await requireUser();

@@ -6,7 +6,7 @@ import { forwardRef, useCallback, useImperativeHandle, useLayoutEffect, useMemo,
 import * as THREE from "three";
 import type { MapControls as MapControlsImpl } from "three-stdlib";
 import { THEME_EVENT } from "@/lib/themes";
-import { BRIDGE_TYPE, effectiveFacing, isRoadType, FACING_ROTATION, key, rowJoins, roadSet, roadShape, ROAD_TYPE, strokePath, type Lot, type Tile } from "@/lib/roads";
+import { AVENUE_TYPE, BRIDGE_TYPE, DIRT_ROAD_TYPE, effectiveFacing, isRoadType, FACING_ROTATION, key, rowJoins, roadSet, roadShape, ROAD_TYPE, strokePath, type Lot, type Tile } from "@/lib/roads";
 import { Traffic, type SimProps } from "./traffic";
 import { BOX, BuildingModel, CROWN, MODEL_HEIGHT, NoRoadMarker, OCTA, WorkerMarker, colorSeed, mat } from "./models";
 
@@ -33,6 +33,11 @@ export type City3DProps = {
   onTile: (x: number, y: number) => void;
   onStroke: (tiles: Tile[]) => void;
   onStrokeChange: (tiles: Tile[] | null) => void;
+  /** A building preview held at this tile (waiting for Confirm) instead of following the pointer. */
+  ghostAt?: Tile | null;
+  /** Painted tiles waiting for Confirm (shown highlighted). */
+  previewTiles?: Tile[];
+  previewOk?: boolean;
   /** Citizens travelling around the city (cars and walkers), with pause and tap-to-inspect. */
   sim?: SimProps;
 };
@@ -131,7 +136,14 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
   const bridgeTiles = useMemo(() => lots.filter((l) => l.type_id === BRIDGE_TYPE), [lots]);
   // Townhomes side by side facing the same way join into a row.
   const joins = useMemo(() => rowJoins(lots, roadSet(lots), "house"), [lots]);
-  const roadTiles = useMemo(() => lots.filter((l) => l.type_id === ROAD_TYPE), [lots]);
+  const roadTiles = useMemo(
+    () => ({
+      dirt: lots.filter((l) => l.type_id === DIRT_ROAD_TYPE),
+      two: lots.filter((l) => l.type_id === ROAD_TYPE),
+      four: lots.filter((l) => l.type_id === AVENUE_TYPE),
+    }),
+    [lots],
+  );
   const byTile = useMemo(() => {
     const m = new Map<string, Lot>();
     for (const l of lots) for (let dx = 0; dx < l.size; dx++) for (let dy = 0; dy < l.size; dy++) m.set(key(l.x + dx, l.y + dy), l);
@@ -140,6 +152,35 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
 
   const [hover, setHover] = useState<Tile | null>(null);
   const [stroke, setStroke] = useState<{ start: Tile; end: Tile; pointer: number } | null>(null);
+  // Only one finger draws: a second finger (pinch/zoom) cancels the stroke, and nothing is drawn until all fingers lift.
+  const multiTouch = useRef(false);
+  const gl = useThree((st) => st.gl);
+  const onStrokeChangeRef = useRef(props.onStrokeChange);
+  useLayoutEffect(() => {
+    onStrokeChangeRef.current = props.onStrokeChange;
+  });
+  useLayoutEffect(() => {
+    const el = gl.domElement;
+    const onTouch = (e: TouchEvent) => {
+      if (e.touches.length >= 2) {
+        if (!multiTouch.current) {
+          multiTouch.current = true;
+          setStroke(null);
+          onStrokeChangeRef.current(null);
+        }
+      } else if (e.touches.length === 0) {
+        multiTouch.current = false;
+      }
+    };
+    el.addEventListener("touchstart", onTouch, { passive: true });
+    el.addEventListener("touchend", onTouch, { passive: true });
+    el.addEventListener("touchcancel", onTouch, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouch);
+      el.removeEventListener("touchend", onTouch);
+      el.removeEventListener("touchcancel", onTouch);
+    };
+  }, [gl]);
   const strokeTiles = useMemo(() => (stroke ? strokePath(stroke.start, stroke.end) : null), [stroke]);
 
   const tileFrom = useCallback(
@@ -166,7 +207,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
 
   function onDown(e: ThreeEvent<PointerEvent>) {
     e.stopPropagation();
-    if (input !== "stroke" || e.button !== 0 || stroke) return;
+    if (input !== "stroke" || e.button !== 0 || stroke || multiTouch.current) return;
     const t = tileFrom(e);
     if (!t) return;
     (e.target as Element | null)?.setPointerCapture?.(e.pointerId);
@@ -176,7 +217,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
 
   function onUp(e: ThreeEvent<PointerEvent>) {
     e.stopPropagation();
-    if (!stroke || e.pointerId !== stroke.pointer) return;
+    if (!stroke || e.pointerId !== stroke.pointer || multiTouch.current) return;
     const tiles = strokePath(stroke.start, stroke.end);
     setStroke(null);
     props.onStrokeChange(null);
@@ -194,9 +235,10 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
     if (t) props.onTile(t.x, t.y);
   }
 
+  const ghostTile = props.ghostAt ?? hover;
   const ghost =
-    input === "point" && props.ghostSize > 0 && hover
-      ? { x: hover.x, y: hover.y, size: props.ghostSize, ok: props.ghostOk(hover.x, hover.y) }
+    input === "point" && props.ghostSize > 0 && ghostTile
+      ? { x: ghostTile.x, y: ghostTile.y, size: props.ghostSize, ok: props.ghostOk(ghostTile.x, ghostTile.y) }
       : null;
   const strokeOk = strokeTiles ? props.strokeOk(strokeTiles) : true;
 
@@ -226,7 +268,9 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
         onClick={onClick}
       >
         <Ground size={size} />
-        <Roads tiles={roadTiles} roads={roads} />
+        <Roads tiles={roadTiles.dirt} roads={roads} variant="dirt" />
+        <Roads tiles={roadTiles.two} roads={roads} variant="two" />
+        <Roads tiles={roadTiles.four} roads={roads} variant="four" />
         <Water tiles={waterTiles} />
         <Bridges tiles={bridgeTiles} roads={roads} />
         {props.sim && <Traffic sim={props.sim} roads={roads} />}
@@ -246,6 +290,14 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
       {props.selectedId && <Selection lot={lots.find((l) => l.id === props.selectedId)} />}
       {props.dimmedId && <Selection lot={lots.find((l) => l.id === props.dimmedId)} color="#f59e0b" />}
       {ghost && <Footprint tiles={[{ x: ghost.x, y: ghost.y }]} size={ghost.size} ok={ghost.ok} raised />}
+      {props.previewTiles && props.previewTiles.length > 0 && (
+        <Footprint
+          tiles={props.previewTiles}
+          size={1}
+          ok={props.previewOk ?? true}
+          skip={(t) => alreadyPainted(byTile.get(key(t.x, t.y))?.type_id, props.paintTypeId ?? ROAD_TYPE)}
+        />
+      )}
       {strokeTiles && (
         <Footprint
           tiles={strokeTiles}
@@ -485,30 +537,49 @@ function Ground({ size }: { size: number }) {
 
 const ROAD_PARTS = {
   asphalt: mat("#4b5563"),
+  asphaltDark: mat("#374151"),
   curb: mat("#d1d5db"),
   line: mat("#facc15"),
+  white: mat("#f1f5f9"),
+  dirt: mat("#a07a52"),
+  rut: mat("#7a5a3a"),
 };
 
-/** All road tiles drawn as three instanced meshes (asphalt, curbs, lane marks). */
-function Roads({ tiles, roads }: { tiles: Lot[]; roads: Set<string> }) {
-  const asphaltRef = useRef<THREE.InstancedMesh>(null);
-  const curbRef = useRef<THREE.InstancedMesh>(null);
-  const lineRef = useRef<THREE.InstancedMesh>(null);
-  const { invalidate } = useThree();
+type RoadVariant = "dirt" | "two" | "four";
 
+/**
+ * Road tiles of one kind, drawn as instanced boxes. Every kind joins up with every other (`roads` holds them all).
+ * Dirt: packed earth with wheel ruts, no curbs. 2-lane: asphalt, curbs, a dashed yellow centre line. 4-lane: darker
+ * asphalt, curbs, a double yellow centre line and white dashed lane lines.
+ */
+function Roads({ tiles, roads, variant }: { tiles: Lot[]; roads: Set<string>; variant: RoadVariant }) {
   const parts = useMemo(() => {
-    const asphalt: THREE.Matrix4[] = [];
+    const surface: THREE.Matrix4[] = [];
     const curbs: THREE.Matrix4[] = [];
-    const lines: THREE.Matrix4[] = [];
+    const yellow: THREE.Matrix4[] = [];
+    const white: THREE.Matrix4[] = [];
+    const ruts: THREE.Matrix4[] = [];
     const m = (x: number, y: number, z: number, sx: number, sy: number, sz: number) =>
       new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(sx, sy, sz));
     const C = 0.12; // curb width
     for (const t of tiles) {
       const cx = t.x + 0.5;
       const cz = t.y + 0.5;
-      asphalt.push(m(cx, 0.015, cz, 1, 0.03, 1));
+      surface.push(m(cx, variant === "dirt" ? 0.01 : 0.015, cz, 1, variant === "dirt" ? 0.02 : 0.03, 1));
       const s = roadShape(t.x, t.y, roads);
-      // Curbs on sides without a neighboring road; corner posts always (makes junctions read cleanly).
+      const arms = [s.n && [0, -1], s.s && [0, 1], s.w && [-1, 0], s.e && [1, 0]].filter(Boolean) as number[][];
+      // A strip from the centre toward an arm, offset sideways by `off` (perpendicular to the arm).
+      const strip = (list: THREE.Matrix4[], ax: number, az: number, off: number, len: number, width: number, y: number, from = 0) => {
+        const mid = from + len / 2;
+        list.push(m(cx + ax * mid + (az ? off : 0), y, cz + az * mid + (ax ? off : 0), ax ? len : width, 0.004, az ? len : width));
+      };
+      if (variant === "dirt") {
+        // Two wheel ruts along each arm (a lone tile gets a short pair).
+        const list = arms.length ? arms : [[1, 0], [-1, 0]];
+        for (const [ax, az] of list) for (const off of [-0.15, 0.15]) strip(ruts, ax, az, off, 0.5, 0.06, 0.022);
+        continue;
+      }
+      // Curbs on sides without a neighboring road; corner posts always (junctions read cleanly).
       if (!s.n) curbs.push(m(cx, 0.04, t.y + C / 2, 1, 0.05, C));
       if (!s.s) curbs.push(m(cx, 0.04, t.y + 1 - C / 2, 1, 0.05, C));
       if (!s.w) curbs.push(m(t.x + C / 2, 0.04, cz, C, 0.05, 1));
@@ -516,41 +587,36 @@ function Roads({ tiles, roads }: { tiles: Lot[]; roads: Set<string> }) {
       for (const [dx, dz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
         curbs.push(m(t.x + C / 2 + dx * (1 - C), 0.04, t.y + C / 2 + dz * (1 - C), C, 0.05, C));
       }
-      // Dashed centre line toward each connected neighbor (a lone tile gets a short dash).
-      const arms = [s.n && [0, -1], s.s && [0, 1], s.w && [-1, 0], s.e && [1, 0]].filter(Boolean) as number[][];
-      const count = arms.length;
-      if (count === 0) lines.push(m(cx, 0.032, cz, 0.3, 0.004, 0.05));
-      if (count <= 2 || count === 0) {
-        for (const [ax, az] of arms) {
-          lines.push(m(cx + ax * 0.3, 0.032, cz + az * 0.3, ax ? 0.22 : 0.05, 0.004, az ? 0.22 : 0.05));
+      if (arms.length > 2) continue; // no paint in junctions
+      if (variant === "two") {
+        if (arms.length === 0) yellow.push(m(cx, 0.032, cz, 0.3, 0.004, 0.05));
+        for (const [ax, az] of arms) strip(yellow, ax, az, 0, 0.22, 0.05, 0.032, 0.19);
+      } else {
+        const list = arms.length ? arms : [[1, 0], [-1, 0]];
+        for (const [ax, az] of list) {
+          strip(yellow, ax, az, -0.025, 0.5, 0.025, 0.032); // double yellow
+          strip(yellow, ax, az, 0.025, 0.5, 0.025, 0.032);
+          strip(white, ax, az, -0.21, 0.2, 0.025, 0.032, 0.2); // lane dashes
+          strip(white, ax, az, 0.21, 0.2, 0.025, 0.032, 0.2);
         }
       }
     }
-    return { asphalt, curbs, lines };
-  }, [tiles, roads]);
+    return { surface, curbs, yellow, white, ruts };
+  }, [tiles, roads, variant]);
 
-  useLayoutEffect(() => {
-    for (const [ref, list] of [
-      [asphaltRef, parts.asphalt],
-      [curbRef, parts.curbs],
-      [lineRef, parts.lines],
-    ] as const) {
-      const mesh = ref.current;
-      if (!mesh) continue;
-      list.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
-      mesh.count = list.length;
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.computeBoundingSphere();
-    }
-    invalidate();
-  }, [parts, invalidate]);
-
-  const cap = (n: number) => Math.max(1, n);
+  if (tiles.length === 0) return null;
   return (
     <>
-      <instancedMesh key={`a${cap(parts.asphalt.length)}`} ref={asphaltRef} args={[BOX, ROAD_PARTS.asphalt, cap(parts.asphalt.length)]} receiveShadow />
-      <instancedMesh key={`c${cap(parts.curbs.length)}`} ref={curbRef} args={[BOX, ROAD_PARTS.curb, cap(parts.curbs.length)]} receiveShadow />
-      <instancedMesh key={`l${cap(parts.lines.length)}`} ref={lineRef} args={[BOX, ROAD_PARTS.line, cap(parts.lines.length)]} />
+      <Boxes list={parts.surface} material={variant === "dirt" ? ROAD_PARTS.dirt : variant === "four" ? ROAD_PARTS.asphaltDark : ROAD_PARTS.asphalt} />
+      {variant === "dirt" ? (
+        <Boxes list={parts.ruts} material={ROAD_PARTS.rut} />
+      ) : (
+        <>
+          <Boxes list={parts.curbs} material={ROAD_PARTS.curb} />
+          <Boxes list={parts.yellow} material={ROAD_PARTS.line} />
+          {variant === "four" && <Boxes list={parts.white} material={ROAD_PARTS.white} />}
+        </>
+      )}
     </>
   );
 }
@@ -619,7 +685,7 @@ const WATER_TYPE = "water";
 
 /** Is this tile already what the paint tool would make? (A bridge already is road and already is water.) */
 function alreadyPainted(current: string | undefined, paint: string) {
-  return current === paint || (current === BRIDGE_TYPE && (paint === ROAD_TYPE || paint === WATER_TYPE));
+  return current === paint || (current === BRIDGE_TYPE && (isRoadType(paint) || paint === WATER_TYPE));
 }
 
 const BRIDGE_DECK = 0.03; // top of a bridge deck: level with the road surface

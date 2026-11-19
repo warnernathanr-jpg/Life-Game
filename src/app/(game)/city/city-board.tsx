@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
 import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, formatCoins, landPrice, lotFree, pointsToUnlock, sellRefund } from "@/lib/game";
-import { BRIDGE_TYPE, connectedIds, key, nextFacing, roadSet, type Facing, type Lot, type Tile } from "@/lib/roads";
+import { BRIDGE_TYPE, connectedIds, isRoadType, key, nextFacing, roadSet, type Facing, type Lot, type Tile } from "@/lib/roads";
 import { buyBuilding, buyLand, buyTiles, moveBuilding, sellBuilding, sellMany, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
 import { useConfirm } from "@/components/confirm";
@@ -21,7 +21,7 @@ const City3D = dynamic(() => import("./city-3d"), {
 
 type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid" | "facing">;
 /** Tiles painted by dragging: roads and landscaping. */
-const PAINT_TYPES = ["road", "tree", "water"] as const;
+const PAINT_TYPES = ["dirt_road", "road", "avenue", "tree", "water"] as const;
 type PaintType = (typeof PAINT_TYPES)[number];
 const isPaint = (id: string): id is PaintType => (PAINT_TYPES as readonly string[]).includes(id);
 
@@ -97,6 +97,17 @@ export function CityBoard(props: {
   const [stroke, setStroke] = useState<Tile[] | null>(null);
   const [pending, start] = useTransition();
   const [confirm, confirmDialog] = useConfirm();
+  // Previews waiting for Confirm: a spot for a building being placed or moved, tiles being painted.
+  const [draftSpot, setDraftSpot] = useState<Tile | null>(null);
+  const [draftTiles, setDraftTiles] = useState<Tile[]>([]);
+  const modeKey = mode.kind === "paint" ? `paint:${mode.typeId}` : mode.kind === "place" ? `place:${mode.typeId}` : mode.kind === "move" ? `move:${mode.id}` : mode.kind;
+  const [draftFor, setDraftFor] = useState(modeKey);
+  if (draftFor !== modeKey) {
+    // Switching tools or buildings drops the preview.
+    setDraftFor(modeKey);
+    setDraftSpot(null);
+    setDraftTiles([]);
+  }
 
   // The living city: named citizens who commute, shop and visit parks (see src/lib/sim.ts).
   const places = useMemo(() => placesFrom(lots, types), [lots, types]);
@@ -210,15 +221,20 @@ export function CityBoard(props: {
   function planPaint(tiles: Tile[], typeId: PaintType) {
     const cost1 = typeById.get(typeId)?.cost ?? 0;
     const at = (t: Tile) => occupant.get(key(t.x, t.y))?.type_id;
-    // A bridge already is road and already is water.
-    const fresh = tiles.filter((t) => at(t) !== typeId && !(at(t) === BRIDGE_TYPE && (typeId === "road" || typeId === "water")));
-    // Roads drawn over water become bridges.
-    const bridges = typeId === "road" ? fresh.filter((t) => at(t) === "water").length : 0;
-    const blocked = fresh.some(
-      (t) => (occupant.has(key(t.x, t.y)) && !(typeId === "road" && at(t) === "water")) || t.x < 0 || t.y < 0 || t.x >= size || t.y >= size,
-    );
+    const road = isRoadType(typeId);
+    // A bridge already is road (of any kind) and already is water.
+    const fresh = tiles.filter((t) => at(t) !== typeId && !(at(t) === BRIDGE_TYPE && (road || typeId === "water")));
+    // Roads drawn over water become bridges; over another kind of road they replace it; trees are cleared.
+    const bridges = road ? fresh.filter((t) => at(t) === "water").length : 0;
+    const swaps = road ? fresh.filter((t) => at(t) !== undefined && at(t) !== "water" && isRoadType(at(t)!)).length : 0;
+    const trees = fresh.filter((t) => at(t) === "tree").length;
+    const free = (t: Tile) => {
+      const here = at(t);
+      return here === undefined || here === "tree" || (road && (here === "water" || isRoadType(here)));
+    };
+    const blocked = fresh.some((t) => !free(t) || t.x < 0 || t.y < 0 || t.x >= size || t.y >= size);
     const cost = (fresh.length - bridges) * cost1 + bridges * (typeById.get(BRIDGE_TYPE)?.cost ?? 0);
-    return { fresh, bridges, blocked, cost, ok: !blocked && cost <= balance && fresh.length <= MAX_STROKE_TILES };
+    return { fresh, bridges, swaps, trees, blocked, cost, ok: !blocked && cost <= balance && fresh.length <= MAX_STROKE_TILES };
   }
   function planDemolish(tiles: Tile[]) {
     const ids = [...new Set(tiles.map((t) => occupant.get(key(t.x, t.y))?.id).filter(Boolean) as string[])];
@@ -230,9 +246,26 @@ export function CityBoard(props: {
     return { ids, refund };
   }
 
+  // Building is two steps: tap (or drag) shows a preview, then Confirm builds it. Nothing is bought by accident
+  // (e.g. while zooming with two fingers).
   function onTile(x: number, y: number) {
     if (mode.kind === "paint") return onStroke([{ x, y }]);
+    if (mode.kind === "place" || mode.kind === "move") {
+      setMessage(null);
+      setDraftSpot({ x, y });
+      return;
+    }
     if (pending) return;
+    if (mode.kind === "bulldoze") return onStroke([{ x, y }]);
+    const b = occupant.get(key(x, y));
+    setCitizenId(null);
+    setMode(b ? { kind: "selected", id: b.id } : { kind: "idle" });
+  }
+
+  /** Build the previewed building (or move it) where the preview is. */
+  function confirmSpot() {
+    if (!draftSpot || pending) return;
+    const { x, y } = draftSpot;
     if (mode.kind === "place" && placingType) {
       if (!lotFree(size, { x, y, size: placingType.size }, lots)) return say("That spot is taken or doesn't fit.", "bad");
       if (balance < placingType.cost) return say("Not enough coins yet. Finish some tasks!", "bad");
@@ -254,31 +287,36 @@ export function CityBoard(props: {
         say("Moved.");
         setMode({ kind: "selected", id: movingLot.id });
       });
-      return;
     }
-    if (mode.kind === "bulldoze") return onStroke([{ x, y }]);
-    const b = occupant.get(key(x, y));
-    setCitizenId(null);
-    setMode(b ? { kind: "selected", id: b.id } : { kind: "idle" });
+  }
+
+  /** Buy the previewed road / trees / water tiles. */
+  function confirmPaint() {
+    if (mode.kind !== "paint" || !paintType || draftTiles.length === 0) return;
+    const typeId = mode.typeId;
+    const plan = planPaint(draftTiles, typeId);
+    if (plan.fresh.length === 0) return setDraftTiles([]);
+    if (plan.blocked) return say(`${paintType.name} can't go on top of buildings or past the edge of your land.`, "bad");
+    if (plan.fresh.length > MAX_STROKE_TILES) return say(`Paint at most ${MAX_STROKE_TILES} tiles at a time.`, "bad");
+    if (plan.cost > balance) return say(`That costs ${formatCoins(plan.cost)} coins. You have ${formatCoins(balance)}.`, "bad");
+    setDraftTiles([]);
+    start(async () => {
+      const r = await buyTiles(typeId, plan.fresh.map((t) => [t.x, t.y]));
+      if (!r.ok) return say(r.error, "bad");
+      const notes = [plan.bridges > 0 && `${plan.bridges} bridge${plan.bridges === 1 ? "" : "s"}`, plan.trees > 0 && `${plan.trees} tree tile${plan.trees === 1 ? "" : "s"} cleared`].filter(Boolean);
+      const what = typeId === "tree" ? `Planted ${r.built} tree${r.built === 1 ? "" : "s"}` : typeId === "water" ? `Dug ${r.built} water tile${r.built === 1 ? "" : "s"}` : `Built ${r.built} ${paintType.name.toLowerCase()} tile${r.built === 1 ? "" : "s"}`;
+      say(`${what}${notes.length ? ` (${notes.join(", ")})` : ""} for ${formatCoins(r.cost)} coins.`);
+    });
   }
 
   function onStroke(tiles: Tile[]) {
-    // Painting accepts new strokes while earlier ones are still saving (the server checks each one);
-    // only bulldozing waits, so its confirm never lists something that is already gone.
     if (tiles.length === 0 || (pending && mode.kind === "bulldoze")) return;
     if (mode.kind === "paint" && paintType) {
-      const plan = planPaint(tiles, mode.typeId);
-      const noun = mode.typeId === "road" ? "road" : mode.typeId === "tree" ? "trees" : "water";
-      if (plan.fresh.length === 0) return say(`That's already ${noun}.`);
-      if (plan.blocked) return say(`${paintType.name} can't go on top of other things or past the edge of your land.`, "bad");
-      if (plan.fresh.length > MAX_STROKE_TILES) return say(`Paint at most ${MAX_STROKE_TILES} tiles at a time.`, "bad");
-      if (plan.cost > balance) return say(`That costs ${formatCoins(plan.cost)} coins. You have ${formatCoins(balance)}.`, "bad");
-      start(async () => {
-        const r = await buyTiles(mode.typeId, plan.fresh.map((t) => [t.x, t.y]));
-        if (!r.ok) return say(r.error, "bad");
-        const verb = mode.typeId === "road" ? "Built" : mode.typeId === "tree" ? "Planted" : "Dug";
-        const bridgeNote = plan.bridges > 0 ? ` (${plan.bridges === r.built ? "all" : plan.bridges} as bridge${plan.bridges === 1 ? "" : "s"})` : "";
-        say(`${verb} ${r.built} ${noun === "trees" ? (r.built === 1 ? "tree" : "trees") : `${noun} tile${r.built === 1 ? "" : "s"}`}${bridgeNote} for ${formatCoins(r.cost)} coins.`);
+      // Add the stroke to the preview (several strokes can be confirmed together).
+      setMessage(null);
+      setDraftTiles((old) => {
+        const seen = new Set(old.map((t) => key(t.x, t.y)));
+        return [...old, ...tiles.filter((t) => !seen.has(key(t.x, t.y)))];
       });
       return;
     }
@@ -418,7 +456,7 @@ export function CityBoard(props: {
 
   const hint =
     mode.kind === "paint" && paintType
-      ? `Drag across the map to paint ${paintType.name.toLowerCase()} (${paintType.cost} coin${paintType.cost === 1 ? "" : "s"} a tile).${mode.kind === "paint" && mode.typeId === "road" ? ` Across water it builds a bridge (${typeById.get(BRIDGE_TYPE)?.cost ?? 10} coins a tile).` : ""} Two fingers move the map.`
+      ? `Drag with one finger to draw ${paintType.name.toLowerCase()} (${paintType.cost} coin${paintType.cost === 1 ? "" : "s"} a tile), then tap Build.${mode.kind === "paint" && isRoadType(mode.typeId) ? ` Across water it builds a bridge (${typeById.get(BRIDGE_TYPE)?.cost ?? 10} coins a tile); over another road it replaces it.` : ""} Trees in the way are cleared. Two fingers move the map.`
       : mode.kind === "bulldoze"
         ? "Drag over things to demolish them (you get half the price back)."
         : mode.kind === "idle" || mode.kind === "selected"
@@ -426,6 +464,58 @@ export function CityBoard(props: {
           : null;
 
   const selectedType = selected ? typeById.get(selected.type_id) : undefined;
+
+  // The confirmation bar for whatever is being previewed.
+  const draftPlan = mode.kind === "paint" && draftTiles.length > 0 ? planPaint(draftTiles, mode.typeId) : null;
+  const draftBar: { title: string; detail: string; problem?: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void } | null =
+    mode.kind === "paint" && paintType && draftPlan
+      ? {
+          title: `${paintType.icon} ${draftPlan.fresh.length} ${paintType.name.toLowerCase()} tile${draftPlan.fresh.length === 1 ? "" : "s"} · 🪙 ${formatCoins(draftPlan.cost)}`,
+          detail:
+            [
+              draftPlan.bridges > 0 && `${draftPlan.bridges} as bridge${draftPlan.bridges === 1 ? "" : "s"}`,
+              draftPlan.swaps > 0 && `replaces ${draftPlan.swaps} road tile${draftPlan.swaps === 1 ? "" : "s"}`,
+              draftPlan.trees > 0 && `clears ${draftPlan.trees} tree tile${draftPlan.trees === 1 ? "" : "s"}`,
+            ]
+              .filter(Boolean)
+              .join(" · ") || "Draw more, or confirm to build.",
+          problem:
+            draftPlan.fresh.length === 0
+              ? "That's all there already."
+              : draftPlan.blocked
+                ? "Part of it is on a building or past your land."
+                : draftPlan.fresh.length > MAX_STROKE_TILES
+                  ? `At most ${MAX_STROKE_TILES} tiles at a time.`
+                  : draftPlan.cost > balance
+                    ? `Not enough coins (you have ${formatCoins(balance)}).`
+                    : undefined,
+          confirmLabel: "Build",
+          onConfirm: confirmPaint,
+          onCancel: () => setDraftTiles([]),
+        }
+      : (mode.kind === "place" && placingType) || (mode.kind === "move" && movingLot)
+        ? draftSpot
+          ? (() => {
+              const s1 = mode.kind === "place" ? placingType!.size : movingLot!.size;
+              const fits = lotFree(size, { x: draftSpot.x, y: draftSpot.y, size: s1 }, lots, movingLot?.id);
+              const covers = lots.filter(
+                (l) => l.type_id === "tree" && l.x >= draftSpot.x && l.x < draftSpot.x + s1 && l.y >= draftSpot.y && l.y < draftSpot.y + s1,
+              ).length;
+              return {
+                title: mode.kind === "place" ? `${placingType!.icon} ${placingType!.name} · 🪙 ${formatCoins(placingType!.cost)}` : "Move here?",
+                detail: covers > 0 ? `Clears ${covers} tree tile${covers === 1 ? "" : "s"}. Tap elsewhere to move the preview.` : "Tap elsewhere to move the preview.",
+                problem: !fits
+                  ? "That spot is taken or doesn't fit."
+                  : mode.kind === "place" && balance < placingType!.cost
+                    ? "Not enough coins yet."
+                    : undefined,
+                confirmLabel: mode.kind === "place" ? "Build here" : "Move here",
+                onConfirm: confirmSpot,
+                onCancel: () => setDraftSpot(null),
+              };
+            })()
+          : null
+        : null;
   const selectedPlace = selected ? placeById.get(selected.id) : undefined;
   const person = (c: (typeof citizens)[number], line: string) => ({ id: c.id, name: c.name, age: c.age, line });
   const people = !selectedPlace
@@ -509,10 +599,10 @@ export function CityBoard(props: {
                 {mode.kind === "place" && placingType ? (
                   <>
                     Placing <strong>{placingType.icon} {placingType.name}</strong>
-                    {placingType.size > 1 ? ` (${placingType.size}×${placingType.size})` : ""}. Tap an empty spot next to a road.
+                    {placingType.size > 1 ? ` (${placingType.size}×${placingType.size})` : ""}. Tap a spot next to a road to preview it, then Build here.
                   </>
                 ) : (
-                  <>Moving. Tap where it should go.</>
+                  <>Moving. Tap where it should go, then Move here.</>
                 )}
               </span>
               <button
@@ -555,6 +645,9 @@ export function CityBoard(props: {
                 onTile={onTile}
                 onStroke={onStroke}
                 onStrokeChange={setStroke}
+                ghostAt={draftSpot}
+                previewTiles={draftTiles}
+                previewOk={draftPlan ? draftPlan.ok : true}
                 sim={sim}
               />
               {strokeInfo && (
@@ -589,7 +682,27 @@ export function CityBoard(props: {
                   </button>
                 </div>
               )}
-              {citizenInfo && (
+              {draftBar && (
+                <div
+                  className={`absolute left-1/2 z-10 flex w-[min(26rem,calc(100%-1rem))] -translate-x-1/2 items-center gap-2 rounded-2xl bg-surface/95 p-2 pl-3 text-ink shadow-xl ring-1 ring-line backdrop-blur ${
+                    full ? "bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))]" : "bottom-2"
+                  }`}
+                  role="group"
+                  aria-label="Confirm building"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold">{draftBar.title}</p>
+                    <p className={`truncate text-xs ${draftBar.problem ? "text-bad" : "text-muted"}`}>{draftBar.problem ?? draftBar.detail}</p>
+                  </div>
+                  <button type="button" className="btn-secondary min-h-10 shrink-0 px-3 py-1 text-sm" onClick={draftBar.onCancel}>
+                    Cancel
+                  </button>
+                  <button type="button" className="btn-primary min-h-10 shrink-0 px-3 py-1 text-sm" disabled={!!draftBar.problem || pending} onClick={draftBar.onConfirm}>
+                    {draftBar.confirmLabel}
+                  </button>
+                </div>
+              )}
+              {citizenInfo && !draftBar && (
                 <div
                   className={`absolute left-2 w-[min(20rem,calc(100%-4.5rem))] rounded-2xl bg-surface/95 p-3 text-ink shadow-xl ring-1 ring-line backdrop-blur ${
                     full ? "bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))]" : "bottom-2"
@@ -625,11 +738,11 @@ export function CityBoard(props: {
                       <p aria-live="polite" className={`text-xs ${message.tone === "bad" ? "text-bad" : "text-good"}`}>{message.text}</p>
                     ) : (
                       mode.kind === "place" && placingType ? (
-                        <p className="text-xs text-muted">Placing {placingType.icon} {placingType.name}: tap an empty spot next to a road.</p>
+                        <p className="text-xs text-muted">Placing {placingType.icon} {placingType.name}: tap a spot, then Build here.</p>
                       ) : mode.kind === "move" ? (
-                        <p className="text-xs text-muted">Moving: tap where it should go.</p>
+                        <p className="text-xs text-muted">Moving: tap where it should go, then Move here.</p>
                       ) : mode.kind === "paint" && paintType ? (
-                        <p className="text-xs text-muted">Drag to paint {paintType.name.toLowerCase()}.{mode.typeId === "road" ? " Across water it builds a bridge." : ""}</p>
+                        <p className="text-xs text-muted">Drag to draw {paintType.name.toLowerCase()}, then Build.{isRoadType(mode.typeId) ? " Across water it builds a bridge." : ""}</p>
                       ) : mode.kind === "bulldoze" ? (
                         <p className="text-xs text-muted">Drag over things to demolish them.</p>
                       ) : null

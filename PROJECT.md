@@ -13,7 +13,7 @@
   1 coin per focused minute (5–60 minute sessions). One-time 200-coin rewards for adding the app to the home
   screen and for turning on notifications.
 - **City game:** spend coins on residential, commercial, industrial and service buildings and place them on a grid.
-  Lay roads to connect them (a building only counts when it touches a road). Save up to buy more land.
+  Lay roads (dirt, 2-lane, 4-lane; bridges over water) to connect them (a building only counts when it touches a road). Save up to buy more land.
   The city is shown in 3D (zoom, pan, rotate). Buildings unlock with area points from a matching life area (parks with health,
   schools with knowledge, offices with work...), so a balanced life builds a balanced city.
 
