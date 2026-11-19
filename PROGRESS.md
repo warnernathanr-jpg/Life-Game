@@ -259,6 +259,27 @@ _Last updated: 2026-11-25_
 - Schools and libraries (already unlocked by Knowledge points) have their own **📚 Knowledge** group in the build menu, the
   full-screen build bar and the Shop page (`KNOWLEDGE_IDS`; the Shop page now uses `BUILD_GROUPS` too). 1 unit test.
 
+### 17. Living city: named citizens, trips, pedestrians; in-app confirmations (2026-11-25)
+- **Citizens** (`src/lib/sim.ts`, worked out in the browser, no database): every home gets named residents (seeded by the
+  building id, so the same home always has the same people; up to 80 simulated), with ages, a job at a reachable
+  workplace (filling its job slots), a school place for children if there's a school, or retired / looking for work.
+- **Daily routine** on a game clock (a day = 6 real minutes, starting 7:15 AM): commute to work ~7–7:50 AM and home
+  ~4:30–5:20 PM (sometimes via the shops), school 7:30 AM–3 PM (sometimes the park after), errands and park visits in
+  free time, sleep 9:30 PM–6:30 AM; little ones stay home. Trips follow the shortest road route (BFS from each building's
+  road entrance); short trips are walked on the sidewalk, longer ones driven (each citizen has their own car color).
+  Buildings without a road: residents stay home, nobody can work there.
+- **Traffic** (`traffic.tsx`, pooled meshes: 32 cars, 32 walkers) replaces the old random cars. **Clock pill** on the map with
+  **⏸ / ▶**. **Tap a car or a person** (paused or not) for a card: name, age, job, "Driving to work at Corner Shop", from
+  where, arrival time; a yellow marker follows them and their destination is outlined. Tapping a **home** lists who lives
+  there, a **workplace** who works there, a **school** its students; "Find →" opens that person's card.
+- Fix: the ground grid lines took every tap first (a line's hit area is a tile wide); they now ignore taps.
+- **In-app confirmations** (`src/components/confirm.tsx`, `useConfirm()`) replace the browser's popups: demolish, bulldoze,
+  buy land, delete task, give up focus. Escape cancels without also leaving full screen.
+- Bridges' Demolish button says "Take down (back to water)" (it showed a refund it doesn't give).
+- 6 unit tests (`sim.test.ts`); browser check: 16 people out at 7:40 AM (12 cars, 4 walkers), pause freezes the clock, tapping a
+  paused car shows "Ben Ivanova, 38 · Works at School · Driving to work at School · arrives about 7:57 AM", house lists its 4
+  residents and Find opens the card.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useConfirm } from "@/components/confirm";
 import type { MyTaskRow } from "@/lib/database.types";
 import { AREA_BY_ID, nextMilestone } from "@/lib/game";
 import { rateWords, type HabitSummary } from "@/lib/habits";
@@ -88,6 +89,7 @@ function TaskRow({
   setMessage: SetMessage;
 }) {
   const [pending, start] = useTransition();
+  const [confirm, confirmDialog] = useConfirm();
   const area = AREA_BY_ID[task.area];
   // Checked when done today, or done earlier in its week/month/quarter/year.
   const checked = task.done_today || task.done;
@@ -117,9 +119,14 @@ function TaskRow({
     });
   }
 
-  function remove() {
-    const keep = task.total_completions > 0 ? " Its past check-offs still count toward your points and history." : "";
-    if (!window.confirm(`Delete “${task.title}”?${keep}`)) return;
+  async function remove() {
+    const ok = await confirm({
+      title: `Delete “${task.title}”?`,
+      message: task.total_completions > 0 ? "Its past check-offs still count toward your points and history." : undefined,
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
+    if (!ok) return;
     start(async () => {
       const r = await removeTask(task.id);
       setMessage(r.ok ? { text: "Deleted.", tone: "good" } : { text: r.error, tone: "bad" });
@@ -128,6 +135,7 @@ function TaskRow({
 
   return (
     <li className={`relative flex items-center gap-3 px-4 py-3 sm:px-5 ${pending ? "opacity-60" : ""}`}>
+      {confirmDialog}
       <button
         type="button"
         onClick={toggle}
@@ -199,9 +207,11 @@ function HabitRhythm({ habit, total }: { habit: HabitSummary; total: number }) {
 
 function OtherDayRow({ task, setMessage }: { task: MyTaskRow; setMessage: SetMessage }) {
   const [pending, start] = useTransition();
+  const [confirm, confirmDialog] = useConfirm();
   const area = AREA_BY_ID[task.area];
   return (
     <li className={`flex items-center gap-3 px-4 py-3 sm:px-5 ${pending ? "opacity-60" : ""}`}>
+      {confirmDialog}
       <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-raised text-base">📅</span>
       <div className="min-w-0 flex-1">
         <p className="break-words font-medium text-ink">{task.title}</p>
@@ -215,9 +225,14 @@ function OtherDayRow({ task, setMessage }: { task: MyTaskRow; setMessage: SetMes
         type="button"
         disabled={pending}
         aria-label={`Delete “${task.title}”`}
-        onClick={() => {
-          const keep = task.total_completions > 0 ? " Its past check-offs still count toward your points and history." : "";
-          if (!window.confirm(`Delete “${task.title}”?${keep}`)) return;
+        onClick={async () => {
+          const ok = await confirm({
+            title: `Delete “${task.title}”?`,
+            message: task.total_completions > 0 ? "Its past check-offs still count toward your points and history." : undefined,
+            confirmLabel: "Delete",
+            tone: "danger",
+          });
+          if (!ok) return;
           start(async () => {
             const r = await removeTask(task.id);
             setMessage(r.ok ? { text: "Deleted.", tone: "good" } : { text: r.error, tone: "bad" });

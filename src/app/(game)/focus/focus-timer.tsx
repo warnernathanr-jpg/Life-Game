@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useConfirm } from "@/components/confirm";
 import { audioUnlocked, playChime, unlockAudio } from "@/lib/chime";
 import type { LifeArea } from "@/lib/database.types";
 import { AREAS, formatCoins } from "@/lib/game";
@@ -231,6 +232,7 @@ function RunningView({
   onWin: (coins: number) => void;
   onLose: (reason: "left" | "gave_up") => void;
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const endsAt = new Date(session.endsAt).getTime();
   const total = session.minutes * 60_000;
   // Starts empty so the server and browser render the same first frame; the tick fills it in.
@@ -337,6 +339,7 @@ function RunningView({
 
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-5 py-4 text-center">
+      {confirmDialog}
       <p className="text-sm font-medium text-muted">{session.label ?? "Focusing"}</p>
       <div className="relative">
         <svg width="260" height="260" viewBox="0 0 260 260" role="img" aria-label={`${mm} minutes ${ss} seconds left`}>
@@ -384,8 +387,9 @@ function RunningView({
           <button
             type="button"
             className="btn-secondary"
-            onClick={() => {
-              if (window.confirm("Stop now? You won't get coins for this session.")) lose("gave_up");
+            onClick={async () => {
+              const ok = await confirm({ title: "Stop now?", message: "You won't get coins for this session.", confirmLabel: "Give up", cancelLabel: "Keep going", tone: "danger" });
+              if (ok) lose("gave_up");
             }}
           >
             Give up

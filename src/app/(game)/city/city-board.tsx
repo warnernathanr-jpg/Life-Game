@@ -7,7 +7,10 @@ import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, formatCoins, landPrice, lot
 import { BRIDGE_TYPE, connectedIds, key, nextFacing, roadSet, type Facing, type Lot, type Tile } from "@/lib/roads";
 import { buyBuilding, buyLand, buyTiles, moveBuilding, sellBuilding, sellMany, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
+import { useConfirm } from "@/components/confirm";
+import { citizensFrom, clockText, minuteOfDay, placesFrom, roleText } from "@/lib/sim";
 import { BuildOverlay } from "./build-overlay";
+import type { CitizenInfo } from "./traffic";
 import { CityName, CityStatsPanel, SelectedPanel, Shop } from "./panels";
 
 // three.js only loads on this page, in the browser.
@@ -21,6 +24,15 @@ type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid
 const PAINT_TYPES = ["road", "tree", "water"] as const;
 type PaintType = (typeof PAINT_TYPES)[number];
 const isPaint = (id: string): id is PaintType => (PAINT_TYPES as readonly string[]).includes(id);
+
+/** Sky for the city clock. */
+function dayIcon(t: number) {
+  const m = minuteOfDay(Math.floor(t));
+  if (m < 6 * 60 || m >= 21 * 60) return "🌙";
+  if (m < 9 * 60) return "🌅";
+  if (m < 18 * 60) return "☀️";
+  return "🌇";
+}
 
 export type Mode =
   | { kind: "idle" }
@@ -84,6 +96,31 @@ export function CityBoard(props: {
   const [message, setMessage] = useState<{ text: string; tone: "good" | "bad" } | null>(null);
   const [stroke, setStroke] = useState<Tile[] | null>(null);
   const [pending, start] = useTransition();
+  const [confirm, confirmDialog] = useConfirm();
+
+  // The living city: named citizens who commute, shop and visit parks (see src/lib/sim.ts).
+  const places = useMemo(() => placesFrom(lots, types), [lots, types]);
+  const citizens = useMemo(() => citizensFrom(places), [places]);
+  const placeById = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
+  const [paused, setPaused] = useState(false);
+  const [simClock, setSimClock] = useState(7 * 60 + 15);
+  const [citizenId, setCitizenId] = useState<string | null>(null);
+  const [citizenInfo, setCitizenInfo] = useState<CitizenInfo | null>(null);
+  const sim = useMemo(
+    () => ({
+      places,
+      citizens,
+      paused,
+      selectedId: citizenId,
+      onSelect: (id: string | null) => {
+        setCitizenId(id);
+        if (id) setMode({ kind: "idle" });
+      },
+      onInfo: setCitizenInfo,
+      onClock: setSimClock,
+    }),
+    [places, citizens, paused, citizenId],
+  );
   const city3d = useRef<City3DHandle>(null);
   const mapBox = useRef<HTMLDivElement>(null);
   const [wheelHint, setWheelHint] = useState(false);
@@ -221,6 +258,7 @@ export function CityBoard(props: {
     }
     if (mode.kind === "bulldoze") return onStroke([{ x, y }]);
     const b = occupant.get(key(x, y));
+    setCitizenId(null);
     setMode(b ? { kind: "selected", id: b.id } : { kind: "idle" });
   }
 
@@ -248,20 +286,37 @@ export function CityBoard(props: {
       const { ids, refund } = planDemolish(tiles);
       if (ids.length === 0) return say("Nothing to demolish there.");
       const what = ids.length === 1 ? `this ${typeById.get(lots.find((l) => l.id === ids[0])!.type_id)?.name ?? "item"}` : `these ${ids.length} items`;
-      if (!window.confirm(`Demolish ${what} for ${formatCoins(refund)} coins back?`)) return;
-      start(async () => {
-        const r = await sellMany(ids);
-        if (!r.ok) return say(r.error, "bad");
-        say(`Demolished ${r.sold} item${r.sold === 1 ? "" : "s"}. +${formatCoins(r.refund)} coins back.`);
+      void confirm({
+        title: `Demolish ${what}?`,
+        message: refund > 0 ? `You get ${formatCoins(refund)} coins back.` : "You don't get any coins back.",
+        confirmLabel: "Demolish",
+        tone: "danger",
+      }).then((ok) => {
+        if (!ok) return;
+        start(async () => {
+          const r = await sellMany(ids);
+          if (!r.ok) return say(r.error, "bad");
+          say(`Demolished ${r.sold} item${r.sold === 1 ? "" : "s"}. +${formatCoins(r.refund)} coins back.`);
+        });
       });
     }
   }
 
-  function sell(b: (typeof lots)[number]) {
+  async function sell(b: (typeof lots)[number]) {
     const t = typeById.get(b.type_id);
     const isBridge = b.type_id === BRIDGE_TYPE;
     const refund = isBridge ? 0 : sellRefund(b.price_paid);
-    if (!window.confirm(isBridge ? "Take down this bridge? The tile goes back to water." : `Demolish this ${t?.name ?? "building"} for ${formatCoins(refund)} coins back?`)) return;
+    const ok = await confirm(
+      isBridge
+        ? { title: "Take down this bridge?", message: "The tile goes back to water.", confirmLabel: "Take down", tone: "danger" }
+        : {
+            title: `Demolish this ${t?.name ?? "building"}?`,
+            message: refund > 0 ? `You get ${formatCoins(refund)} coins back (half of what you paid).` : "You don't get any coins back.",
+            confirmLabel: "Demolish",
+            tone: "danger",
+          },
+    );
+    if (!ok) return;
     start(async () => {
       const r = await sellBuilding(b.id);
       if (!r.ok) return say(r.error, "bad");
@@ -324,9 +379,14 @@ export function CityBoard(props: {
     });
   }
 
-  function expand() {
+  async function expand() {
     const price = landPrice(props.landPurchases);
-    if (!window.confirm(`Buy more land for ${formatCoins(price)} coins? Your city grows to ${size + 2}×${size + 2}.`)) return;
+    const ok = await confirm({
+      title: `Buy more land for ${formatCoins(price)} coins?`,
+      message: `Your city grows to ${size + 2}×${size + 2}.`,
+      confirmLabel: "Buy land",
+    });
+    if (!ok) return;
     start(async () => {
       const r = await buyLand();
       if (!r.ok) return say(r.error, "bad");
@@ -366,6 +426,25 @@ export function CityBoard(props: {
           : null;
 
   const selectedType = selected ? typeById.get(selected.type_id) : undefined;
+  const selectedPlace = selected ? placeById.get(selected.id) : undefined;
+  const person = (c: (typeof citizens)[number], line: string) => ({ id: c.id, name: c.name, age: c.age, line });
+  const people = !selectedPlace
+    ? undefined
+    : selectedPlace.homes > 0
+      ? { title: "Who lives here", empty: "Nobody yet.", list: citizens.filter((c) => c.homeId === selectedPlace.id).map((c) => person(c, roleText(c, placeById))) }
+      : selectedPlace.school
+        ? {
+            title: "Students",
+            empty: "No students yet. Children in homes connected by road come here.",
+            list: citizens.filter((c) => c.schoolId === selectedPlace.id).map((c) => person(c, `Lives in a ${placeById.get(c.homeId)?.name ?? "home"}`)),
+          }
+        : selectedPlace.jobs > 0
+          ? {
+              title: "Who works here",
+              empty: selectedPlace.entrance ? "Nobody yet. Build homes so people can take these jobs." : "Nobody can get here without a road.",
+              list: citizens.filter((c) => c.workId === selectedPlace.id).map((c) => person(c, `Lives in a ${placeById.get(c.homeId)?.name ?? "home"}`)),
+            }
+          : undefined;
   const selectedPanel = selected ? (
     <SelectedPanel
       lot={selected}
@@ -385,6 +464,11 @@ export function CityBoard(props: {
       canMove={selectedType?.category !== "road"}
       onMove={() => setMode({ kind: "move", id: selected.id })}
       onSell={() => sell(selected)}
+      people={people}
+      onPerson={(id) => {
+        setMode({ kind: "idle" });
+        setCitizenId(id);
+      }}
       onClose={() => setMode({ kind: "idle" })}
     />
   ) : null;
@@ -396,6 +480,7 @@ export function CityBoard(props: {
 
   return (
     <div className="space-y-4">
+      {confirmDialog}
       <CityName name={props.cityName} />
 
       <p aria-live="polite" className={`min-h-5 text-sm ${message?.tone === "bad" ? "text-bad" : "text-good"}`}>
@@ -470,6 +555,7 @@ export function CityBoard(props: {
                 onTile={onTile}
                 onStroke={onStroke}
                 onStrokeChange={setStroke}
+                sim={sim}
               />
               {strokeInfo && (
                 <div
@@ -486,7 +572,48 @@ export function CityBoard(props: {
                 </div>
               )}
               {pending && (
-                <div className={`pointer-events-none absolute left-3 rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-ink shadow ${full ? "top-16" : "top-3"}`}>Saving…</div>
+                <div className={`pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-ink shadow ${full ? "top-28" : "top-12"}`}>Saving…</div>
+              )}
+              {citizens.length > 0 && (
+                <div className={`absolute left-2 flex items-center gap-1 rounded-full bg-surface/95 py-1 pr-1 pl-3 text-sm font-semibold text-ink shadow ring-1 ring-line ${full ? "top-[max(4.5rem,calc(env(safe-area-inset-top)+4rem))]" : "top-2"}`}>
+                  <span aria-hidden>{dayIcon(simClock)}</span>
+                  <span className="tabular-nums" aria-label={`City time ${clockText(simClock)}`}>{clockText(simClock)}</span>
+                  <button
+                    type="button"
+                    onClick={() => setPaused((p) => !p)}
+                    aria-label={paused ? "Resume the city" : "Pause the city"}
+                    title={paused ? "Resume" : "Pause (then tap a car or a person)"}
+                    className={`ml-1 flex size-8 items-center justify-center rounded-full ${paused ? "bg-accent text-on-accent" : "bg-raised hover:bg-line"}`}
+                  >
+                    {paused ? "▶" : "⏸"}
+                  </button>
+                </div>
+              )}
+              {citizenInfo && (
+                <div
+                  className={`absolute left-2 w-[min(20rem,calc(100%-4.5rem))] rounded-2xl bg-surface/95 p-3 text-ink shadow-xl ring-1 ring-line backdrop-blur ${
+                    full ? "bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))]" : "bottom-2"
+                  }`}
+                  role="status"
+                  aria-label={`${citizenInfo.name}: ${citizenInfo.status}`}
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-raised text-xl" aria-hidden>
+                      {citizenInfo.mode === "car" ? "🚗" : citizenInfo.mode === "walk" ? "🚶" : "🏠"}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold">
+                        {citizenInfo.name}, {citizenInfo.age}
+                      </p>
+                      <p className="truncate text-xs text-muted">{citizenInfo.role}</p>
+                    </div>
+                    <button type="button" onClick={() => setCitizenId(null)} aria-label="Close" className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-raised">
+                      ×
+                    </button>
+                  </div>
+                  <p className="mt-2 text-sm font-semibold">{citizenInfo.status}</p>
+                  {citizenInfo.detail && <p className="text-xs text-muted">{citizenInfo.detail}</p>}
+                </div>
               )}
               {full && (
                 <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 pt-[max(0.5rem,env(safe-area-inset-top))]">

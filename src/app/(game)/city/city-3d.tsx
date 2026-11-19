@@ -7,6 +7,7 @@ import * as THREE from "three";
 import type { MapControls as MapControlsImpl } from "three-stdlib";
 import { THEME_EVENT } from "@/lib/themes";
 import { BRIDGE_TYPE, effectiveFacing, isRoadType, FACING_ROTATION, key, rowJoins, roadSet, roadShape, ROAD_TYPE, strokePath, type Lot, type Tile } from "@/lib/roads";
+import { Traffic, type SimProps } from "./traffic";
 import { BOX, BuildingModel, CROWN, MODEL_HEIGHT, NoRoadMarker, OCTA, WorkerMarker, colorSeed, mat } from "./models";
 
 export type Preview = { tiles: Tile[]; ok: boolean; height?: number } | null;
@@ -32,6 +33,8 @@ export type City3DProps = {
   onTile: (x: number, y: number) => void;
   onStroke: (tiles: Tile[]) => void;
   onStrokeChange: (tiles: Tile[] | null) => void;
+  /** Citizens travelling around the city (cars and walkers), with pause and tap-to-inspect. */
+  sim?: SimProps;
 };
 
 export type City3DHandle = { zoom: (factor: number) => void; rotate: (radians: number) => void; reset: () => void };
@@ -126,7 +129,6 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
   // Bridges stand on water, so the pond keeps flowing underneath them.
   const waterTiles = useMemo(() => lots.filter((l) => l.type_id === WATER_TYPE || l.type_id === BRIDGE_TYPE), [lots]);
   const bridgeTiles = useMemo(() => lots.filter((l) => l.type_id === BRIDGE_TYPE), [lots]);
-  const trafficTiles = useMemo(() => lots.filter((l) => isRoadType(l.type_id)), [lots]);
   // Townhomes side by side facing the same way join into a row.
   const joins = useMemo(() => rowJoins(lots, roadSet(lots), "house"), [lots]);
   const roadTiles = useMemo(() => lots.filter((l) => l.type_id === ROAD_TYPE), [lots]);
@@ -227,7 +229,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
         <Roads tiles={roadTiles} roads={roads} />
         <Water tiles={waterTiles} />
         <Bridges tiles={bridgeTiles} roads={roads} />
-        <Cars tiles={trafficTiles} />
+        {props.sim && <Traffic sim={props.sim} roads={roads} />}
         <Wilds size={size} occupied={byTile} />
         {buildings.map((b) => (
           <group key={b.id} position={[b.x + b.size / 2, 0, b.y + b.size / 2]} userData={{ lotId: b.id }}>
@@ -464,7 +466,8 @@ function Ground({ size }: { size: number }) {
         <planeGeometry args={[size, size]} />
         <meshStandardMaterial color="#9ccc65" />
       </mesh>
-      <lineSegments geometry={lines}>
+      {/* Grid lines never take taps (a line's hit area is a whole tile wide, so it would block cars and buildings). */}
+      <lineSegments geometry={lines} raycast={() => null}>
         <lineBasicMaterial color="#7cb342" transparent opacity={0.55} />
       </lineSegments>
       {/* A low hedge marks the edge of your land */}
@@ -955,78 +958,3 @@ const PINE_WILD = new THREE.ConeGeometry(0.5, 1, 6);
 // Traffic: a few cars wander the road network, keeping to the right-hand lane.
 // ---------------------------------------------------------------------------
 
-const CAR_COLORS = ["#ef4444", "#3b82f6", "#facc15", "#f8fafc", "#22c55e", "#a855f7", "#f97316", "#0f172a"];
-const CAR_GLASS = mat("#1e293b");
-
-type CarState = { from: [number, number]; to: [number, number]; t: number; speed: number };
-
-function Cars({ tiles }: { tiles: Lot[] }) {
-  const { invalidate } = useThree();
-  const graph = useMemo(() => {
-    const set = new Set(tiles.map((t) => key(t.x, t.y)));
-    const next = new Map<string, [number, number][]>();
-    for (const t of tiles) {
-      const n: [number, number][] = [];
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (set.has(key(t.x + dx, t.y + dy))) n.push([t.x + dx, t.y + dy]);
-      next.set(key(t.x, t.y), n);
-    }
-    return next;
-  }, [tiles]);
-  // One car per ~5 connected road tiles, up to 14.
-  const count = useMemo(() => {
-    const linked = tiles.filter((t) => (graph.get(key(t.x, t.y))?.length ?? 0) > 0).length;
-    return Math.min(14, Math.floor(linked / 5));
-  }, [tiles, graph]);
-  const cars = useRef<CarState[]>([]);
-  const meshes = useRef<(THREE.Group | null)[]>([]);
-
-  // (Re)seed cars on road tiles that have neighbors whenever the network changes.
-  useLayoutEffect(() => {
-    const starts = tiles.filter((t) => (graph.get(key(t.x, t.y))?.length ?? 0) > 0);
-    cars.current = Array.from({ length: count }, (_, i) => {
-      const s = starts[Math.floor(tileHash(i, starts.length, 91) * starts.length)];
-      const n = graph.get(key(s.x, s.y))!;
-      const to = n[Math.floor(tileHash(i, 7, 92) * n.length)];
-      return { from: [s.x, s.y], to, t: tileHash(i, 3, 93), speed: 0.55 + tileHash(i, 5, 94) * 0.45 };
-    });
-    invalidate();
-  }, [tiles, graph, count, invalidate]);
-
-  useFrame((_, delta) => {
-    if (cars.current.length === 0) return;
-    const dt = Math.min(delta, 0.05);
-    cars.current.forEach((c, i) => {
-      c.t += dt * c.speed;
-      while (c.t >= 1) {
-        c.t -= 1;
-        const options = graph.get(key(c.to[0], c.to[1])) ?? [];
-        const forward = options.filter(([x, y]) => x !== c.from[0] || y !== c.from[1]);
-        const pickFrom = forward.length > 0 ? forward : options; // dead end: turn around
-        const nxt = pickFrom.length > 0 ? pickFrom[Math.floor(Math.random() * pickFrom.length)] : c.from;
-        c.from = c.to;
-        c.to = nxt;
-      }
-      const g = meshes.current[i];
-      if (!g) return;
-      const dx = c.to[0] - c.from[0];
-      const dz = c.to[1] - c.from[1];
-      // Right-hand lane: offset to the right of the direction of travel.
-      const ox = -dz * 0.2;
-      const oz = dx * 0.2;
-      g.position.set(c.from[0] + 0.5 + dx * c.t + ox, 0.03, c.from[1] + 0.5 + dz * c.t + oz);
-      g.rotation.y = Math.atan2(dx, dz);
-    });
-    if (motion.on) invalidate(); // keep animating (the canvas otherwise only redraws on change)
-  });
-
-  return (
-    <>
-      {Array.from({ length: count }, (_, i) => (
-        <group key={i} ref={(el) => { meshes.current[i] = el; }} raycast={() => null}>
-          <mesh geometry={BOX} material={mat(CAR_COLORS[i % CAR_COLORS.length])} position={[0, 0.05, 0]} scale={[0.16, 0.07, 0.28]} castShadow raycast={() => null} />
-          <mesh geometry={BOX} material={CAR_GLASS} position={[0, 0.11, -0.02]} scale={[0.13, 0.06, 0.14]} raycast={() => null} />
-        </group>
-      ))}
-    </>
-  );
-}

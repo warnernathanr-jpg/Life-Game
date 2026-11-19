@@ -157,6 +157,8 @@ export function SelectedPanel({
   onMove,
   onSell,
   onClose,
+  people,
+  onPerson,
 }: {
   lot: Placed & { size: number };
   type?: BuildingTypeRow;
@@ -171,6 +173,9 @@ export function SelectedPanel({
   onMove: () => void;
   onSell: () => void;
   onClose: () => void;
+  /** Residents, staff or students of this building (from the city simulation). */
+  people?: { title: string; empty: string; list: { id: string; name: string; age: number; line: string }[] };
+  onPerson?: (id: string) => void;
 }) {
   if (!type) return null;
   return (
@@ -193,6 +198,30 @@ export function SelectedPanel({
       )}
       <p className="mt-2 text-sm text-ink">{type.description}</p>
       <div className="mt-2"><Effects t={type} /></div>
+      {people && (
+        <div className="mt-4">
+          <h3 className="text-sm font-semibold">
+            {people.title} {people.list.length > 0 && <span className="font-normal text-muted">· {people.list.length}</span>}
+          </h3>
+          {people.list.length === 0 ? (
+            <p className="mt-1 text-xs text-muted">{people.empty}</p>
+          ) : (
+            <ul className="mt-1.5 max-h-48 divide-y divide-line overflow-y-auto rounded-xl border border-line">
+              {people.list.map((p) => (
+                <li key={p.id}>
+                  <button type="button" onClick={() => onPerson?.(p.id)} className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-raised">
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{p.name}, {p.age}</span>
+                      <span className="block truncate text-xs text-muted">{p.line}</span>
+                    </span>
+                    <span className="shrink-0 text-xs text-accent-text">Find →</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       {upgrade && (
         <div className="mt-4 rounded-xl border border-line bg-raised p-3">
           <p className="text-sm font-semibold">
@@ -216,7 +245,7 @@ export function SelectedPanel({
         )}
         {canMove && <button type="button" className="btn-secondary" disabled={pending} onClick={onMove}>Move</button>}
         <button type="button" className={`btn-secondary text-bad ${canMove ? "" : "col-span-2"}`} disabled={pending} onClick={onSell}>
-          Demolish (+{formatCoins(sellRefund(lot.price_paid))})
+          {type.id === "bridge" ? "Take down (back to water)" : `Demolish (+${formatCoins(sellRefund(lot.price_paid))})`}
         </button>
       </div>
       <button type="button" className="link mt-3 text-sm" onClick={onClose}>Back to the shop</button>
