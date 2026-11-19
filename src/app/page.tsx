@@ -1,0 +1,41 @@
+import Link from "next/link";
+
+const STEPS = [
+  { icon: "✅", title: "Do your tasks", text: "Daily habits, weekly routines and one-off to-dos across health, work, learning, home and social." },
+  { icon: "🪙", title: "Earn coins", text: "Easy tasks pay 10, medium 25, hard 50. Up to 400 a day, so it rewards consistency, not busywork." },
+  { icon: "🏗️", title: "Build your city", text: "Spend coins on homes, shops, industry and services. Save up to buy more land." },
+  { icon: "🔓", title: "Unlock by living well", text: "Parks and clinics unlock with health tasks, schools with learning, offices with work. A balanced life builds a balanced city." },
+];
+
+export default function Home() {
+  return (
+    <main className="flex-1">
+      <section className="bg-gradient-to-b from-emerald-800 to-emerald-700 px-4 pt-6 pb-16 text-white">
+        <div className="mx-auto max-w-4xl">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-lg font-bold"><span aria-hidden>🏙️</span> Life City</span>
+            <Link href="/login" className="rounded-lg px-3 py-2 text-sm font-medium hover:bg-white/10">Sign in</Link>
+          </div>
+          <h1 className="mt-12 max-w-2xl text-4xl font-bold tracking-tight sm:text-5xl">
+            Get things done. Watch your city grow.
+          </h1>
+          <p className="mt-4 max-w-xl text-lg text-emerald-50">
+            A personal dashboard for your tasks and habits, with a city-building game powered by your progress.
+          </p>
+          <Link href="/signup" className="mt-8 inline-flex min-h-12 items-center rounded-lg bg-amber-400 px-6 font-semibold text-amber-950 shadow hover:bg-amber-300">
+            Start your city: it&apos;s free
+          </Link>
+        </div>
+      </section>
+      <section className="mx-auto -mt-8 grid max-w-4xl gap-4 px-4 pb-16 sm:grid-cols-2">
+        {STEPS.map((s) => (
+          <div key={s.title} className="card">
+            <div className="text-3xl" aria-hidden>{s.icon}</div>
+            <h2 className="mt-2 font-semibold">{s.title}</h2>
+            <p className="mt-1 text-sm text-slate-600">{s.text}</p>
+          </div>
+        ))}
+      </section>
+    </main>
+  );
+}
