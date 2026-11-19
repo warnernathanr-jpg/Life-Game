@@ -65,3 +65,25 @@ export function connectedIds(lots: Lot[]): Set<string> {
   const roads = roadSet(lots);
   return new Set(lots.filter((l) => l.type_id !== ROAD_TYPE && touchesRoad(l, roads)).map((l) => l.id));
 }
+
+export type Facing = "south" | "east" | "west" | "north";
+
+/** Y rotation (radians) that turns a model's front (+z, "south") to face each direction. */
+export const FACING_ROTATION: Record<Facing, number> = { south: 0, east: Math.PI / 2, west: -Math.PI / 2, north: Math.PI };
+
+/**
+ * Which side of a building faces the road: the side with the most road tiles along it
+ * (ties: south, east, west, north). Buildings without a road keep facing south.
+ */
+export function facingFor(lot: Pick<Lot, "x" | "y" | "size">, roads: Set<string>): Facing {
+  const count = { south: 0, east: 0, west: 0, north: 0 };
+  for (let i = 0; i < lot.size; i++) {
+    if (roads.has(key(lot.x + i, lot.y + lot.size))) count.south++;
+    if (roads.has(key(lot.x + lot.size, lot.y + i))) count.east++;
+    if (roads.has(key(lot.x - 1, lot.y + i))) count.west++;
+    if (roads.has(key(lot.x + i, lot.y - 1))) count.north++;
+  }
+  let best: Facing = "south";
+  for (const side of ["south", "east", "west", "north"] as const) if (count[side] > count[best]) best = side;
+  return best;
+}

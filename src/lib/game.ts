@@ -160,7 +160,7 @@ export function cityStats(
     tips.push("Your city has no services yet. Parks, schools and clinics make people happier.");
   }
   if (lots.length === 0) {
-    tips.push("Start with a short road, then a Cottage and a Corner Shop beside it. Finish tasks to earn more coins.");
+    tips.push("Start with a short road, then a House and a Corner Shop beside it. Finish tasks to earn more coins.");
   }
   const happiness = Math.max(0, Math.min(100, 50 + effect - penalty));
   return {

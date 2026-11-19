@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { connectedIds, roadSet, roadShape, strokePath, touchesRoad } from "./roads";
+import { connectedIds, facingFor, roadSet, roadShape, strokePath, touchesRoad } from "./roads";
 
 describe("strokePath", () => {
   it("is straight along a row", () => {
@@ -38,5 +38,23 @@ describe("road shapes and connections", () => {
   it("counts buildings next to a road, not diagonal", () => {
     expect([...connectedIds(lots)].sort()).toEqual(["big", "home"]);
     expect(touchesRoad({ x: 3, y: 0, size: 1 }, roads)).toBe(false);
+  });
+});
+
+describe("facingFor", () => {
+  const roads = (tiles: [number, number][]) => new Set(tiles.map(([x, y]) => `${x},${y}`));
+  it("faces the side with road", () => {
+    expect(facingFor({ x: 2, y: 2, size: 1 }, roads([[2, 3]]))).toBe("south");
+    expect(facingFor({ x: 2, y: 2, size: 1 }, roads([[2, 1]]))).toBe("north");
+    expect(facingFor({ x: 2, y: 2, size: 1 }, roads([[3, 2]]))).toBe("east");
+    expect(facingFor({ x: 2, y: 2, size: 1 }, roads([[1, 2]]))).toBe("west");
+  });
+  it("prefers the side with more road, and south on ties", () => {
+    // 2x2 at (2,2): one tile of road north, two tiles west.
+    expect(facingFor({ x: 2, y: 2, size: 2 }, roads([[2, 1], [1, 2], [1, 3]]))).toBe("west");
+    expect(facingFor({ x: 2, y: 2, size: 1 }, roads([[2, 1], [2, 3]]))).toBe("south");
+  });
+  it("keeps facing south with no road", () => {
+    expect(facingFor({ x: 0, y: 0, size: 1 }, new Set())).toBe("south");
   });
 });

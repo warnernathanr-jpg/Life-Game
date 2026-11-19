@@ -1,6 +1,6 @@
 -- Phase A: four life areas, Epic tasks, area points, unlocks by points, habit milestones, focus areas.
 begin;
-select plan(19);
+select plan(20);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('61111111-1111-1111-1111-111111111111', 'p@example.com', '{"timezone":"UTC"}');
@@ -15,6 +15,8 @@ select throws_ok($$ insert into public.tasks (title, area) values ('x', 'social'
   '23514', null, 'social is merged into personal and can no longer be used');
 select is((select count(*)::int from public.building_types where unlock_area = 'social'), 0, 'no building unlocks with social');
 select is((select unlock_points from public.building_types where id = 'park'), 75, 'park unlocks at 75 health points');
+select results_eq($$ select name from public.building_types where id in ('cottage', 'house', 'apartments') order by sort_order $$,
+  $$ values ('House'), ('Townhome'), ('Apartments') $$, 'homes follow the density ladder');
 
 -- Epic.
 insert into public.tasks (id, title, area, difficulty) values ('b0000000-0000-0000-0000-000000000001', 'Ship the app', 'work', 'epic');

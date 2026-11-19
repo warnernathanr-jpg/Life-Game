@@ -152,6 +152,15 @@ _Last updated: 2026-11-23_
   (25 more Work points); Build → "Placing Cottage" in the city; Focus area choices; Stats tiles, chart, habits, history.
   No console errors.
 
+### 9. Homes renamed; buildings face the road (2026-11-23)
+- Cottage → **House**, Family House → **Townhome** (🏘️), on the density ladder House → Townhome → Apartments. Display names
+  only: ids stay `cottage` (House) and `house` (Townhome). Migration `20261123000200_rename_homes.sql` (applied live via
+  the Supabase MCP `execute_sql`, which ran without a confirmation prompt). 1 more pgTAP test (143).
+- In 3D, each building turns its front (doors, awnings, garage) toward the side with the most road along it
+  (`facingFor()` in `src/lib/roads.ts`, 3 unit tests; ties: south, east, west, north; no road → south).
+- Phase C note from the owner: the city core should get denser as you level up (upgrade a House in place to Townhome →
+  Apartments → Skyscraper rather than demolishing).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
