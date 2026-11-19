@@ -88,6 +88,29 @@ export function CityBoard(props: {
   const [stroke, setStroke] = useState<Tile[] | null>(null);
   const [pending, start] = useTransition();
   const city3d = useRef<City3DHandle>(null);
+  const mapBox = useRef<HTMLDivElement>(null);
+  const [wheelHint, setWheelHint] = useState(false);
+
+  // Mouse wheel over the 3D map scrolls the page like the rest of it; Ctrl/⌘ + wheel (or a trackpad pinch,
+  // which browsers send as Ctrl + wheel) zooms the map. Stopping the event before it reaches the canvas leaves
+  // the browser's normal scrolling in place.
+  useEffect(() => {
+    const el = mapBox.current;
+    if (!el) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return; // the map's controls zoom
+      e.stopPropagation();
+      setWheelHint(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setWheelHint(false), 1400);
+    };
+    el.addEventListener("wheel", onWheel, { capture: true });
+    return () => {
+      el.removeEventListener("wheel", onWheel, { capture: true });
+      clearTimeout(timer);
+    };
+  }, [view]);
 
   // Remember 3D / flat per browser (a convenience; falls back to 3D).
   useEffect(() => {
@@ -314,7 +337,7 @@ export function CityBoard(props: {
           ? "Drag over things to demolish them (you get half the price back)."
           : "Tap something to demolish it (half the price back)."
         : view === "3d" && (mode.kind === "idle" || mode.kind === "selected")
-          ? "Tap a building to select it. On a phone: one finger scrolls the page, two fingers move and zoom the map. On a computer: drag to move, scroll to zoom, right-drag to rotate."
+          ? "Tap a building to select it. On a phone: one finger scrolls the page, two fingers move and zoom the map. On a computer: drag to move, Ctrl/⌘ + scroll to zoom, right-drag to rotate."
           : null;
 
   const selectedType = selected ? typeById.get(selected.type_id) : undefined;
@@ -391,6 +414,7 @@ export function CityBoard(props: {
 
           {view === "3d" ? (
             <div
+              ref={mapBox}
               data-map={mode.kind === "paint" || mode.kind === "bulldoze" ? "paint" : "browse"}
               className="relative h-[58vh] max-h-[720px] min-h-[320px] overflow-hidden rounded-2xl border-4 border-line bg-raised shadow-inner"
             >
@@ -419,6 +443,11 @@ export function CityBoard(props: {
                   }`}
                 >
                   {strokeInfo.text}
+                </div>
+              )}
+              {wheelHint && (
+                <div className="pointer-events-none absolute inset-x-0 top-1/2 mx-auto w-fit -translate-y-1/2 rounded-full bg-black/70 px-4 py-2 text-sm font-medium text-white shadow">
+                  Hold Ctrl (⌘ on Mac) and scroll to zoom the map
                 </div>
               )}
               {pending && (

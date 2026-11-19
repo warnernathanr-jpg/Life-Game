@@ -203,6 +203,12 @@ _Last updated: 2026-11-24_
 - Migrations `20261124000000`–`000400` (applied live via `execute_sql`). pgTAP 185 (new: `parks_industry`, `landscape`,
   `upgrades`, `rewards`); unit tests 38.
 
+### 12. Mouse wheel on the 3D map (2026-11-24)
+- The wheel over the map scrolls the page (a capture-phase listener on the map box stops it reaching the 3D controls);
+  **Ctrl/⌘ + wheel** (and trackpad pinch, sent as Ctrl + wheel) zooms the map. A hint ("Hold Ctrl (⌘ on Mac) and scroll
+  to zoom the map") shows briefly on plain wheel. +/− buttons, drag-to-pan and right-drag-to-rotate unchanged.
+  Browser-checked: wheel scrolls the page over the map; Ctrl + wheel zooms without scrolling; hint appears and fades.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
