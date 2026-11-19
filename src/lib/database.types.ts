@@ -6,7 +6,7 @@ export type TaskDifficulty = "easy" | "medium" | "hard";
 export type TaskRepeat =
   | "once" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "days" | "times_per_week" | "times_per_month";
 export type BuildingCategory = "residential" | "commercial" | "industrial" | "service" | "road";
-export type LedgerKind = "task" | "task_undo" | "building" | "building_sold" | "land" | "bonus";
+export type LedgerKind = "task" | "task_undo" | "building" | "building_sold" | "land" | "bonus" | "focus";
 
 type Table<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
   Row: Row;
@@ -96,6 +96,19 @@ export type MyTaskRow = {
   today: string;
 };
 
+export type FocusSessionRow = {
+  id: string;
+  user_id: string;
+  minutes: number;
+  label: string | null;
+  started_at: string;
+  ends_at: string;
+  local_day: string;
+  status: "running" | "completed" | "failed" | "abandoned";
+  coins: number;
+  finished_at: string | null;
+};
+
 export type ProgressRow = {
   balance: number;
   earned_today: number;
@@ -128,6 +141,7 @@ export type Database = {
       coin_ledger: Table<LedgerRow, never, never>;
       building_types: Table<BuildingTypeRow, never, never>;
       placed_buildings: Table<PlacedBuildingRow, never, never>;
+      focus_sessions: Table<FocusSessionRow, never, never>;
     };
     Views: Record<string, never>;
     Functions: {
@@ -138,6 +152,12 @@ export type Database = {
       sell_building: { Args: { p_building_id: string }; Returns: { refund: number; balance: number }[] };
       buy_roads: { Args: { p_tiles: [number, number][] }; Returns: { built: number; cost: number; balance: number }[] };
       sell_buildings: { Args: { p_ids: string[] }; Returns: { sold: number; refund: number; balance: number }[] };
+      start_focus: {
+        Args: { p_minutes: number; p_label?: string | null };
+        Returns: { id: string; started_at: string; ends_at: string; server_now: string }[];
+      };
+      complete_focus: { Args: { p_id: string }; Returns: { coins: number; balance: number }[] };
+      fail_focus: { Args: { p_id: string }; Returns: undefined };
       buy_land: { Args: Record<string, never>; Returns: { city_size: number; balance: number }[] };
       my_progress: { Args: Record<string, never>; Returns: ProgressRow[] };
       my_tasks: { Args: Record<string, never>; Returns: MyTaskRow[] };

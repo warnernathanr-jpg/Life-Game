@@ -5,7 +5,7 @@ import { formatCoins } from "@/lib/game";
 
 export const metadata: Metadata = { title: "Coins · Life City" };
 
-const KIND_ICON = { task: "✅", task_undo: "↩️", building: "🏗️", building_sold: "🧱", land: "🗺️", bonus: "🎁" } as const;
+const KIND_ICON = { task: "✅", task_undo: "↩️", building: "🏗️", building_sold: "🧱", land: "🗺️", bonus: "🎁", focus: "⏱️" } as const;
 
 async function CoinsPageContent() {
   const { supabase } = await requireUser();

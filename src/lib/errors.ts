@@ -13,6 +13,10 @@ const MESSAGES: Record<string, string> = {
   building_not_found: "That building is gone.",
   max_size: "Your city is already as big as it can get.",
   no_tiles: "Nothing selected.",
+  bad_minutes: "Choose between 5 and 60 minutes.",
+  focus_not_found: "That focus session is gone.",
+  focus_over: "That focus session has already ended.",
+  focus_too_early: "Not quite yet. Keep going!",
   bad_tiles: "Those tiles couldn't be read. Please try again.",
   too_many_tiles: "That's too long. Do it in shorter pieces (up to 200 tiles).",
 };

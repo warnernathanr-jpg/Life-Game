@@ -11,6 +11,7 @@ import type {
 import { connectedIds } from "./roads";
 
 export const DAILY_COIN_CAP = 400; // public.daily_coin_cap()
+export const DAILY_FOCUS_CAP = 180; // public.daily_focus_cap()
 export const MAX_CITY_SIZE = 30; // public.max_city_size()
 export const MAX_STROKE_TILES = 200; // public.max_stroke_tiles()
 export const REWARDS: Record<TaskDifficulty, number> = { easy: 10, medium: 25, hard: 50 }; // public.task_reward()

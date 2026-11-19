@@ -195,3 +195,40 @@ export async function renameCity(name: string): Promise<ActionResult> {
   refresh();
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// Focus timer
+// ---------------------------------------------------------------------------
+
+export async function startFocus(
+  minutes: number,
+  label: string,
+): Promise<ActionResult<{ id: string; startedAt: string; endsAt: string; serverNow: string }>> {
+  const m = z.number().int().min(5).max(60).safeParse(minutes);
+  if (!m.success) return { ok: false, error: gameError({ message: "bad_minutes" }) };
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase
+    .rpc("start_focus", { p_minutes: m.data, p_label: label.trim().slice(0, 80) || null })
+    .single();
+  if (error || !data) return { ok: false, error: gameError(error) };
+  return { ok: true, id: data.id, startedAt: data.started_at, endsAt: data.ends_at, serverNow: data.server_now };
+}
+
+export async function completeFocus(id: string): Promise<ActionResult<{ coins: number }> | { ok: false; error: string; tooEarly: true }> {
+  if (!uuid.safeParse(id).success) return { ok: false, error: gameError(null) };
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("complete_focus", { p_id: id }).single();
+  if (error?.message === "focus_too_early") return { ok: false, error: gameError(error), tooEarly: true };
+  if (error || !data) return { ok: false, error: gameError(error) };
+  refresh();
+  return { ok: true, coins: data.coins };
+}
+
+export async function failFocus(id: string): Promise<ActionResult> {
+  if (!uuid.safeParse(id).success) return { ok: false, error: gameError(null) };
+  const { supabase } = await requireUser();
+  const { error } = await supabase.rpc("fail_focus", { p_id: id });
+  if (error) return { ok: false, error: gameError(error) };
+  refresh();
+  return { ok: true };
+}
