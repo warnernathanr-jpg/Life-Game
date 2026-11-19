@@ -4,7 +4,7 @@
 // over the map.
 import { useState } from "react";
 import type { BuildingTypeRow, ProgressRow } from "@/lib/database.types";
-import { AREA_BY_ID, BUILD_GROUPS, buildGroupOf, formatCoins, pointsToUnlock, type BuildGroupId } from "@/lib/game";
+import { AREA_BY_ID, BUILD_GROUPS, buildGroupOf, formatCoins, pointsToUnlock, sizeText, type BuildGroupId } from "@/lib/game";
 
 type Tool = { id: string; label: string; icon: string };
 
@@ -88,7 +88,7 @@ export function BuildOverlay({
                         {t.category === "road" || t.category === "landscape" ? " / tile" : ""}
                       </span>
                     )}
-                    {t.size > 1 && <span className="text-[11px] text-muted">{t.size}×{t.size}</span>}
+                    {t.size > 1 && <span className="text-[11px] text-muted">{sizeText(t)}</span>}
                   </button>
                 </li>
               );

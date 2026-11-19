@@ -297,6 +297,28 @@ _Last updated: 2026-11-25_
   older road/bridge tests pin or switch the road type. Browser check: road types render, stroke shows the bar without buying,
   Cancel clears it, house preview bar, pinch while drawing leaves no preview.
 
+### 19. Full building catalog, rectangular footprints (2026-11-25)
+- **48 buildings** in groups **Residential** (Small Cottage, Starter House, Suburban House, Townhouse, Duplex 2×1, Apartment
+  Building, Luxury Home, High-Rise), **Commercial** (Coffee Shop, Convenience Store, Grocery 2×1, Restaurant, Clothing, Bank,
+  Movie Theater, Hotel, Shopping Mall 3×3, + Office Tower), **Industrial** (Small Factory, Manufacturing Plant, Warehouse 2×1,
+  Distribution Center 3×3, + Workshop), **Services** (City Hall, Police, Fire Station, Hospital, Medical Clinic),
+  **Knowledge** (Elementary School 2×1, High School, University 3×3, Library 2×1), **Recreation** (Neighborhood Park,
+  Community Center 2×1, Gym 2×1, Pool, Museum 3×1, Golf Course 4×3, Stadium 4×4, Zoo 4×4, + Basketball Court, Garden Park,
+  Central Park), **Transport** (Gas Station, Bus Station, Parking Garage 2×1, Airport 3×3) and **Landmarks** (Monument).
+  Existing ids kept and renamed where they match; the owner chose to keep the 5 extras. Home ladder: Small Cottage → Starter
+  House → Suburban House → Townhouse → Apartment Building → High-Rise.
+- **Rectangular footprints**: `building_types.w` / `d` (`size` = the larger), `placed_buildings.rotated`;
+  `private.lot_free_rect()`, `buy_building(type, x, y, rotated)`, `move_building(id, x, y, rotated)`; the tree-clearing
+  trigger uses the footprint. In the app every lot is `{x, y, w, h}` (`footprint()` in `src/lib/game.ts`); the preview bar has
+  **⟳ Turn** for rectangles; a rectangle's front faces one of its long sides (`allowedSides()` in `roads.ts`).
+- **3D models** for every new building (`models-catalog.tsx`, one seeded color set per building, `palFor()`), plus new 2×1
+  models for Warehouse, Elementary School, Library and Community Center.
+- **Simulation**: recreation buildings are places to visit; children 5–13 go to elementary school, 14–17 to high school, and
+  some 18–22-year-olds study at the university.
+- Owner's account given 1,000 points per area (4 "Test points" completions, 0 coins) so every building is unlocked for testing.
+- Migration `20261125000200_catalog.sql` (applied live). 12 pgTAP tests (`catalog.test.sql`, 229 total; upgrade tests follow
+  the longer ladder); unit tests 47.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

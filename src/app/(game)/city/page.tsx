@@ -10,7 +10,7 @@ async function CityPageContent({ searchParams }: { searchParams: PageProps<"/cit
   const { supabase } = await requireUser();
   const [{ data: profile }, { data: placed }, { data: types }, { data: progress }] = await Promise.all([
     supabase.from("profiles").select("city_name, city_size, land_purchases").maybeSingle(),
-    supabase.from("placed_buildings").select("id, type_id, x, y, price_paid, facing").order("created_at"),
+    supabase.from("placed_buildings").select("id, type_id, x, y, price_paid, facing, rotated").order("created_at"),
     supabase.from("building_types").select("*").order("sort_order"),
     supabase.rpc("my_progress").maybeSingle(),
   ]);

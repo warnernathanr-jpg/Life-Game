@@ -16,7 +16,7 @@ select throws_ok($$ insert into public.tasks (title, area) values ('x', 'social'
 select is((select count(*)::int from public.building_types where unlock_area = 'social'), 0, 'no building unlocks with social');
 select is((select unlock_points from public.building_types where id = 'park'), 75, 'park unlocks at 75 health points');
 select results_eq($$ select name from public.building_types where id in ('cottage', 'house', 'apartments') order by sort_order $$,
-  $$ values ('House'), ('Townhome'), ('Apartments') $$, 'homes follow the density ladder');
+  $$ values ('Starter House'), ('Townhouse'), ('Apartment Building') $$, 'homes follow the density ladder');
 
 -- Epic.
 insert into public.tasks (id, title, area, difficulty) values ('b0000000-0000-0000-0000-000000000001', 'Ship the app', 'work', 'epic');

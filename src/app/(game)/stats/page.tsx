@@ -17,7 +17,7 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
     supabase.rpc("my_tasks"),
     supabase.rpc("my_progress").maybeSingle(),
     supabase.from("building_types").select("*").order("sort_order"),
-    supabase.from("placed_buildings").select("id, type_id, x, y"),
+    supabase.from("placed_buildings").select("id, type_id, x, y, rotated"),
     supabase.from("profiles").select("timezone, city_name").maybeSingle(),
   ]);
   const tz = profile?.timezone ?? "UTC";

@@ -6,6 +6,7 @@
 import { Billboard } from "@react-three/drei";
 import { memo } from "react";
 import * as THREE from "three";
+import { CATALOG_HEIGHT, CATALOG_MODELS } from "./models-catalog";
 
 const BOX = new THREE.BoxGeometry(1, 1, 1);
 const PYRAMID = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4, 1).rotateY(Math.PI / 4);
@@ -33,18 +34,18 @@ export function mat(color: string, opts: { metal?: boolean; flat?: boolean } = {
   return m;
 }
 
-type V3 = [number, number, number];
+export type V3 = [number, number, number];
 
 /** A box with its base at y (position = centre of the bottom face). */
-function B({ p, s, c, metal }: { p: V3; s: V3; c: string; metal?: boolean }) {
+export function B({ p, s, c, metal }: { p: V3; s: V3; c: string; metal?: boolean }) {
   return (
     <mesh geometry={BOX} material={mat(c, { metal })} position={[p[0], p[1] + s[1] / 2, p[2]]} scale={s} castShadow receiveShadow />
   );
 }
-function Roof({ p, s, c }: { p: V3; s: V3; c: string }) {
+export function Roof({ p, s, c }: { p: V3; s: V3; c: string }) {
   return <mesh geometry={PYRAMID} material={mat(c)} position={[p[0], p[1] + s[1] / 2, p[2]]} scale={s} castShadow />;
 }
-function Cyl({ p, r, h, c }: { p: V3; r: number; h: number; c: string }) {
+export function Cyl({ p, r, h, c }: { p: V3; r: number; h: number; c: string }) {
   return <mesh geometry={CYLINDER} material={mat(c)} position={[p[0], p[1] + h / 2, p[2]]} scale={[r * 2, h, r * 2]} castShadow />;
 }
 export function Tree({ p, s = 1, pine, crown = "#22c55e" }: { p: V3; s?: number; pine?: boolean; crown?: string }) {
@@ -137,7 +138,7 @@ function TreeTile({ seed }: { seed: number }) {
 // Color variety: each building gets its own scheme, picked from these palettes by a
 // seed made from the building's id, so a building keeps its colors across visits.
 // ---------------------------------------------------------------------------
-const PALETTE = {
+export const PALETTE = {
   walls: ["#f5e6c8", "#fde7c8", "#dbeafe", "#dcfce7", "#fce7f3", "#e7e5e4", "#fef9c3", "#ede9fe", "#ffedd5", "#ccfbf1", "#f8fafc"],
   roofs: ["#c2410c", "#9a3412", "#7f1d1d", "#475569", "#1e3a8a", "#166534", "#57534e", "#0f766e", "#6b21a8", "#334155"],
   doors: ["#7c2d12", "#1e3a5f", "#14532d", "#7f1d1d", "#3f3f46", "#713f12"],
@@ -164,7 +165,7 @@ export function colorSeed(id: string): number {
 }
 
 /** Pick from a palette: each salt mixes the seed differently, so walls and roofs vary independently. */
-function pick<T>(list: readonly T[], seed: number, salt: number): T {
+export function pick<T>(list: readonly T[], seed: number, salt: number): T {
   let h = Math.imul(seed ^ Math.imul(salt + 1, 0x9e3779b1), 0x85ebca6b);
   h ^= h >>> 13;
   h = Math.imul(h, 0xc2b2ae35);
@@ -176,9 +177,12 @@ function pick<T>(list: readonly T[], seed: number, salt: number): T {
 export const MODEL_HEIGHT: Record<string, number> = {
   cottage: 0.75, house: 0.95, apartments: 1.75, corner_shop: 0.5, cafe: 0.5, office: 3.2, workshop: 0.8,
   warehouse: 0.8, factory: 1.5, park: 0.5, court: 0.65, garden: 0.8, central_park: 1.0, tree: 0.9, clinic: 0.65, school: 0.9, library: 0.7, fire_station: 0.85, community: 0.8,
+  ...CATALOG_HEIGHT,
 };
 
 function Model({ typeId, seed, join }: { typeId: string; seed: number; join?: { left: boolean; right: boolean } }) {
+  const catalog = CATALOG_MODELS[typeId];
+  if (catalog) return catalog(seed);
   const wall = pick(PALETTE.walls, seed, 1);
   const roof = pick(PALETTE.roofs, seed, 2);
   const door = pick(PALETTE.doors, seed, 3);
@@ -487,4 +491,4 @@ export function WorkerMarker({ y }: { y: number }) {
   );
 }
 
-export { BOX, CROWN, OCTA };
+export { BOX, CROWN, OCTA, CYLINDER, DISC, TENT, PINE };

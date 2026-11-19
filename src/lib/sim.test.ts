@@ -9,15 +9,15 @@ const types = [
   { id: "park", name: "Small Park", category: "service" as const, population: 0, jobs: 0 },
   { id: "school", name: "School", category: "service" as const, population: 0, jobs: 3 },
 ];
-const road = (x: number, y: number): Lot => ({ id: `r${x},${y}`, type_id: "road", x, y, size: 1 });
+const road = (x: number, y: number): Lot => ({ id: `r${x},${y}`, type_id: "road", x, y, w: 1, h: 1 });
 const lots: Lot[] = [
   ...Array.from({ length: 10 }, (_, x) => road(x, 3)),
-  { id: "home-a", type_id: "cottage", x: 0, y: 2, size: 1 },
-  { id: "home-b", type_id: "cottage", x: 1, y: 2, size: 1 },
-  { id: "shop-1", type_id: "shop", x: 8, y: 4, size: 1 },
-  { id: "park-1", type_id: "park", x: 9, y: 2, size: 1 },
-  { id: "school-1", type_id: "school", x: 5, y: 4, size: 1 },
-  { id: "lonely", type_id: "cottage", x: 5, y: 8, size: 1 },
+  { id: "home-a", type_id: "cottage", x: 0, y: 2, w: 1, h: 1 },
+  { id: "home-b", type_id: "cottage", x: 1, y: 2, w: 1, h: 1 },
+  { id: "shop-1", type_id: "shop", x: 8, y: 4, w: 1, h: 1 },
+  { id: "park-1", type_id: "park", x: 9, y: 2, w: 1, h: 1 },
+  { id: "school-1", type_id: "school", x: 5, y: 4, w: 1, h: 1 },
+  { id: "lonely", type_id: "cottage", x: 5, y: 8, w: 1, h: 1 },
 ];
 
 describe("city simulation", () => {
@@ -41,7 +41,7 @@ describe("city simulation", () => {
   });
 
   it("caps the number of simulated citizens", () => {
-    const many: Lot[] = Array.from({ length: 40 }, (_, i) => ({ id: `h${i}`, type_id: "cottage", x: i, y: 0, size: 1 }));
+    const many: Lot[] = Array.from({ length: 40 }, (_, i) => ({ id: `h${i}`, type_id: "cottage", x: i, y: 0, w: 1, h: 1 }));
     expect(citizensFrom(placesFrom(many, types)).length).toBeLessThanOrEqual(MAX_CITIZENS);
   });
 

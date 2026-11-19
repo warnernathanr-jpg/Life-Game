@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
-import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, formatCoins, landPrice, lotFree, pointsToUnlock, sellRefund } from "@/lib/game";
+import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, sellRefund } from "@/lib/game";
 import { BRIDGE_TYPE, connectedIds, isRoadType, key, nextFacing, roadSet, type Facing, type Lot, type Tile } from "@/lib/roads";
 import { buyBuilding, buyLand, buyTiles, moveBuilding, sellBuilding, sellMany, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
@@ -19,7 +19,7 @@ const City3D = dynamic(() => import("./city-3d"), {
   loading: () => <div className="flex h-full items-center justify-center text-sm text-muted">Loading 3D city…</div>,
 });
 
-type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid" | "facing">;
+type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid" | "facing"> & { rotated?: boolean };
 /** Tiles painted by dragging: roads and landscaping. */
 const PAINT_TYPES = ["dirt_road", "road", "avenue", "tree", "water"] as const;
 type PaintType = (typeof PAINT_TYPES)[number];
@@ -65,7 +65,7 @@ export function CityBoard(props: {
   const { size, placed, types, progress, balance } = props;
   const typeById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types]);
   const lots: (Lot & { price_paid: number })[] = useMemo(
-    () => placed.map((b) => ({ ...b, size: typeById.get(b.type_id)?.size ?? 1 })),
+    () => placed.map((b) => ({ ...b, ...footprint(typeById.get(b.type_id), b.rotated) })),
     [placed, typeById],
   );
   const roads = useMemo(() => roadSet(lots), [lots]);
@@ -84,7 +84,7 @@ export function CityBoard(props: {
   }, [lots, typeById]);
   const occupant = useMemo(() => {
     const map = new Map<string, (typeof lots)[number]>();
-    for (const b of lots) for (let dx = 0; dx < b.size; dx++) for (let dy = 0; dy < b.size; dy++) map.set(key(b.x + dx, b.y + dy), b);
+    for (const b of lots) for (let dx = 0; dx < b.w; dx++) for (let dy = 0; dy < b.h; dy++) map.set(key(b.x + dx, b.y + dy), b);
     return map;
   }, [lots]);
 
@@ -100,6 +100,7 @@ export function CityBoard(props: {
   // Previews waiting for Confirm: a spot for a building being placed or moved, tiles being painted.
   const [draftSpot, setDraftSpot] = useState<Tile | null>(null);
   const [draftTiles, setDraftTiles] = useState<Tile[]>([]);
+  const [draftRot, setDraftRot] = useState(false);
   const modeKey = mode.kind === "paint" ? `paint:${mode.typeId}` : mode.kind === "place" ? `place:${mode.typeId}` : mode.kind === "move" ? `move:${mode.id}` : mode.kind;
   const [draftFor, setDraftFor] = useState(modeKey);
   if (draftFor !== modeKey) {
@@ -107,6 +108,7 @@ export function CityBoard(props: {
     setDraftFor(modeKey);
     setDraftSpot(null);
     setDraftTiles([]);
+    setDraftRot(mode.kind === "move" ? !!placed.find((b) => b.id === mode.id)?.rotated : false);
   }
 
   // The living city: named citizens who commute, shop and visit parks (see src/lib/sim.ts).
@@ -193,7 +195,9 @@ export function CityBoard(props: {
   const paintType = mode.kind === "paint" ? typeById.get(mode.typeId) : undefined;
   const movingLot = mode.kind === "move" ? lots.find((b) => b.id === mode.id) : undefined;
   const selected = mode.kind === "selected" ? lots.find((b) => b.id === mode.id) : undefined;
-  const ghostSize = placingType?.size ?? movingLot?.size ?? 0;
+  // Footprint of what's being placed or moved, turned or not (rectangles can be turned before confirming).
+  const draftDims = placingType ? footprint(placingType, draftRot) : movingLot ? footprint(typeById.get(movingLot.type_id), draftRot) : null;
+  const canTurn = !!draftDims && draftDims.w !== draftDims.h;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -267,12 +271,12 @@ export function CityBoard(props: {
     if (!draftSpot || pending) return;
     const { x, y } = draftSpot;
     if (mode.kind === "place" && placingType) {
-      if (!lotFree(size, { x, y, size: placingType.size }, lots)) return say("That spot is taken or doesn't fit.", "bad");
+      if (!draftDims || !lotFree(size, { x, y, ...draftDims }, lots)) return say("That spot is taken or doesn't fit.", "bad");
       if (balance < placingType.cost) return say("Not enough coins yet. Finish some tasks!", "bad");
       start(async () => {
-        const r = await buyBuilding(placingType.id, x, y);
+        const r = await buyBuilding(placingType.id, x, y, draftRot);
         if (!r.ok) return say(r.error, "bad");
-        const nearRoad = connectedIds([...lots, { id: r.id, type_id: placingType.id, x, y, size: placingType.size }]).has(r.id);
+        const nearRoad = connectedIds([...lots, { id: r.id, type_id: placingType.id, x, y, ...draftDims }]).has(r.id);
         say(`Built a ${placingType.name} for ${formatCoins(placingType.cost)} coins.${nearRoad ? "" : " It needs a road beside it to count."}`);
         // One building per pick: back to looking around (no Cancel needed).
         setMode({ kind: "idle" });
@@ -280,9 +284,9 @@ export function CityBoard(props: {
       return;
     }
     if (mode.kind === "move" && movingLot) {
-      if (!lotFree(size, { x, y, size: movingLot.size }, lots, movingLot.id)) return say("That spot is taken or doesn't fit.", "bad");
+      if (!draftDims || !lotFree(size, { x, y, ...draftDims }, lots, movingLot.id)) return say("That spot is taken or doesn't fit.", "bad");
       start(async () => {
-        const r = await moveBuilding(movingLot.id, x, y);
+        const r = await moveBuilding(movingLot.id, x, y, draftRot);
         if (!r.ok) return say(r.error, "bad");
         say("Moved.");
         setMode({ kind: "selected", id: movingLot.id });
@@ -393,7 +397,7 @@ export function CityBoard(props: {
     let room = to.size <= from.size;
     for (let dy = 0; !room && dy <= to.size - from.size; dy++) {
       for (let dx = 0; !room && dx <= to.size - from.size; dx++) {
-        if (lotFree(size, { x: b.x - dx, y: b.y - dy, size: to.size }, lots, b.id)) room = true;
+        if (lotFree(size, { x: b.x - dx, y: b.y - dy, w: to.w, h: to.d }, lots, b.id)) room = true;
       }
     }
     const blocked =
@@ -467,7 +471,7 @@ export function CityBoard(props: {
 
   // The confirmation bar for whatever is being previewed.
   const draftPlan = mode.kind === "paint" && draftTiles.length > 0 ? planPaint(draftTiles, mode.typeId) : null;
-  const draftBar: { title: string; detail: string; problem?: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void } | null =
+  const draftBar: { title: string; detail: string; problem?: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void; onTurn?: () => void } | null =
     mode.kind === "paint" && paintType && draftPlan
       ? {
           title: `${paintType.icon} ${draftPlan.fresh.length} ${paintType.name.toLowerCase()} tile${draftPlan.fresh.length === 1 ? "" : "s"} · 🪙 ${formatCoins(draftPlan.cost)}`,
@@ -496,10 +500,10 @@ export function CityBoard(props: {
       : (mode.kind === "place" && placingType) || (mode.kind === "move" && movingLot)
         ? draftSpot
           ? (() => {
-              const s1 = mode.kind === "place" ? placingType!.size : movingLot!.size;
-              const fits = lotFree(size, { x: draftSpot.x, y: draftSpot.y, size: s1 }, lots, movingLot?.id);
+              const dims = draftDims ?? { w: 1, h: 1 };
+              const fits = lotFree(size, { x: draftSpot.x, y: draftSpot.y, ...dims }, lots, movingLot?.id);
               const covers = lots.filter(
-                (l) => l.type_id === "tree" && l.x >= draftSpot.x && l.x < draftSpot.x + s1 && l.y >= draftSpot.y && l.y < draftSpot.y + s1,
+                (l) => l.type_id === "tree" && l.x >= draftSpot.x && l.x < draftSpot.x + dims.w && l.y >= draftSpot.y && l.y < draftSpot.y + dims.h,
               ).length;
               return {
                 title: mode.kind === "place" ? `${placingType!.icon} ${placingType!.name} · 🪙 ${formatCoins(placingType!.cost)}` : "Move here?",
@@ -512,6 +516,7 @@ export function CityBoard(props: {
                 confirmLabel: mode.kind === "place" ? "Build here" : "Move here",
                 onConfirm: confirmSpot,
                 onCancel: () => setDraftSpot(null),
+                onTurn: canTurn ? () => setDraftRot((r) => !r) : undefined,
               };
             })()
           : null
@@ -551,7 +556,7 @@ export function CityBoard(props: {
       onRotate={() => rotate(selected)}
       upgrade={upgradeInfo(selected)}
       onUpgrade={() => upgrade(selected)}
-      canMove={selectedType?.category !== "road"}
+      canMove={selectedType?.category !== "road" && selectedType?.category !== "landscape"}
       onMove={() => setMode({ kind: "move", id: selected.id })}
       onSell={() => sell(selected)}
       people={people}
@@ -637,8 +642,8 @@ export function CityBoard(props: {
                 selectedId={selected?.id}
                 dimmedId={movingLot?.id}
                 input={mode.kind === "paint" || mode.kind === "bulldoze" ? "stroke" : "point"}
-                ghostSize={ghostSize}
-                ghostOk={(x, y) => lotFree(size, { x, y, size: ghostSize }, lots, movingLot?.id) && (!placingType || balance >= placingType.cost)}
+                ghostDims={draftDims}
+                ghostOk={(x, y) => !!draftDims && lotFree(size, { x, y, ...draftDims }, lots, movingLot?.id) && (!placingType || balance >= placingType.cost)}
                 strokeOk={(tiles) => (mode.kind === "paint" ? planPaint(tiles, mode.typeId).ok : true)}
                 strokeColor={mode.kind === "bulldoze" ? "demolish" : "build"}
                 paintTypeId={mode.kind === "paint" ? mode.typeId : undefined}
@@ -694,6 +699,11 @@ export function CityBoard(props: {
                     <p className="truncate text-sm font-bold">{draftBar.title}</p>
                     <p className={`truncate text-xs ${draftBar.problem ? "text-bad" : "text-muted"}`}>{draftBar.problem ?? draftBar.detail}</p>
                   </div>
+                  {draftBar.onTurn && (
+                    <button type="button" className="btn-secondary min-h-10 shrink-0 px-3 py-1 text-sm" onClick={draftBar.onTurn} aria-label="Turn the building">
+                      ⟳ Turn
+                    </button>
+                  )}
                   <button type="button" className="btn-secondary min-h-10 shrink-0 px-3 py-1 text-sm" onClick={draftBar.onCancel}>
                     Cancel
                   </button>

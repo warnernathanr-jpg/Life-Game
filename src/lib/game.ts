@@ -61,12 +61,27 @@ export const CATEGORIES: { id: BuildingCategory; label: string; tile: string; ch
   { id: "road", label: "Roads", tile: "bg-slate-500 border-slate-600", chip: "bg-slate-200 text-slate-900" },
   { id: "landscape", label: "Landscape", tile: "bg-emerald-200 border-emerald-400", chip: "bg-emerald-100 text-emerald-900" },
 ];
-/** Parks are services, but the build menu gives them their own group (as it does Knowledge). */
+/** Parks (places people visit to relax), part of Recreation. */
 export const PARK_IDS = new Set(["park", "court", "garden", "central_park"]);
-/** Schools and libraries: services too, grouped as Knowledge in the build menu. */
-export const KNOWLEDGE_IDS = new Set(["school", "library"]);
+/** Services by menu group (all have category "service" in the database). */
+export const KNOWLEDGE_IDS = new Set(["school", "high_school", "university", "library"]);
+export const RECREATION_IDS = new Set([...PARK_IDS, "community", "gym", "pool", "stadium", "golf", "museum", "zoo"]);
+export const TRANSPORT_IDS = new Set(["gas_station", "bus_station", "parking", "airport"]);
+export const LANDMARK_IDS = new Set(["monument"]);
+/** Schools children (and students) attend. */
+export const SCHOOL_IDS = new Set(["school", "high_school", "university"]);
 
-export type BuildGroupId = "residential" | "commercial" | "industrial" | "service" | "knowledge" | "road" | "park" | "landscape";
+export type BuildGroupId =
+  | "residential"
+  | "commercial"
+  | "industrial"
+  | "service"
+  | "knowledge"
+  | "recreation"
+  | "transport"
+  | "landmark"
+  | "road"
+  | "landscape";
 
 /** The build menu's groups (with icons), in menu order. Bridges are drawn with the road tool, not picked. */
 export const BUILD_GROUPS: { id: BuildGroupId; label: string; icon: string; tile: string }[] = [
@@ -75,15 +90,19 @@ export const BUILD_GROUPS: { id: BuildGroupId; label: string; icon: string; tile
   { id: "industrial", label: "Industrial", icon: "🏭", tile: "bg-stone-200 border-stone-400" },
   { id: "service", label: "Services", icon: "🏛️", tile: "bg-violet-100 border-violet-300" },
   { id: "knowledge", label: "Knowledge", icon: "📚", tile: "bg-amber-100 border-amber-300" },
+  { id: "recreation", label: "Recreation", icon: "🎡", tile: "bg-lime-100 border-lime-400" },
+  { id: "transport", label: "Transport", icon: "🚌", tile: "bg-cyan-100 border-cyan-300" },
+  { id: "landmark", label: "Landmarks", icon: "🗽", tile: "bg-teal-100 border-teal-300" },
   { id: "road", label: "Roads", icon: "🛣️", tile: "bg-slate-300 border-slate-500" },
-  { id: "park", label: "Parks", icon: "🌳", tile: "bg-lime-100 border-lime-400" },
   { id: "landscape", label: "Landscape", icon: "🌲", tile: "bg-emerald-200 border-emerald-400" },
 ];
 
 export function buildGroupOf(t: Pick<BuildingTypeRow, "id" | "category">): BuildGroupId | null {
   if (t.id === "bridge") return null;
-  if (PARK_IDS.has(t.id)) return "park";
   if (KNOWLEDGE_IDS.has(t.id)) return "knowledge";
+  if (RECREATION_IDS.has(t.id)) return "recreation";
+  if (TRANSPORT_IDS.has(t.id)) return "transport";
+  if (LANDMARK_IDS.has(t.id)) return "landmark";
   return t.category as BuildGroupId;
 }
 
@@ -160,12 +179,12 @@ export const NATURE_CAP = 10;
  * - Health = average of happiness, employment balance, road connections and service coverage.
  */
 export function cityStats(
-  placed: Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y">[],
+  placed: (Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y"> & { rotated?: boolean })[],
   types: BuildingTypeRow[],
   progress: ProgressRow | null = null,
 ): CityStats {
   const byId = new Map(types.map((t) => [t.id, t]));
-  const lots = placed.map((b) => ({ ...b, size: byId.get(b.type_id)?.size ?? 1 }));
+  const lots = placed.map((b) => ({ ...b, ...footprint(byId.get(b.type_id), b.rotated) }));
   const connected = connectedIds(lots);
   let population = 0;
   let jobs = 0;
@@ -329,21 +348,30 @@ export function cityStats(
 }
 
 /** Do two square lots overlap? (x, y = top-left tile.) */
-export function lotsOverlap(
-  a: { x: number; y: number; size: number },
-  b: { x: number; y: number; size: number },
-): boolean {
-  return a.x < b.x + b.size && b.x < a.x + a.size && a.y < b.y + b.size && b.y < a.y + a.size;
+type Rect = { x: number; y: number; w: number; h: number };
+
+export function lotsOverlap(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 }
+
+/** Footprint of a building type, turned (width and depth swapped) or not. Squares ignore turning. */
+export function footprint(t: Pick<BuildingTypeRow, "w" | "d"> | undefined, rotated = false): { w: number; h: number } {
+  const w = t?.w ?? 1;
+  const d = t?.d ?? 1;
+  return rotated && w !== d ? { w: d, h: w } : { w, h: d };
+}
+
+/** "2×1", "3×3"… */
+export const sizeText = (t: Pick<BuildingTypeRow, "w" | "d">) => `${t.w}×${t.d}`;
 
 /** Client-side mirror of private.lot_free() (the database re-checks). */
 export function lotFree(
   citySize: number,
-  lot: { x: number; y: number; size: number },
-  placed: { id: string; x: number; y: number; size: number; type_id?: string }[],
+  lot: Rect,
+  placed: (Rect & { id: string; type_id?: string })[],
   exceptId?: string,
 ): boolean {
-  if (lot.x < 0 || lot.y < 0 || lot.x + lot.size > citySize || lot.y + lot.size > citySize) return false;
+  if (lot.x < 0 || lot.y < 0 || lot.x + lot.w > citySize || lot.y + lot.h > citySize) return false;
   // Trees never block: whatever is built on them clears them (as the database does).
   return !placed.some((b) => b.id !== exceptId && b.type_id !== "tree" && lotsOverlap(lot, b));
 }

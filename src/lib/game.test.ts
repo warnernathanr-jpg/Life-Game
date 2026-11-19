@@ -5,7 +5,8 @@ import { cityStats, landPrice, lotFree, nextMilestone, nextUnlocks, sellRefund, 
 function type(p: Partial<BuildingTypeRow> & Pick<BuildingTypeRow, "id">): BuildingTypeRow {
   return {
     name: p.id, category: "residential", icon: "🏠", description: "", cost: 10, size: 1,
-    population: 0, jobs: 0, happiness: 0, unlock_area: null, unlock_points: null, upgrades_to: null, sort_order: 0, ...p,
+    population: 0, jobs: 0, happiness: 0, unlock_area: null, unlock_points: null, upgrades_to: null, sort_order: 0,
+    w: p.w ?? p.size ?? 1, d: p.d ?? p.size ?? 1, ...p,
   };
 }
 
@@ -112,25 +113,36 @@ describe("cityStats", () => {
 });
 
 describe("lotFree", () => {
-  const placed = [{ id: "f", x: 2, y: 2, size: 2 }];
+  const placed = [{ id: "f", x: 2, y: 2, w: 2, h: 2 }];
   it("checks bounds and overlap", () => {
-    expect(lotFree(8, { x: 0, y: 0, size: 1 }, placed)).toBe(true);
-    expect(lotFree(8, { x: 3, y: 3, size: 1 }, placed)).toBe(false);
-    expect(lotFree(8, { x: 1, y: 1, size: 2 }, placed)).toBe(false);
-    expect(lotFree(8, { x: 7, y: 7, size: 2 }, placed)).toBe(false);
-    expect(lotFree(8, { x: -1, y: 0, size: 1 }, placed)).toBe(false);
+    expect(lotFree(8, { x: 0, y: 0, w: 1, h: 1 }, placed)).toBe(true);
+    expect(lotFree(8, { x: 3, y: 3, w: 1, h: 1 }, placed)).toBe(false);
+    expect(lotFree(8, { x: 1, y: 1, w: 2, h: 2 }, placed)).toBe(false);
+    expect(lotFree(8, { x: 7, y: 7, w: 2, h: 2 }, placed)).toBe(false);
+    expect(lotFree(8, { x: -1, y: 0, w: 1, h: 1 }, placed)).toBe(false);
+  });
+  it("handles rectangles and ignores trees", () => {
+    const long = [{ id: "m", x: 0, y: 0, w: 3, h: 1 }, { id: "t", x: 5, y: 5, w: 1, h: 1, type_id: "tree" }];
+    expect(lotFree(8, { x: 2, y: 0, w: 1, h: 1 }, long)).toBe(false);
+    expect(lotFree(8, { x: 0, y: 1, w: 3, h: 1 }, long)).toBe(true);
+    expect(lotFree(8, { x: 5, y: 4, w: 1, h: 2 }, long)).toBe(true);
+    expect(lotFree(8, { x: 7, y: 0, w: 1, h: 3 }, long)).toBe(true);
+    expect(lotFree(8, { x: 6, y: 0, w: 3, h: 1 }, long)).toBe(false);
   });
   it("ignores the building being moved", () => {
-    expect(lotFree(8, { x: 3, y: 2, size: 2 }, placed, "f")).toBe(true);
+    expect(lotFree(8, { x: 3, y: 2, w: 2, h: 2 }, placed, "f")).toBe(true);
   });
 });
 
 describe("build groups", () => {
-  it("puts schools and libraries under Knowledge and parks under Parks", async () => {
+  it("groups services into Knowledge, Recreation, Transport and Landmarks", async () => {
     const { buildGroupOf } = await import("./game");
     expect(buildGroupOf({ id: "school", category: "service" })).toBe("knowledge");
     expect(buildGroupOf({ id: "library", category: "service" })).toBe("knowledge");
-    expect(buildGroupOf({ id: "court", category: "service" })).toBe("park");
+    expect(buildGroupOf({ id: "court", category: "service" })).toBe("recreation");
+    expect(buildGroupOf({ id: "airport", category: "service" })).toBe("transport");
+    expect(buildGroupOf({ id: "monument", category: "service" })).toBe("landmark");
+    expect(buildGroupOf({ id: "university", category: "service" })).toBe("knowledge");
     expect(buildGroupOf({ id: "clinic", category: "service" })).toBe("service");
     expect(buildGroupOf({ id: "bridge", category: "road" })).toBeNull();
   });

@@ -3,7 +3,7 @@
 // Side panels and small pieces of the city screen.
 import { useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
-import { AREA_BY_ID, BUILD_GROUPS, CATEGORY_BY_ID, buildGroupOf, formatCoins, type BuildGroupId, pointsToUnlock, sellRefund, type CityStats } from "@/lib/game";
+import { AREA_BY_ID, BUILD_GROUPS, CATEGORY_BY_ID, buildGroupOf, formatCoins, sizeText, type BuildGroupId, pointsToUnlock, sellRefund, type CityStats } from "@/lib/game";
 import { renameCity } from "../actions";
 
 type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid">;
@@ -45,7 +45,7 @@ export function Effects({ t }: { t: BuildingTypeRow }) {
   if (t.population) parts.push({ text: `+${t.population} 👥` });
   if (t.jobs) parts.push({ text: `+${t.jobs} 💼` });
   if (t.happiness) parts.push({ text: `${t.happiness > 0 ? "+" : "−"}${Math.abs(t.happiness)} 😊`, bad: t.happiness < 0 });
-  if (t.size > 1) parts.push({ text: "2×2" });
+  if (t.w > 1 || t.d > 1) parts.push({ text: sizeText(t) });
   return (
     <span className="flex flex-wrap gap-1">
       {parts.map((p) => (
@@ -160,7 +160,7 @@ export function SelectedPanel({
   people,
   onPerson,
 }: {
-  lot: Placed & { size: number };
+  lot: Placed & { w: number; h: number };
   type?: BuildingTypeRow;
   pending: boolean;
   warning?: string;
@@ -226,7 +226,7 @@ export function SelectedPanel({
         <div className="mt-4 rounded-xl border border-line bg-raised p-3">
           <p className="text-sm font-semibold">
             Upgrade to <span aria-hidden>{upgrade.to.icon}</span> {upgrade.to.name}
-            {upgrade.to.size > type.size ? ` (${upgrade.to.size}×${upgrade.to.size})` : ""}
+            {upgrade.to.size > type.size ? ` (${sizeText(upgrade.to)})` : ""}
           </p>
           <p className="text-xs text-muted">
             +{upgrade.to.population - type.population} residents · pay the difference

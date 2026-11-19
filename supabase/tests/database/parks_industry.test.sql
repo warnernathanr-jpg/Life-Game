@@ -5,7 +5,7 @@ select plan(12);
 select results_eq($$ select id, size from public.building_types where id in ('park', 'court', 'garden', 'central_park', 'workshop', 'warehouse') order by sort_order $$,
   $$ values ('workshop', 2), ('warehouse', 2), ('park', 1), ('court', 2), ('garden', 3), ('central_park', 4) $$,
   'industry is 2x2; parks come in 1x1 to 4x4');
-select is((select name from public.building_types where id = 'park'), 'Small Park', 'the 1x1 park is the Small Park');
+select is((select name from public.building_types where id = 'park'), 'Neighborhood Park', 'the 1x1 park is the Neighborhood Park');
 
 insert into auth.users (id, email) values
   ('71111111-1111-1111-1111-111111111111', 'pk@example.com'),

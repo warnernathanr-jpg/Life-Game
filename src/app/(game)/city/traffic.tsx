@@ -228,7 +228,7 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
       let pos = selectedPos;
       if (!pos && info?.placeId) {
         const p = places.get(info.placeId);
-        if (p) pos = new THREE.Vector3(p.x + p.size / 2, 0.9, p.y + p.size / 2);
+        if (p) pos = new THREE.Vector3(p.x + p.w / 2, 0.9, p.y + p.h / 2);
       }
       marker.current.visible = !!pos;
       if (pos) marker.current.position.set(pos.x, pos.y + 0.45 + Math.sin(t * 2) * 0.03, pos.z);
@@ -237,8 +237,8 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
       const p = info?.placeId && info.mode !== "inside" ? places.get(info.placeId) : undefined;
       goal.current.visible = !!p;
       if (p) {
-        goal.current.position.set(p.x + p.size / 2, 0.02, p.y + p.size / 2);
-        goal.current.scale.set(p.size * 0.98, 0.02, p.size * 0.98);
+        goal.current.position.set(p.x + p.w / 2, 0.02, p.y + p.h / 2);
+        goal.current.scale.set(p.w * 0.98, 0.02, p.h * 0.98);
       }
     }
 

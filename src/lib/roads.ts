@@ -1,7 +1,21 @@
 // Road helpers: drag strokes, auto-connecting road shapes, and which buildings touch a road.
 
 export type Tile = { x: number; y: number };
-export type Lot = { id: string; type_id: string; x: number; y: number; size: number; facing?: Facing | null };
+/** A placed thing on the grid: w × h tiles from (x, y) (a turned building's w and h are already swapped). */
+export type Lot = { id: string; type_id: string; x: number; y: number; w: number; h: number; facing?: Facing | null };
+type Box = Pick<Lot, "x" | "y" | "w" | "h">;
+
+/** Tiles just outside each side of a footprint. */
+function edges(lot: Box) {
+  const xs = Array.from({ length: lot.w }, (_, i) => lot.x + i);
+  const ys = Array.from({ length: lot.h }, (_, i) => lot.y + i);
+  return {
+    south: xs.map((x) => key(x, lot.y + lot.h)),
+    north: xs.map((x) => key(x, lot.y - 1)),
+    east: ys.map((y) => key(lot.x + lot.w, y)),
+    west: ys.map((y) => key(lot.x - 1, y)),
+  };
+}
 
 export const ROAD_TYPE = "road";
 export const DIRT_ROAD_TYPE = "dirt_road";
@@ -52,18 +66,9 @@ export function roadSet(lots: Pick<Lot, "type_id" | "x" | "y">[]): Set<string> {
 }
 
 /** A building touches a road when any tile next to its footprint (not diagonal) is road. */
-export function touchesRoad(lot: Pick<Lot, "x" | "y" | "size">, roads: Set<string>): boolean {
-  for (let i = 0; i < lot.size; i++) {
-    if (
-      roads.has(key(lot.x + i, lot.y - 1)) ||
-      roads.has(key(lot.x + i, lot.y + lot.size)) ||
-      roads.has(key(lot.x - 1, lot.y + i)) ||
-      roads.has(key(lot.x + lot.size, lot.y + i))
-    ) {
-      return true;
-    }
-  }
-  return false;
+export function touchesRoad(lot: Box, roads: Set<string>): boolean {
+  const e = edges(lot);
+  return [...e.south, ...e.north, ...e.east, ...e.west].some((k) => roads.has(k));
 }
 
 /** Ids of buildings (not roads) that touch a road. */
@@ -77,43 +82,47 @@ export type Facing = "south" | "east" | "west" | "north";
 /** Y rotation (radians) that turns a model's front (+z, "south") to face each direction. */
 export const FACING_ROTATION: Record<Facing, number> = { south: 0, east: Math.PI / 2, west: -Math.PI / 2, north: Math.PI };
 
+/** Sides a building may face: any for squares; only the two long sides for rectangles (so the model lines up). */
+export function allowedSides(lot: Box): Facing[] {
+  if (lot.w === lot.h) return ["south", "east", "west", "north"];
+  return lot.w > lot.h ? ["south", "north"] : ["east", "west"];
+}
+
 /**
- * Which side of a building faces the road: the side with the most road tiles along it
- * (ties: south, east, west, north). Buildings without a road keep facing south.
+ * Which side of a building faces the road: the allowed side with the most road tiles along it
+ * (ties: south, east, west, north). Buildings without a road face their first allowed side.
  */
-export function facingFor(lot: Pick<Lot, "x" | "y" | "size">, roads: Set<string>): Facing {
-  const count = { south: 0, east: 0, west: 0, north: 0 };
-  for (let i = 0; i < lot.size; i++) {
-    if (roads.has(key(lot.x + i, lot.y + lot.size))) count.south++;
-    if (roads.has(key(lot.x + lot.size, lot.y + i))) count.east++;
-    if (roads.has(key(lot.x - 1, lot.y + i))) count.west++;
-    if (roads.has(key(lot.x + i, lot.y - 1))) count.north++;
+export function facingFor(lot: Box, roads: Set<string>): Facing {
+  const e = edges(lot);
+  const allowed = allowedSides(lot);
+  let best: Facing = allowed[0];
+  let bestCount = -1;
+  for (const side of ["south", "east", "west", "north"] as const) {
+    if (!allowed.includes(side)) continue;
+    const n = e[side].filter((k) => roads.has(k)).length;
+    if (n > bestCount) {
+      best = side;
+      bestCount = n;
+    }
   }
-  let best: Facing = "south";
-  for (const side of ["south", "east", "west", "north"] as const) if (count[side] > count[best]) best = side;
   return best;
 }
 
-/** Sides of a building that have road along them (south, east, west, north order). */
-export function roadSides(lot: Pick<Lot, "x" | "y" | "size">, roads: Set<string>): Facing[] {
-  const sides: Facing[] = [];
-  const has = (tiles: [number, number][]) => tiles.some(([x, y]) => roads.has(key(x, y)));
-  const span = Array.from({ length: lot.size }, (_, i) => i);
-  if (has(span.map((i) => [lot.x + i, lot.y + lot.size]))) sides.push("south");
-  if (has(span.map((i) => [lot.x + lot.size, lot.y + i]))) sides.push("east");
-  if (has(span.map((i) => [lot.x - 1, lot.y + i]))) sides.push("west");
-  if (has(span.map((i) => [lot.x + i, lot.y - 1]))) sides.push("north");
-  return sides;
+/** Allowed sides of a building that have road along them (south, east, west, north order). */
+export function roadSides(lot: Box, roads: Set<string>): Facing[] {
+  const e = edges(lot);
+  const allowed = allowedSides(lot);
+  return (["south", "east", "west", "north"] as const).filter((side) => allowed.includes(side) && e[side].some((k) => roads.has(k)));
 }
 
 /** The side a building faces: the owner's choice if it still has road, otherwise automatic (facingFor). */
-export function effectiveFacing(lot: Pick<Lot, "x" | "y" | "size" | "facing">, roads: Set<string>): Facing {
+export function effectiveFacing(lot: Box & Pick<Lot, "facing">, roads: Set<string>): Facing {
   if (lot.facing && roadSides(lot, roads).includes(lot.facing)) return lot.facing;
   return facingFor(lot, roads);
 }
 
 /** The next road side to turn to (for the Rotate button), or null when there's only one choice. */
-export function nextFacing(lot: Pick<Lot, "x" | "y" | "size" | "facing">, roads: Set<string>): Facing | null {
+export function nextFacing(lot: Box & Pick<Lot, "facing">, roads: Set<string>): Facing | null {
   const sides = roadSides(lot, roads);
   if (sides.length < 2) return null;
   const now = effectiveFacing(lot, roads);
@@ -128,7 +137,7 @@ const RIGHT_OF: Record<Facing, [number, number]> = { south: [1, 0], north: [-1, 
  * townhome facing the same way. Returns, per joined townhome, which sides join.
  */
 export function rowJoins(lots: Lot[], roads: Set<string>, typeId: string): Map<string, { left: boolean; right: boolean }> {
-  const homes = lots.filter((l) => l.type_id === typeId && l.size === 1);
+  const homes = lots.filter((l) => l.type_id === typeId && l.w === 1 && l.h === 1);
   const at = new Map(homes.map((h) => [key(h.x, h.y), h]));
   const facing = new Map(homes.map((h) => [h.id, effectiveFacing(h, roads)]));
   const out = new Map<string, { left: boolean; right: boolean }>();

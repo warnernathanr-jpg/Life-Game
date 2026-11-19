@@ -46,6 +46,9 @@ export type BuildingTypeRow = {
   description: string;
   cost: number;
   size: number;
+  /** Footprint width (along x) and depth (along y); size = the larger. */
+  w: number;
+  d: number;
   population: number;
   jobs: number;
   happiness: number;
@@ -63,6 +66,8 @@ export type PlacedBuildingRow = {
   y: number;
   price_paid: number;
   facing: "south" | "east" | "west" | "north" | null;
+  /** Turned 90°: width and depth swapped. */
+  rotated: boolean;
   created_at: string;
 };
 
@@ -154,8 +159,8 @@ export type Database = {
     Functions: {
       complete_task: { Args: { p_task_id: string }; Returns: { coins: number; balance: number }[] };
       undo_task: { Args: { p_task_id: string }; Returns: { coins: number; balance: number }[] };
-      buy_building: { Args: { p_type_id: string; p_x: number; p_y: number }; Returns: { building_id: string; balance: number }[] };
-      move_building: { Args: { p_building_id: string; p_x: number; p_y: number }; Returns: undefined };
+      buy_building: { Args: { p_type_id: string; p_x: number; p_y: number; p_rotated?: boolean }; Returns: { building_id: string; balance: number }[] };
+      move_building: { Args: { p_building_id: string; p_x: number; p_y: number; p_rotated?: boolean | null }; Returns: undefined };
       sell_building: { Args: { p_building_id: string }; Returns: { refund: number; balance: number }[] };
       buy_tiles: { Args: { p_type_id: string; p_tiles: [number, number][] }; Returns: { built: number; cost: number; balance: number }[] };
       claim_reward: { Args: { p_reward: string }; Returns: { coins: number; balance: number }[] };

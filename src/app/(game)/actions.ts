@@ -104,23 +104,23 @@ export async function removeTask(taskId: string): Promise<ActionResult> {
 
 const coord = z.number().int().min(0).max(100);
 
-export async function buyBuilding(typeId: string, x: number, y: number): Promise<ActionResult<{ id: string }>> {
+export async function buyBuilding(typeId: string, x: number, y: number, rotated = false): Promise<ActionResult<{ id: string }>> {
   if (!/^[a-z_]{2,40}$/.test(typeId) || !coord.safeParse(x).success || !coord.safeParse(y).success) {
     return { ok: false, error: gameError(null) };
   }
   const { supabase } = await requireUser();
-  const { data, error } = await supabase.rpc("buy_building", { p_type_id: typeId, p_x: x, p_y: y }).single();
+  const { data, error } = await supabase.rpc("buy_building", { p_type_id: typeId, p_x: x, p_y: y, p_rotated: rotated === true }).single();
   if (error || !data) return { ok: false, error: gameError(error) };
   refresh();
   return { ok: true, id: data.building_id };
 }
 
-export async function moveBuilding(buildingId: string, x: number, y: number): Promise<ActionResult> {
+export async function moveBuilding(buildingId: string, x: number, y: number, rotated?: boolean): Promise<ActionResult> {
   if (!uuid.safeParse(buildingId).success || !coord.safeParse(x).success || !coord.safeParse(y).success) {
     return { ok: false, error: gameError(null) };
   }
   const { supabase } = await requireUser();
-  const { error } = await supabase.rpc("move_building", { p_building_id: buildingId, p_x: x, p_y: y });
+  const { error } = await supabase.rpc("move_building", { p_building_id: buildingId, p_x: x, p_y: y, p_rotated: typeof rotated === "boolean" ? rotated : null });
   if (error) return { ok: false, error: gameError(error) };
   refresh();
   return { ok: true };

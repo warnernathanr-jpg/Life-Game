@@ -3,7 +3,7 @@
 // itself (no database rows), seeded by building ids, so the same home always has the same people.
 
 import type { BuildingTypeRow } from "./database.types";
-import { PARK_IDS } from "./game";
+import { RECREATION_IDS, SCHOOL_IDS } from "./game";
 import { isRoadType, key, type Lot, type Tile } from "./roads";
 
 // ---------------------------------------------------------------------------
@@ -56,7 +56,8 @@ export type Place = {
   name: string;
   x: number;
   y: number;
-  size: number;
+  w: number;
+  h: number;
   homes: number; // residents
   jobs: number;
   shop: boolean;
@@ -84,9 +85,8 @@ export const MAX_CITIZENS = 80;
 /** A road tile touching the lot (prefer the middle of the longest road side). */
 function entranceOf(l: Lot, roads: Set<string>): Tile | null {
   const options: Tile[] = [];
-  for (let i = 0; i < l.size; i++) {
-    options.push({ x: l.x + i, y: l.y + l.size }, { x: l.x + i, y: l.y - 1 }, { x: l.x - 1, y: l.y + i }, { x: l.x + l.size, y: l.y + i });
-  }
+  for (let i = 0; i < l.w; i++) options.push({ x: l.x + i, y: l.y + l.h }, { x: l.x + i, y: l.y - 1 });
+  for (let i = 0; i < l.h; i++) options.push({ x: l.x - 1, y: l.y + i }, { x: l.x + l.w, y: l.y + i });
   const touching = options.filter((t) => roads.has(key(t.x, t.y)));
   return touching.length ? touching[Math.floor(touching.length / 2)] : null;
 }
@@ -104,12 +104,13 @@ export function placesFrom(lots: Lot[], types: Pick<BuildingTypeRow, "id" | "nam
       name: t.name,
       x: l.x,
       y: l.y,
-      size: l.size,
+      w: l.w,
+      h: l.h,
       homes: t.category === "residential" ? t.population : 0,
       jobs: t.jobs,
       shop: t.category === "commercial",
-      park: PARK_IDS.has(t.id),
-      school: t.id === "school",
+      park: RECREATION_IDS.has(t.id),
+      school: SCHOOL_IDS.has(t.id),
       entrance: entranceOf(l, roads),
     });
   }
@@ -121,7 +122,10 @@ export function placesFrom(lots: Lot[], types: Pick<BuildingTypeRow, "id" | "nam
 export function citizensFrom(places: Place[]): Citizen[] {
   const homes = places.filter((p) => p.homes > 0);
   const workplaces = places.filter((p) => p.jobs > 0 && p.entrance);
-  const schools = places.filter((p) => p.school && p.entrance);
+  const schoolsOf = (id: string) => places.filter((p) => p.typeId === id && p.entrance);
+  const elementary = schoolsOf("school");
+  const high = schoolsOf("high_school");
+  const universities = schoolsOf("university");
   const openJobs = new Map(workplaces.map((w) => [w.id, w.jobs]));
   const out: Citizen[] = [];
   const total = homes.reduce((s, h) => s + h.homes, 0);
@@ -146,8 +150,13 @@ export function citizensFrom(places: Place[]): Citizen[] {
         car: CARS[(seed >>> 8) % CARS.length],
         seed,
       };
-      if (age >= 5 && age < 18) {
-        c.schoolId = schools.length ? schools[seed % schools.length].id : null;
+      // Children 5–13 go to elementary school, 14–17 to high school (elementary if there's none); some young adults study.
+      const pickOf = (list: Place[]) => (list.length ? list[seed % list.length].id : null);
+      if (age >= 5 && age < 14) c.schoolId = pickOf(elementary);
+      else if (age >= 14 && age < 18) c.schoolId = pickOf(high) ?? pickOf(elementary);
+      else if (age >= 18 && age < 23 && universities.length && seed % 2 === 0) c.schoolId = pickOf(universities);
+      if (c.schoolId || age < 18) {
+        // at school, or too young to work
       } else if (age >= 18 && age < 67 && h.entrance) {
         // The first workplace (starting from a seeded one) with an open job.
         for (let k = 0; k < workplaces.length; k++) {
@@ -298,7 +307,8 @@ export function clockText(t: number): string {
 export function roleText(c: Citizen, places: Map<string, Place>): string {
   if (c.workId) return `Works at ${places.get(c.workId)?.name ?? "a business"}`;
   if (c.age < 5) return "Little one";
-  if (c.age < 18) return c.schoolId ? `Student at ${places.get(c.schoolId)?.name ?? "school"}` : "No school nearby yet";
+  if (c.schoolId) return `Student at ${places.get(c.schoolId)?.name ?? "school"}`;
+  if (c.age < 18) return "No school nearby yet";
   if (c.age >= 67) return "Retired";
   return "Looking for work";
 }

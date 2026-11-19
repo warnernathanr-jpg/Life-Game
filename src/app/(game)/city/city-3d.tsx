@@ -23,8 +23,8 @@ export type City3DProps = {
   dimmedId?: string;
   /** "stroke": drag paints a path (roads, bulldozer); "point": tap a tile. */
   input: "point" | "stroke";
-  /** Footprint size shown under the pointer in point mode (0 = no ghost). */
-  ghostSize: number;
+  /** Footprint shown under the pointer in point mode (null = no ghost). */
+  ghostDims: { w: number; h: number } | null;
   ghostOk: (x: number, y: number) => boolean;
   strokeOk: (tiles: Tile[]) => boolean;
   strokeColor: "build" | "demolish";
@@ -146,7 +146,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
   );
   const byTile = useMemo(() => {
     const m = new Map<string, Lot>();
-    for (const l of lots) for (let dx = 0; dx < l.size; dx++) for (let dy = 0; dy < l.size; dy++) m.set(key(l.x + dx, l.y + dy), l);
+    for (const l of lots) for (let dx = 0; dx < l.w; dx++) for (let dy = 0; dy < l.h; dy++) m.set(key(l.x + dx, l.y + dy), l);
     return m;
   }, [lots]);
 
@@ -230,15 +230,15 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
     // Prefer the building actually hit (tall buildings hide the ground behind them).
     const lotId = e.intersections.map((i) => lotIdOf(i.object)).find(Boolean);
     const lot = lotId ? lots.find((l) => l.id === lotId) : null;
-    if (lot && props.ghostSize === 0) return props.onTile(lot.x, lot.y);
+    if (lot && !props.ghostDims) return props.onTile(lot.x, lot.y);
     const t = tileFrom(e);
     if (t) props.onTile(t.x, t.y);
   }
 
   const ghostTile = props.ghostAt ?? hover;
   const ghost =
-    input === "point" && props.ghostSize > 0 && ghostTile
-      ? { x: ghostTile.x, y: ghostTile.y, size: props.ghostSize, ok: props.ghostOk(ghostTile.x, ghostTile.y) }
+    input === "point" && props.ghostDims && ghostTile
+      ? { x: ghostTile.x, y: ghostTile.y, ...props.ghostDims, ok: props.ghostOk(ghostTile.x, ghostTile.y) }
       : null;
   const strokeOk = strokeTiles ? props.strokeOk(strokeTiles) : true;
 
@@ -276,7 +276,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
         {props.sim && <Traffic sim={props.sim} roads={roads} />}
         <Wilds size={size} occupied={byTile} />
         {buildings.map((b) => (
-          <group key={b.id} position={[b.x + b.size / 2, 0, b.y + b.size / 2]} userData={{ lotId: b.id }}>
+          <group key={b.id} position={[b.x + b.w / 2, 0, b.y + b.h / 2]} userData={{ lotId: b.id }}>
             {/* Turn the model so its front (doors, awnings) faces the road. */}
             <group rotation-y={FACING_ROTATION[effectiveFacing(b, roads)]}>
               <BuildingModel typeId={b.type_id} seed={colorSeed(b.id)} join={joins.get(b.id)} />
@@ -289,11 +289,10 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
 
       {props.selectedId && <Selection lot={lots.find((l) => l.id === props.selectedId)} />}
       {props.dimmedId && <Selection lot={lots.find((l) => l.id === props.dimmedId)} color="#f59e0b" />}
-      {ghost && <Footprint tiles={[{ x: ghost.x, y: ghost.y }]} size={ghost.size} ok={ghost.ok} raised />}
+      {ghost && <Footprint tiles={[{ x: ghost.x, y: ghost.y }]} w={ghost.w} h={ghost.h} ok={ghost.ok} raised />}
       {props.previewTiles && props.previewTiles.length > 0 && (
         <Footprint
           tiles={props.previewTiles}
-          size={1}
           ok={props.previewOk ?? true}
           skip={(t) => alreadyPainted(byTile.get(key(t.x, t.y))?.type_id, props.paintTypeId ?? ROAD_TYPE)}
         />
@@ -301,13 +300,12 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
       {strokeTiles && (
         <Footprint
           tiles={strokeTiles}
-          size={1}
           ok={strokeOk}
           demolish={props.strokeColor === "demolish"}
           skip={props.strokeColor === "build" ? (t) => alreadyPainted(byTile.get(key(t.x, t.y))?.type_id, props.paintTypeId ?? ROAD_TYPE) : undefined}
         />
       )}
-      {input === "stroke" && hover && !stroke && <Footprint tiles={[hover]} size={1} ok demolish={props.strokeColor === "demolish"} />}
+      {input === "stroke" && hover && !stroke && <Footprint tiles={[hover]} ok demolish={props.strokeColor === "demolish"} />}
     </>
   );
 }
@@ -629,14 +627,16 @@ const OVERLAY = {
 
 function Footprint({
   tiles,
-  size,
+  w = 1,
+  h: d = 1,
   ok,
   raised,
   demolish,
   skip,
 }: {
   tiles: Tile[];
-  size: number;
+  w?: number;
+  h?: number;
   ok: boolean;
   raised?: boolean;
   demolish?: boolean;
@@ -651,8 +651,8 @@ function Footprint({
           key={`${t.x},${t.y}`}
           geometry={BOX}
           material={material}
-          position={[t.x + size / 2, h / 2 + 0.01, t.y + size / 2]}
-          scale={[size * 0.96, h, size * 0.96]}
+          position={[t.x + w / 2, h / 2 + 0.01, t.y + d / 2]}
+          scale={[w - 0.04, h, d - 0.04]}
           raycast={() => null}
         />
       ))}
@@ -662,18 +662,19 @@ function Footprint({
 
 function Selection({ lot, color = "#fbbf24" }: { lot?: Lot; color?: string }) {
   if (!lot) return null;
-  const s = lot.size;
+  const sw = lot.w;
+  const sh = lot.h;
   const w = 0.07;
   const m = mat(color);
-  const cx = lot.x + s / 2;
-  const cz = lot.y + s / 2;
+  const cx = lot.x + sw / 2;
+  const cz = lot.y + sh / 2;
   return (
     <group raycast={() => null}>
       {[
-        [cx, lot.y + w / 2, s, w],
-        [cx, lot.y + s - w / 2, s, w],
-        [lot.x + w / 2, cz, w, s],
-        [lot.x + s - w / 2, cz, w, s],
+        [cx, lot.y + w / 2, sw, w],
+        [cx, lot.y + sh - w / 2, sw, w],
+        [lot.x + w / 2, cz, w, sh],
+        [lot.x + sw - w / 2, cz, w, sh],
       ].map(([x, z, sx, sz], i) => (
         <mesh key={i} geometry={BOX} material={m} position={[x, 0.06, z]} scale={[sx, 0.08, sz]} raycast={() => null} />
       ))}
