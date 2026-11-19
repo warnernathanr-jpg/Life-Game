@@ -20,7 +20,7 @@ async function LinkNotice({ searchParams }: Pick<PageProps<"/login">, "searchPar
   const { error } = await searchParams;
   if (error !== "link_invalid") return null;
   return (
-    <p role="alert" className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+    <p role="alert" className="mb-4 rounded-lg bg-coin-soft px-3 py-2 text-sm text-ink">
       That link didn&apos;t work or has expired. Sign in below.
     </p>
   );

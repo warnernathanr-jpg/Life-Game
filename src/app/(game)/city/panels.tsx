@@ -19,8 +19,8 @@ export function StatRow({ stats, size }: { stats: ReturnType<typeof cityStats>; 
   return (
     <dl className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
       {items.map((i) => (
-        <div key={i.label} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5">
-          <dt className="text-xs text-slate-500">{i.label}</dt>
+        <div key={i.label} className="rounded-xl border border-line bg-surface px-3 py-1.5">
+          <dt className="text-xs text-muted">{i.label}</dt>
           <dd className="font-bold"><span aria-hidden>{i.icon}</span> {i.value}</dd>
         </div>
       ))}
@@ -55,7 +55,7 @@ export function CityName({ name }: { name: string }) {
       <input id="city-name" name="name" defaultValue={name} maxLength={40} autoFocus className="input w-56" />
       <button className="btn-primary min-h-10" disabled={pending}>Save</button>
       <button type="button" className="btn-secondary min-h-10" onClick={() => setEditing(false)}>Cancel</button>
-      {error && <p role="alert" className="w-full text-sm text-red-700">{error}</p>}
+      {error && <p role="alert" className="w-full text-sm text-bad">{error}</p>}
     </form>
   );
 }
@@ -69,7 +69,7 @@ function Effects({ t }: { t: BuildingTypeRow }) {
   return (
     <span className="flex flex-wrap gap-1">
       {parts.map((p) => (
-        <span key={p.text} className={`rounded px-1.5 py-0.5 text-xs ${p.bad ? "bg-red-50 text-red-800" : "bg-slate-100 text-slate-700"}`}>
+        <span key={p.text} className={`rounded px-1.5 py-0.5 text-xs ${p.bad ? "bg-bad-soft text-bad" : "bg-raised text-ink"}`}>
           {p.text}
         </span>
       ))}
@@ -103,7 +103,7 @@ export function Shop({
             role="tab"
             aria-selected={tab === c.id}
             onClick={() => setTab(c.id)}
-            className={`min-h-9 rounded-full px-3 text-sm ${tab === c.id ? "bg-emerald-800 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+            className={`min-h-9 rounded-full px-3 text-sm ${tab === c.id ? "bg-accent text-on-accent" : "bg-raised text-ink hover:bg-line"}`}
           >
             {c.label}
           </button>
@@ -126,8 +126,8 @@ export function Shop({
                     : `${t.name}, ${t.cost} coins${short ? ", not enough coins" : ""}`
                 }
                 className={`flex w-full items-start gap-3 rounded-xl border p-2.5 text-left transition ${
-                  activeId === t.id ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-600" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                } ${locked ? "cursor-not-allowed bg-slate-50 opacity-70" : ""}`}
+                  activeId === t.id ? "border-accent bg-accent-soft ring-2 ring-accent" : "border-line hover:border-accent/60 hover:bg-raised"
+                } ${locked ? "cursor-not-allowed bg-raised opacity-70" : ""}`}
               >
                 <span className={`flex size-11 shrink-0 items-center justify-center rounded-lg border-2 text-2xl ${CATEGORY_BY_ID[t.category].tile} ${locked ? "grayscale" : ""}`} aria-hidden>
                   {t.icon}
@@ -135,16 +135,16 @@ export function Shop({
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
                     <span className="font-medium">{t.name}</span>
-                    <span className={`shrink-0 text-sm font-bold ${short && !locked ? "text-red-700" : "text-amber-800"}`}>
+                    <span className={`shrink-0 text-sm font-bold ${short && !locked ? "text-bad" : "text-coin"}`}>
                       🪙 {formatCoins(t.cost)}{t.category === "road" ? <span className="font-normal"> / tile</span> : null}
                     </span>
                   </span>
                   {locked ? (
-                    <span className="mt-0.5 block text-xs text-slate-600">
+                    <span className="mt-0.5 block text-xs text-muted">
                       🔒 {remaining} more {AREA_BY_ID[t.unlock_area!].icon} {AREA_BY_ID[t.unlock_area!].label.toLowerCase()} task{remaining === 1 ? "" : "s"} to unlock
                     </span>
                   ) : (
-                    <span className="mt-0.5 block text-xs text-slate-600">{t.description}</span>
+                    <span className="mt-0.5 block text-xs text-muted">{t.description}</span>
                   )}
                   <span className="mt-1 block"><Effects t={t} /></span>
                 </span>
@@ -181,15 +181,15 @@ export function SelectedPanel({
         </span>
         <div className="min-w-0 flex-1">
           <h2 id="sel-h" className="font-semibold">{type.name}</h2>
-          <p className="text-xs text-slate-500">{CATEGORY_BY_ID[type.category].label} · column {lot.x + 1}, row {lot.y + 1}</p>
+          <p className="text-xs text-muted">{CATEGORY_BY_ID[type.category].label} · column {lot.x + 1}, row {lot.y + 1}</p>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close" className="flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100">×</button>
+        <button type="button" onClick={onClose} aria-label="Close" className="flex size-9 items-center justify-center rounded-lg text-muted hover:bg-raised">×</button>
       </div>
-      <p className="mt-2 text-sm text-slate-700">{type.description}</p>
+      <p className="mt-2 text-sm text-ink">{type.description}</p>
       <div className="mt-2"><Effects t={type} /></div>
       <div className="mt-4 grid grid-cols-2 gap-2">
         <button type="button" className="btn-secondary" disabled={pending} onClick={onMove}>Move</button>
-        <button type="button" className="btn-secondary text-red-800" disabled={pending} onClick={onSell}>
+        <button type="button" className="btn-secondary text-bad" disabled={pending} onClick={onSell}>
           Demolish (+{formatCoins(sellRefund(lot.price_paid))})
         </button>
       </div>

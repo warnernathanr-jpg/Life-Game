@@ -33,7 +33,7 @@ async function CityPageContent() {
 
 export default function CityPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-slate-500">Loading your city…</p>}>
+    <Suspense fallback={<p className="text-sm text-muted">Loading your city…</p>}>
       <CityPageContent />
     </Suspense>
   );

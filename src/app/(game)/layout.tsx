@@ -3,12 +3,13 @@ import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
 import { formatCoins } from "@/lib/game";
 import { signOut } from "../(auth)/actions";
+import { ThemePicker } from "@/components/theme-picker";
 import { Nav } from "./nav";
 
 export default function GameLayout({ children }: LayoutProps<"/">) {
   return (
     <>
-      <header className="bg-emerald-800 text-white">
+      <header className="bg-header text-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
           <Link href="/today" className="flex items-center gap-1.5 font-bold">
             <span aria-hidden>🏙️</span>
@@ -19,8 +20,9 @@ export default function GameLayout({ children }: LayoutProps<"/">) {
             <Suspense fallback={<span className="h-9 w-20 rounded-full bg-white/10" />}>
               <CoinBadge />
             </Suspense>
+            <ThemePicker />
             <form action={signOut}>
-              <button className="min-h-9 rounded-lg px-2 text-sm text-emerald-50 hover:bg-white/10">Sign out</button>
+              <button className="min-h-9 rounded-lg px-2 text-sm text-white/80 hover:bg-white/10">Sign out</button>
             </form>
           </div>
         </div>
@@ -37,7 +39,7 @@ async function CoinBadge() {
   return (
       <span
         className={`flex min-h-9 items-center gap-1 rounded-full px-3 text-sm font-bold ${
-          balance < 0 ? "bg-red-100 text-red-900" : "bg-amber-300 text-amber-950"
+          balance < 0 ? "bg-bad-soft text-bad" : "bg-coin text-on-coin"
         }`}
         aria-label={`${formatCoins(balance)} coins`}
       >

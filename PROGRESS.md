@@ -69,6 +69,16 @@ _Last updated: 2026-11-21_
 - Migrations `20261121000000_task_repeat_values.sql`, `20261121000100_task_schedules.sql`; 25 pgTAP tests
   (`task_schedules.test.sql`), 4 unit tests (`tasks.test.ts`). Form and list checked at 390px.
 
+### 4. Dark navy look and color themes (2026-11-21)
+- Colors are theme roles (`bg`, `surface`, `raised`, `line`, `ink`, `muted`, `faint`, `header`, `accent`, `accent-text`,
+  `accent-soft`, `good`, `bad`, `coin`… as Tailwind colors, e.g. `bg-surface text-ink`), defined per theme in
+  `globals.css` (`[data-theme="…"]`). Use roles, not fixed palette colors (map tiles and markers excepted).
+- Themes: **Navy** (default), Midnight, Forest, Ember (dark) and Light. **🎨 Theme** in the header switches it; the choice
+  is saved in the browser (`localStorage`, applied by an inline script in `<head>` before first paint, so no flash).
+  The 3D sky follows the theme (`--t-sky`). Native form controls follow via `color-scheme`.
+- `src/lib/themes.ts`, `src/components/theme-picker.tsx`. Checked in a browser: default navy, switching to Forest and
+  Light, remembered after reload, sign-in page, no console errors.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

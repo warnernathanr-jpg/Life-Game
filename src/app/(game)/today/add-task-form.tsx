@@ -23,11 +23,11 @@ export function AddTaskForm() {
   return (
     <form action={action} className="grid gap-3 sm:grid-cols-2" noValidate>
       <label className="block sm:col-span-2">
-        <span className="text-sm font-medium text-slate-700">Task</span>
+        <span className="text-sm font-medium text-ink">Task</span>
         <input ref={titleRef} name="title" required maxLength={120} placeholder="e.g. Go for a 20-minute walk" className="input mt-1" />
       </label>
       <label className="block">
-        <span className="text-sm font-medium text-slate-700">Life area</span>
+        <span className="text-sm font-medium text-ink">Life area</span>
         <select name="area" defaultValue="health" className="input mt-1">
           {AREAS.map((a) => (
             <option key={a.id} value={a.id}>{a.icon} {a.label}</option>
@@ -35,7 +35,7 @@ export function AddTaskForm() {
         </select>
       </label>
       <label className="block">
-        <span className="text-sm font-medium text-slate-700">Difficulty</span>
+        <span className="text-sm font-medium text-ink">Difficulty</span>
         <select name="difficulty" defaultValue="medium" className="input mt-1">
           {DIFFICULTIES.map((d) => (
             <option key={d.id} value={d.id}>{d.label} (+{REWARDS[d.id]} coins)</option>
@@ -43,7 +43,7 @@ export function AddTaskForm() {
         </select>
       </label>
       <label className="block">
-        <span className="text-sm font-medium text-slate-700">Repeats</span>
+        <span className="text-sm font-medium text-ink">Repeats</span>
         <select name="repeat" value={repeat} onChange={(e) => setRepeat(e.target.value as TaskRepeat)} className="input mt-1">
           {REPEATS.map((r) => (
             <option key={r.id} value={r.id}>{r.label}</option>
@@ -52,15 +52,15 @@ export function AddTaskForm() {
       </label>
       {repeat === "days" && (
         <fieldset className="sm:col-span-2">
-          <legend className="text-sm font-medium text-slate-700">Which days?</legend>
+          <legend className="text-sm font-medium text-ink">Which days?</legend>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {WEEKDAYS.map((d) => {
               const on = days.includes(d.iso);
               return (
                 <label
                   key={d.iso}
-                  className={`flex min-h-10 min-w-12 cursor-pointer items-center justify-center rounded-lg border px-2 text-sm font-medium has-focus-visible:ring-2 has-focus-visible:ring-emerald-600 ${
-                    on ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  className={`flex min-h-10 min-w-12 cursor-pointer items-center justify-center rounded-lg border px-2 text-sm font-medium has-focus-visible:ring-2 has-focus-visible:ring-accent ${
+                    on ? "border-accent bg-accent text-on-accent" : "border-line bg-raised text-ink hover:border-accent/60"
                   }`}
                 >
                   <input
@@ -82,7 +82,7 @@ export function AddTaskForm() {
       )}
       {(repeat === "times_per_week" || repeat === "times_per_month") && (
         <label className="block">
-          <span className="text-sm font-medium text-slate-700">How many times a {repeat === "times_per_week" ? "week" : "month"}?</span>
+          <span className="text-sm font-medium text-ink">How many times a {repeat === "times_per_week" ? "week" : "month"}?</span>
           <input
             key={repeat}
             name="times"
@@ -93,14 +93,14 @@ export function AddTaskForm() {
             defaultValue={3}
             className="input mt-1"
           />
-          <span className="mt-1 block text-xs text-slate-500">At most once a day. Each time earns coins.</span>
+          <span className="mt-1 block text-xs text-muted">At most once a day. Each time earns coins.</span>
         </label>
       )}
       <div className="flex items-end">
         <button type="submit" disabled={pending} className="btn-primary w-full">{pending ? "Adding…" : "Add task"}</button>
       </div>
-      {state.error && <p role="alert" className="text-sm text-red-700 sm:col-span-2">{state.error}</p>}
-      {state.added && !state.error ? <p role="status" className="text-sm text-emerald-700 sm:col-span-2">Task added.</p> : null}
+      {state.error && <p role="alert" className="text-sm text-bad sm:col-span-2">{state.error}</p>}
+      {state.added && !state.error ? <p role="status" className="text-sm text-good sm:col-span-2">Task added.</p> : null}
     </form>
   );
 }

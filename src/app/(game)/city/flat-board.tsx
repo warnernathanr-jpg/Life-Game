@@ -67,7 +67,7 @@ export function FlatBoard({
   }
 
   return (
-    <div className="overflow-auto rounded-2xl border-4 border-emerald-900/20 bg-lime-200 shadow-inner">
+    <div className="overflow-auto rounded-2xl border-4 border-line bg-lime-200 shadow-inner">
       <div
         ref={gridRef}
         role="group"
@@ -103,7 +103,7 @@ export function FlatBoard({
               }}
               onMouseEnter={() => setHover({ x, y })}
               onFocus={() => setHover({ x, y })}
-              className={`border border-lime-300/70 outline-none focus-visible:z-30 focus-visible:ring-2 focus-visible:ring-emerald-900 focus-visible:ring-inset ${
+              className={`border border-lime-300/70 outline-none focus-visible:z-30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset ${
                 (x + y) % 2 === 0 ? "bg-lime-200" : "bg-lime-100/70"
               } ${mode.kind === "idle" || mode.kind === "selected" ? (b ? "cursor-pointer" : "cursor-default") : "cursor-crosshair"}`}
               style={{ gridColumn: x + 1, gridRow: y + 1 }}

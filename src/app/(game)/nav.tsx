@@ -21,7 +21,7 @@ export function Nav() {
             href={l.href}
             aria-current={active ? "page" : undefined}
             className={`flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium ${
-              active ? "bg-white text-emerald-900" : "text-emerald-50 hover:bg-white/10"
+              active ? "bg-accent text-on-accent" : "text-white/80 hover:bg-white/10"
             }`}
           >
             <span aria-hidden>{l.icon}</span>

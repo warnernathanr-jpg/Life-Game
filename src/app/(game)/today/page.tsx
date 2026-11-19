@@ -37,7 +37,7 @@ async function TodayPageContent() {
           <h1 className="text-2xl font-bold">
             {profile?.display_name ? `Hi, ${profile.display_name}` : "Today"}
           </h1>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted">
             {todo.length === 0 && active.length > 0
               ? "Everything's done. Go build something!"
               : `${todo.length} to do · ${done.length} done`}
@@ -54,15 +54,15 @@ async function TodayPageContent() {
 
       <aside className="space-y-4">
         <section className="card" aria-labelledby="coins-today">
-          <h2 id="coins-today" className="text-sm font-semibold text-slate-600">Coins earned today</h2>
-          <p className="mt-1 text-3xl font-bold text-amber-700">
+          <h2 id="coins-today" className="text-sm font-semibold text-muted">Coins earned today</h2>
+          <p className="mt-1 text-3xl font-bold text-coin">
             <span aria-hidden>🪙</span> {formatCoins(earnedToday)}
-            <span className="text-base font-medium text-slate-500"> / {DAILY_COIN_CAP}</span>
+            <span className="text-base font-medium text-muted"> / {DAILY_COIN_CAP}</span>
           </p>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-hidden>
-            <div className="h-full rounded-full bg-amber-400" style={{ width: `${Math.min(100, (earnedToday / DAILY_COIN_CAP) * 100)}%` }} />
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-raised" aria-hidden>
+            <div className="h-full rounded-full bg-coin" style={{ width: `${Math.min(100, (earnedToday / DAILY_COIN_CAP) * 100)}%` }} />
           </div>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-muted">
             {earnedToday >= DAILY_COIN_CAP
               ? "Daily limit reached. Tasks still count toward unlocks."
               : "Easy 10 · Medium 25 · Hard 50"}
@@ -72,25 +72,25 @@ async function TodayPageContent() {
 
         <section className="card" aria-labelledby="unlocks">
           <h2 id="unlocks" className="font-semibold">Unlocks</h2>
-          <p className="mb-3 text-xs text-slate-500">Finish tasks in each life area to unlock new buildings.</p>
+          <p className="mb-3 text-xs text-muted">Finish tasks in each life area to unlock new buildings.</p>
           <ul className="space-y-3">
             {unlocks.map(({ area, done: count, next, remaining }) => (
               <li key={area.id}>
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium"><span aria-hidden>{area.icon}</span> {area.label}</span>
-                  <span className="text-slate-500">{count} done</span>
+                  <span className="text-muted">{count} done</span>
                 </div>
                 {next ? (
                   <>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100" aria-hidden>
-                      <div className="h-full rounded-full bg-emerald-500" style={{ width: `${(count / (next.unlock_count ?? 1)) * 100}%` }} />
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-raised" aria-hidden>
+                      <div className="h-full rounded-full bg-accent" style={{ width: `${(count / (next.unlock_count ?? 1)) * 100}%` }} />
                     </div>
-                    <p className="mt-1 text-xs text-slate-600">
+                    <p className="mt-1 text-xs text-muted">
                       {remaining} more → <span aria-hidden>{next.icon}</span> {next.name}
                     </p>
                   </>
                 ) : (
-                  <p className="mt-1 text-xs text-emerald-700">All {area.label.toLowerCase()} buildings unlocked</p>
+                  <p className="mt-1 text-xs text-good">All {area.label.toLowerCase()} buildings unlocked</p>
                 )}
               </li>
             ))}
@@ -103,7 +103,7 @@ async function TodayPageContent() {
 
 export default function TodayPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-slate-500">Loading…</p>}>
+    <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
       <TodayPageContent />
     </Suspense>
   );

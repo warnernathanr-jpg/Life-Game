@@ -17,16 +17,16 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     <form action={action} className="space-y-4" noValidate>
       {mode === "signup" && (
         <label className="block">
-          <span className="text-sm font-medium text-slate-700">Your name (optional)</span>
+          <span className="text-sm font-medium text-ink">Your name (optional)</span>
           <input name="name" defaultValue={state.name} autoComplete="given-name" maxLength={60} className="input mt-1" />
         </label>
       )}
       <label className="block">
-        <span className="text-sm font-medium text-slate-700">Email</span>
+        <span className="text-sm font-medium text-ink">Email</span>
         <input name="email" type="email" required defaultValue={state.email} autoComplete="email" className="input mt-1" />
       </label>
       <label className="block">
-        <span className="text-sm font-medium text-slate-700">Password</span>
+        <span className="text-sm font-medium text-ink">Password</span>
         <input
           name="password"
           type="password"
@@ -35,17 +35,17 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           autoComplete={mode === "signup" ? "new-password" : "current-password"}
           className="input mt-1"
         />
-        {mode === "signup" && <span className="mt-1 block text-xs text-slate-500">At least 8 characters.</span>}
+        {mode === "signup" && <span className="mt-1 block text-xs text-muted">At least 8 characters.</span>}
       </label>
       <input type="hidden" name="timezone" value={timezone} />
 
-      {state.error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{state.error}</p>}
-      {state.info && <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{state.info}</p>}
+      {state.error && <p role="alert" className="rounded-lg bg-bad-soft px-3 py-2 text-sm text-bad">{state.error}</p>}
+      {state.info && <p role="status" className="rounded-lg bg-good-soft px-3 py-2 text-sm text-good">{state.info}</p>}
 
       <button type="submit" disabled={pending} className="btn-primary w-full">
         {pending ? "One moment…" : mode === "login" ? "Sign in" : "Create my city"}
       </button>
-      <p className="text-center text-sm text-slate-600">
+      <p className="text-center text-sm text-muted">
         {mode === "login" ? (
           <>New here? <Link href="/signup" className="link">Create an account</Link></>
         ) : (

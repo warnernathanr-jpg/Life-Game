@@ -13,7 +13,7 @@ import { CityName, Legend, SelectedPanel, Shop, StatRow } from "./panels";
 // three.js only loads on this page, in the browser.
 const City3D = dynamic(() => import("./city-3d"), {
   ssr: false,
-  loading: () => <div className="flex h-full items-center justify-center text-sm text-slate-600">Loading 3D city…</div>,
+  loading: () => <div className="flex h-full items-center justify-center text-sm text-muted">Loading 3D city…</div>,
 });
 
 type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid">;
@@ -229,14 +229,14 @@ export function CityBoard(props: {
         <StatRow stats={stats} size={size} />
       </div>
 
-      <p aria-live="polite" className={`min-h-5 text-sm ${message?.tone === "bad" ? "text-red-700" : "text-emerald-700"}`}>
+      <p aria-live="polite" className={`min-h-5 text-sm ${message?.tone === "bad" ? "text-bad" : "text-good"}`}>
         {message?.text}
       </p>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
         <div className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex gap-1 rounded-xl bg-white p-1 shadow-sm ring-1 ring-slate-200" role="toolbar" aria-label="Tools">
+            <div className="flex gap-1 rounded-xl bg-surface p-1 shadow-sm ring-1 ring-line" role="toolbar" aria-label="Tools">
               {tools.map((t) => (
                 <button
                   key={t.kind}
@@ -247,21 +247,21 @@ export function CityBoard(props: {
                     setMode({ kind: t.kind } as Mode);
                   }}
                   className={`flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium ${
-                    activeTool === t.kind ? "bg-emerald-800 text-white" : "text-slate-700 hover:bg-slate-100"
+                    activeTool === t.kind ? "bg-accent text-on-accent" : "text-ink hover:bg-raised"
                   }`}
                 >
                   <span aria-hidden>{t.icon}</span> {t.label}
                 </button>
               ))}
             </div>
-            <div className="flex gap-1 rounded-xl bg-white p-1 shadow-sm ring-1 ring-slate-200" role="group" aria-label="View">
+            <div className="flex gap-1 rounded-xl bg-surface p-1 shadow-sm ring-1 ring-line" role="group" aria-label="View">
               {(["3d", "flat"] as const).map((v) => (
                 <button
                   key={v}
                   type="button"
                   aria-pressed={view === v}
                   onClick={() => chooseView(v)}
-                  className={`min-h-10 rounded-lg px-3 text-sm font-medium ${view === v ? "bg-slate-800 text-white" : "text-slate-700 hover:bg-slate-100"}`}
+                  className={`min-h-10 rounded-lg px-3 text-sm font-medium ${view === v ? "bg-accent-soft text-accent-text" : "text-ink hover:bg-raised"}`}
                 >
                   {v === "3d" ? "3D" : "Flat"}
                 </button>
@@ -270,7 +270,7 @@ export function CityBoard(props: {
           </div>
 
           {(mode.kind === "place" || mode.kind === "move") && (
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-emerald-50 px-4 py-2 text-sm text-emerald-950">
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-accent-soft px-4 py-2 text-sm text-ink">
               <span>
                 {mode.kind === "place" && placingType ? (
                   <>
@@ -290,11 +290,11 @@ export function CityBoard(props: {
               </button>
             </div>
           )}
-          {hint && <p className="text-xs text-slate-600">{hint}</p>}
+          {hint && <p className="text-xs text-muted">{hint}</p>}
 
           {view === "3d" ? (
             <div
-              className="relative h-[62vh] max-h-[720px] min-h-[340px] overflow-hidden rounded-2xl border-4 border-emerald-900/20 bg-sky-100 shadow-inner"
+              className="relative h-[62vh] max-h-[720px] min-h-[340px] overflow-hidden rounded-2xl border-4 border-line bg-raised shadow-inner"
               style={{ touchAction: "none" }}
             >
               <City3D
@@ -316,14 +316,14 @@ export function CityBoard(props: {
               {strokeInfo && (
                 <div
                   className={`pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-sm font-bold shadow ${
-                    strokeInfo.bad ? "bg-red-600 text-white" : "bg-white text-slate-900"
+                    strokeInfo.bad ? "bg-red-600 text-white" : "bg-surface text-ink"
                   }`}
                 >
                   {strokeInfo.text}
                 </div>
               )}
               {pending && (
-                <div className="pointer-events-none absolute top-3 left-3 rounded-full bg-white/90 px-3 py-1 text-xs font-medium shadow">Saving…</div>
+                <div className="pointer-events-none absolute top-3 left-3 rounded-full bg-surface/90 px-3 py-1 text-xs text-ink font-medium shadow">Saving…</div>
               )}
               <div className="absolute right-3 bottom-3 flex flex-col gap-1.5">
                 {[
@@ -339,7 +339,7 @@ export function CityBoard(props: {
                     aria-label={b.label}
                     title={b.label}
                     onClick={b.run}
-                    className="flex size-10 items-center justify-center rounded-lg bg-white/95 text-lg font-bold text-slate-800 shadow ring-1 ring-slate-300 hover:bg-white"
+                    className="flex size-10 items-center justify-center rounded-lg bg-surface/95 text-lg font-bold text-ink shadow ring-1 ring-line hover:bg-raised"
                   >
                     {b.icon}
                   </button>
@@ -390,9 +390,9 @@ export function CityBoard(props: {
 
           <section className="card" aria-labelledby="land-h">
             <h2 id="land-h" className="font-semibold">Land</h2>
-            <p className="text-sm text-slate-600">Your city is {size}×{size} tiles.</p>
+            <p className="text-sm text-muted">Your city is {size}×{size} tiles.</p>
             {size >= MAX_CITY_SIZE ? (
-              <p className="mt-2 text-sm text-emerald-700">You own all the land there is!</p>
+              <p className="mt-2 text-sm text-good">You own all the land there is!</p>
             ) : (
               <button
                 type="button"
@@ -404,14 +404,14 @@ export function CityBoard(props: {
               </button>
             )}
             {size < MAX_CITY_SIZE && balance < landPrice(props.landPurchases) && (
-              <p className="mt-1 text-xs text-slate-500">{formatCoins(landPrice(props.landPurchases) - balance)} more coins to go.</p>
+              <p className="mt-1 text-xs text-muted">{formatCoins(landPrice(props.landPurchases) - balance)} more coins to go.</p>
             )}
           </section>
 
           {stats.tips.length > 0 && (
             <section className="card" aria-labelledby="tips-h">
               <h2 id="tips-h" className="font-semibold">City advisor</h2>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink">
                 {stats.tips.map((t) => (
                   <li key={t}>{t}</li>
                 ))}

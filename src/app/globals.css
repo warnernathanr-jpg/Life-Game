@@ -3,28 +3,177 @@
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Theme roles (values per theme below). Use these instead of fixed palette colors. */
+  --color-bg: var(--t-bg);                 /* page background */
+  --color-surface: var(--t-surface);       /* cards, panels */
+  --color-raised: var(--t-raised);         /* inputs, chips, hover rows */
+  --color-line: var(--t-line);             /* borders, dividers */
+  --color-ink: var(--t-ink);               /* main text */
+  --color-muted: var(--t-muted);           /* secondary text */
+  --color-faint: var(--t-faint);           /* hints, quiet icons */
+  --color-header: var(--t-header);         /* top bar */
+  --color-accent: var(--t-accent);         /* primary buttons, active tabs */
+  --color-accent-hover: var(--t-accent-hover);
+  --color-on-accent: var(--t-on-accent);   /* text on accent */
+  --color-accent-text: var(--t-accent-text); /* links and highlights on surfaces */
+  --color-accent-soft: var(--t-accent-soft); /* tinted backgrounds */
+  --color-good: var(--t-good);
+  --color-good-soft: var(--t-good-soft);
+  --color-bad: var(--t-bad);
+  --color-bad-soft: var(--t-bad-soft);
+  --color-coin: var(--t-coin);
+  --color-coin-soft: var(--t-coin-soft);
+  --color-on-coin: var(--t-on-coin);
+}
+
+/* Navy (default) */
+:root,
+[data-theme="navy"] {
+  color-scheme: dark;
+  --t-bg: #0a1128;
+  --t-surface: #111b3a;
+  --t-raised: #18254d;
+  --t-line: #263764;
+  --t-ink: #e7ecf8;
+  --t-muted: #9fb0d6;
+  --t-faint: #6f80aa;
+  --t-header: #070d20;
+  --t-accent: #3b82f6;
+  --t-accent-hover: #2f6fde;
+  --t-on-accent: #ffffff;
+  --t-accent-text: #8ab8ff;
+  --t-accent-soft: #1b2f63;
+  --t-good: #4ade80;
+  --t-good-soft: #123d2a;
+  --t-bad: #fb7185;
+  --t-bad-soft: #451a26;
+  --t-coin: #fbbf24;
+  --t-coin-soft: #3d3112;
+  --t-on-coin: #2b1d00;
+  --t-sky: #1b2a55;
+}
+
+[data-theme="midnight"] {
+  color-scheme: dark;
+  --t-bg: #120d24;
+  --t-surface: #1b1436;
+  --t-raised: #251c47;
+  --t-line: #362a63;
+  --t-ink: #ece8fb;
+  --t-muted: #b2a7d8;
+  --t-faint: #8073ad;
+  --t-header: #0b0818;
+  --t-accent: #8b5cf6;
+  --t-accent-hover: #7a48ee;
+  --t-on-accent: #ffffff;
+  --t-accent-text: #c4b0ff;
+  --t-accent-soft: #2e2160;
+  --t-good: #4ade80;
+  --t-good-soft: #133a29;
+  --t-bad: #fb7185;
+  --t-bad-soft: #451a2c;
+  --t-coin: #fbbf24;
+  --t-coin-soft: #3c2f14;
+  --t-on-coin: #2b1d00;
+  --t-sky: #2a1f50;
+}
+
+[data-theme="forest"] {
+  color-scheme: dark;
+  --t-bg: #08150f;
+  --t-surface: #0f2219;
+  --t-raised: #163024;
+  --t-line: #234634;
+  --t-ink: #e5f4ec;
+  --t-muted: #9cc7b0;
+  --t-faint: #6b9a82;
+  --t-header: #050e0a;
+  --t-accent: #10b981;
+  --t-accent-hover: #0ea371;
+  --t-on-accent: #04170f;
+  --t-accent-text: #6ee7b7;
+  --t-accent-soft: #123d2c;
+  --t-good: #4ade80;
+  --t-good-soft: #123d2a;
+  --t-bad: #fb7185;
+  --t-bad-soft: #451a24;
+  --t-coin: #fbbf24;
+  --t-coin-soft: #38300f;
+  --t-on-coin: #2b1d00;
+  --t-sky: #173828;
+}
+
+[data-theme="ember"] {
+  color-scheme: dark;
+  --t-bg: #121212;
+  --t-surface: #1c1b1a;
+  --t-raised: #272523;
+  --t-line: #3a3633;
+  --t-ink: #f2eeea;
+  --t-muted: #bcb3aa;
+  --t-faint: #8a8079;
+  --t-header: #0b0b0b;
+  --t-accent: #f97316;
+  --t-accent-hover: #ea670c;
+  --t-on-accent: #1d0c00;
+  --t-accent-text: #fdba74;
+  --t-accent-soft: #3d2312;
+  --t-good: #4ade80;
+  --t-good-soft: #163522;
+  --t-bad: #fb7185;
+  --t-bad-soft: #451b22;
+  --t-coin: #fbbf24;
+  --t-coin-soft: #3b3012;
+  --t-on-coin: #2b1d00;
+  --t-sky: #2b2622;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --t-bg: #f1f4fa;
+  --t-surface: #ffffff;
+  --t-raised: #eef2f8;
+  --t-line: #d5dceb;
+  --t-ink: #0f1a33;
+  --t-muted: #4b5a7a;
+  --t-faint: #7a87a3;
+  --t-header: #13213d;
+  --t-accent: #1d4ed8;
+  --t-accent-hover: #1e40af;
+  --t-on-accent: #ffffff;
+  --t-accent-text: #1d4ed8;
+  --t-accent-soft: #e0e9ff;
+  --t-good: #15803d;
+  --t-good-soft: #dcfce7;
+  --t-bad: #be123c;
+  --t-bad-soft: #ffe4e6;
+  --t-coin: #a16207;
+  --t-coin-soft: #fef3c7;
+  --t-on-coin: #ffffff;
+  --t-sky: #bfe3f5;
 }
 
 @layer components {
   .input {
-    @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 shadow-sm
-      focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/30 focus:outline-none;
+    @apply block w-full rounded-lg border border-line bg-raised px-3 py-2 text-base text-ink shadow-sm placeholder:text-faint
+      focus:border-accent focus:ring-2 focus:ring-accent/40 focus:outline-none;
   }
   .btn-primary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 font-semibold
-      text-white shadow-sm hover:bg-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2
-      focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 font-semibold
+      text-on-accent shadow-sm hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2
+      focus-visible:ring-offset-bg focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-secondary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2
-      font-medium text-slate-800 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:outline-none
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-raised px-4 py-2
+      font-medium text-ink hover:border-accent/60 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none
       disabled:cursor-not-allowed disabled:opacity-50;
   }
   .link {
-    @apply font-medium text-emerald-800 underline underline-offset-2 hover:text-emerald-950;
+    @apply font-medium text-accent-text underline underline-offset-2 hover:text-ink;
   }
   .card {
-    @apply rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5;
+    @apply rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5;
   }
 }
 

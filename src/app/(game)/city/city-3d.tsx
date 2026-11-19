@@ -5,6 +5,7 @@ import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
 import { forwardRef, useCallback, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { MapControls as MapControlsImpl } from "three-stdlib";
+import { THEME_EVENT } from "@/lib/themes";
 import { key, roadSet, roadShape, ROAD_TYPE, strokePath, type Lot, type Tile } from "@/lib/roads";
 import { BOX, BuildingModel, MODEL_HEIGHT, NoRoadMarker, mat } from "./models";
 
@@ -39,14 +40,30 @@ const City3D = forwardRef<City3DHandle, City3DProps>(function City3D(props, ref)
       dpr={[1, 2]}
       camera={{ fov: 40, near: 0.1, far: 500 }}
       gl={{ antialias: true }}
-      onCreated={({ gl }) => gl.setClearColor("#bfe3f5")}
       aria-label="3D city map"
     >
+      <ThemeSky />
       <Scene {...props} handleRef={ref} />
     </Canvas>
   );
 });
 export default City3D;
+
+/** Sky color from the current theme (--t-sky); updates when the theme changes. */
+function ThemeSky() {
+  const { gl, invalidate } = useThree();
+  useLayoutEffect(() => {
+    function apply() {
+      const sky = getComputedStyle(document.documentElement).getPropertyValue("--t-sky").trim() || "#1b2a55";
+      gl.setClearColor(sky);
+      invalidate();
+    }
+    apply();
+    window.addEventListener(THEME_EVENT, apply);
+    return () => window.removeEventListener(THEME_EVENT, apply);
+  }, [gl, invalidate]);
+  return null;
+}
 
 function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle> }) {
   const { size, lots, connected, input } = props;

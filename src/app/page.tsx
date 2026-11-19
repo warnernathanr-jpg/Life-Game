@@ -10,7 +10,7 @@ const STEPS = [
 export default function Home() {
   return (
     <main className="flex-1">
-      <section className="bg-gradient-to-b from-emerald-800 to-emerald-700 px-4 pt-6 pb-16 text-white">
+      <section className="bg-gradient-to-b from-header to-accent-soft px-4 pt-6 pb-16 text-white">
         <div className="mx-auto max-w-4xl">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 text-lg font-bold"><span aria-hidden>🏙️</span> Life City</span>
@@ -19,10 +19,10 @@ export default function Home() {
           <h1 className="mt-12 max-w-2xl text-4xl font-bold tracking-tight sm:text-5xl">
             Get things done. Watch your city grow.
           </h1>
-          <p className="mt-4 max-w-xl text-lg text-emerald-50">
+          <p className="mt-4 max-w-xl text-lg text-white/80">
             A personal dashboard for your tasks and habits, with a city-building game powered by your progress.
           </p>
-          <Link href="/signup" className="mt-8 inline-flex min-h-12 items-center rounded-lg bg-amber-400 px-6 font-semibold text-amber-950 shadow hover:bg-amber-300">
+          <Link href="/signup" className="mt-8 inline-flex min-h-12 items-center rounded-lg bg-coin px-6 font-semibold text-on-coin shadow hover:brightness-110">
             Start your city: it&apos;s free
           </Link>
         </div>
@@ -32,7 +32,7 @@ export default function Home() {
           <div key={s.title} className="card">
             <div className="text-3xl" aria-hidden>{s.icon}</div>
             <h2 className="mt-2 font-semibold">{s.title}</h2>
-            <p className="mt-1 text-sm text-slate-600">{s.text}</p>
+            <p className="mt-1 text-sm text-muted">{s.text}</p>
           </div>
         ))}
       </section>
