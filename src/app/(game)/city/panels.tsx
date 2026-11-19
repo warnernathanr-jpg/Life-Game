@@ -325,23 +325,18 @@ export function CityStatsPanel({ stats }: { stats: CityStats }) {
   );
 }
 
+/** What the two warning markers on the map mean. */
 export function Legend() {
   return (
-    <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs" aria-label="Map key">
+    <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted" aria-label="Map markers">
       <li className="flex items-center gap-1.5">
-        <span className="size-2.5 rotate-45 bg-red-500" aria-hidden />
+        <span className="flex size-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-black text-white" aria-hidden>!</span>
         Needs a road
       </li>
       <li className="flex items-center gap-1.5">
         <span className="size-2.5 rotate-45 bg-yellow-400" aria-hidden />
         Not enough workers
       </li>
-      {CATEGORIES.map((c) => (
-        <li key={c.id} className="flex items-center gap-1.5">
-          <span className={`size-3.5 rounded border-2 ${c.tile}`} aria-hidden />
-          {c.label}
-        </li>
-      ))}
     </ul>
   );
 }

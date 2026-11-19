@@ -3,6 +3,7 @@
 // Low-poly building models made from shared primitive shapes (one tile = 1 unit).
 // Each model is centred on its footprint at y = 0. Geometries and materials are shared
 // module-wide so a big city doesn't allocate thousands of them.
+import { Billboard } from "@react-three/drei";
 import { memo } from "react";
 import * as THREE from "three";
 
@@ -13,6 +14,8 @@ const CROWN = new THREE.IcosahedronGeometry(0.5, 0);
 const PINE = new THREE.ConeGeometry(0.5, 1, 7);
 const TENT = new THREE.ConeGeometry(0.5, 1, 8);
 const OCTA = new THREE.OctahedronGeometry(0.5, 0);
+const DISC = new THREE.CylinderGeometry(0.5, 0.5, 1, 24);
+const MARK_WHITE = new THREE.MeshBasicMaterial({ color: "#ffffff" });
 
 const materials = new Map<string, THREE.MeshStandardMaterial>();
 export function mat(color: string, opts: { metal?: boolean; flat?: boolean } = {}) {
@@ -402,12 +405,14 @@ function Model({ typeId, seed, join }: { typeId: string; seed: number; join?: { 
 
 export const BuildingModel = memo(Model);
 
-/** Floating red marker above a building that isn't next to a road. */
+/** Floating red "!" sign above a building that isn't next to a road. It always turns to face the camera. */
 export function NoRoadMarker({ y }: { y: number }) {
   return (
-    <group position={[0, y + 0.35, 0]}>
-      <mesh geometry={OCTA} material={mat("#ef4444")} scale={[0.16, 0.24, 0.16]} />
-    </group>
+    <Billboard position={[0, y + 0.42, 0]}>
+      <mesh geometry={DISC} material={mat("#dc2626")} rotation-x={Math.PI / 2} scale={[0.34, 0.02, 0.34]} />
+      <mesh geometry={BOX} material={MARK_WHITE} position={[0, 0.045, 0.012]} scale={[0.055, 0.17, 0.01]} />
+      <mesh geometry={DISC} material={MARK_WHITE} rotation-x={Math.PI / 2} position={[0, -0.095, 0.012]} scale={[0.065, 0.01, 0.065]} />
+    </Billboard>
   );
 }
 

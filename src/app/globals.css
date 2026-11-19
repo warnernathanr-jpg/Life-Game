@@ -191,15 +191,9 @@
 }
 .coin-pop { animation: coin-pop 1.2s ease-out forwards; }
 
-@keyframes build-in {
-  0% { transform: scale(0.4); opacity: 0; }
-  70% { transform: scale(1.08); opacity: 1; }
-  100% { transform: scale(1); }
-}
-.build-in { animation: build-in 0.35s ease-out; }
 
 @media (prefers-reduced-motion: reduce) {
-  .coin-pop, .build-in { animation: none; }
+  .coin-pop { animation: none; }
 }
 
 /* 3D map on touch screens: one finger scrolls the page while browsing (two fingers move the map),

@@ -26,7 +26,7 @@ async function TasksPageContent() {
     .select("task_id, local_day")
     .gte("local_day", addDays(today, -35));
   const daysByTask = new Map<string, string[]>();
-  for (const c of recent ?? []) daysByTask.set(c.task_id, [...(daysByTask.get(c.task_id) ?? []), c.local_day]);
+  for (const c of recent ?? []) if (c.task_id) daysByTask.set(c.task_id, [...(daysByTask.get(c.task_id) ?? []), c.local_day]);
 
   const all = tasks ?? [];
   const active = all.filter((t) => !t.archived_at);
@@ -36,7 +36,6 @@ async function TasksPageContent() {
   const otherDays = active
     .filter((t) => !t.scheduled_today && !t.done_today)
     .sort((a, b) => daysUntilNext(a.weekdays ?? [], a.today) - daysUntilNext(b.weekdays ?? [], b.today));
-  const archived = all.filter((t) => t.archived_at);
   const earnedToday = Number(progress?.earned_today ?? 0);
   const unlocks = nextUnlocks(types ?? [], progress ?? null);
   const habits: Record<string, HabitSummary> = {};
@@ -56,7 +55,7 @@ async function TasksPageContent() {
           </p>
         </div>
 
-        <TaskList todo={todo} done={done} otherDays={otherDays} archived={archived} habits={habits} />
+        <TaskList todo={todo} done={done} otherDays={otherDays} habits={habits} />
 
         <section className="card" aria-labelledby="add-task">
           <h2 id="add-task" className="mb-3 font-semibold">Add a task</h2>

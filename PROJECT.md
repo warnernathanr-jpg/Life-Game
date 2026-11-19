@@ -14,7 +14,7 @@
   screen and for turning on notifications.
 - **City game:** spend coins on residential, commercial, industrial and service buildings and place them on a grid.
   Lay roads to connect them (a building only counts when it touches a road). Save up to buy more land.
-  The city is shown in 3D (zoom, pan, rotate) with a flat top-down view as an alternative. Buildings unlock with area points from a matching life area (parks with health,
+  The city is shown in 3D (zoom, pan, rotate). Buildings unlock with area points from a matching life area (parks with health,
   schools with knowledge, offices with work...), so a balanced life builds a balanced city.
 
 ## Stack
@@ -33,8 +33,8 @@
   mirrors the numbers for display only; keep both in sync and covered by tests.
 - **Every table has RLS**; users only ever see their own rows. The app uses the signed-in user's session
   (publishable key) everywhere and **never uses the service-role key**.
-- Undoing a task takes its coins back (the balance may go negative). Tasks that were ever completed are
-  archived, not deleted, so completions keep counting toward unlocks.
+- Undoing a task takes its coins back (the balance may go negative). Deleting a task keeps its check-offs
+  (with the task's title), so they keep counting toward points and show in the history calendar.
 - Don't recreate a specific existing game's names, art or look; keep the city original.
 - Never punish missed days: no streaks that reset, no penalties. Consistency is shown gently and rewarded with
   milestones that are kept forever.

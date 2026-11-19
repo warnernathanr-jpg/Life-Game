@@ -6,12 +6,12 @@ import { cityStats, formatCoins, nextUnlocks } from "@/lib/game";
 import { addDays, isHabit, rateWords, summarizeHabit } from "@/lib/habits";
 import { describeSchedule } from "@/lib/tasks";
 import { ActivityChart } from "./activity-chart";
+import { HistoryCalendar, type DoneItem } from "./history-calendar";
 
 export const metadata: Metadata = { title: "Stats · Life City" };
 
-const KIND_ICON = { task: "✅", task_undo: "↩️", building: "🏗️", building_sold: "🧱", land: "🗺️", bonus: "🎁", focus: "⏱️" } as const;
-
-async function StatsContent() {
+async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats">["searchParams"] }) {
+  const { month: monthParam } = await searchParams;
   const { supabase } = await requireUser();
   const [{ data: tasks }, { data: progress }, { data: types }, { data: placed }, { data: profile }] = await Promise.all([
     supabase.rpc("my_tasks"),
@@ -24,11 +24,18 @@ async function StatsContent() {
   const today = tasks?.[0]?.today ?? new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
   const weekAgo = addDays(today, -6);
 
-  const [{ data: completions }, { count: allCheckoffs }, { data: focus }, { data: ledger }] = await Promise.all([
+  // The calendar's month (?month=YYYY-MM, never in the future), defaulting to this month.
+  const month = typeof monthParam === "string" && /^\d{4}-\d{2}$/.test(monthParam) && monthParam <= today.slice(0, 7) ? monthParam : today.slice(0, 7);
+  const [{ data: completions }, { count: allCheckoffs }, { data: focus }, { data: monthDone }] = await Promise.all([
     supabase.from("task_completions").select("task_id, local_day").gte("local_day", addDays(today, -35)),
     supabase.from("task_completions").select("id", { count: "exact", head: true }),
     supabase.from("focus_sessions").select("minutes, local_day").eq("status", "completed"),
-    supabase.from("coin_ledger").select("id, amount, kind, reason, created_at").order("created_at", { ascending: false }).order("id", { ascending: false }).limit(50),
+    supabase
+      .from("task_completions")
+      .select("local_day, title, area, completed_at")
+      .gte("local_day", `${month}-01`)
+      .lte("local_day", `${month}-31`)
+      .order("completed_at"),
   ]);
 
   const recent = completions ?? [];
@@ -39,17 +46,22 @@ async function StatsContent() {
   const checkoffsWeek = recent.filter((c) => c.local_day >= weekAgo).length;
   const focusAll = (focus ?? []).reduce((s, f) => s + f.minutes, 0);
   const focusWeek = (focus ?? []).filter((f) => f.local_day >= weekAgo).reduce((s, f) => s + f.minutes, 0);
-  const entries = ledger ?? [];
+  const timeFmt = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz });
+  const doneItems: DoneItem[] = (monthDone ?? []).map((c) => ({
+    day: c.local_day,
+    title: c.title ?? "Task",
+    area: c.area,
+    time: timeFmt.format(new Date(c.completed_at)),
+  }));
   const city = cityStats(placed ?? [], types ?? []);
 
   const daysByTask = new Map<string, string[]>();
-  for (const c of recent) daysByTask.set(c.task_id, [...(daysByTask.get(c.task_id) ?? []), c.local_day]);
+  for (const c of recent) if (c.task_id) daysByTask.set(c.task_id, [...(daysByTask.get(c.task_id) ?? []), c.local_day]);
   const habits = (tasks ?? [])
     .filter((t) => !t.archived_at && isHabit(t))
     .map((t) => ({ task: t, summary: summarizeHabit(t, daysByTask.get(t.id) ?? [], today) }))
     .sort((a, b) => b.summary.rate - a.summary.rate);
 
-  const fmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: tz });
   const tiles = [
     { label: "Coins", value: `🪙 ${formatCoins(Number(progress?.balance ?? 0))}`, note: "to spend" },
     { label: "Check-offs", value: String(checkoffsWeek), note: `last 7 days · ${formatCoins(allCheckoffs ?? 0)} all time` },
@@ -111,28 +123,9 @@ async function StatsContent() {
             )}
           </section>
 
-          <section className="card p-0 sm:p-0" aria-labelledby="hist-h">
-            <h2 id="hist-h" className="px-4 pt-4 font-semibold sm:px-5">Coin history</h2>
-            {entries.length === 0 ? (
-              <p className="px-4 pb-4 text-sm text-muted sm:px-5">Nothing yet.</p>
-            ) : (
-              <ul className="divide-y divide-line">
-                {entries.map((r) => (
-                  <li key={r.id} className="flex items-center gap-3 px-4 py-2.5 sm:px-5">
-                    <span aria-hidden className="text-lg">{KIND_ICON[r.kind]}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm">{r.reason}</span>
-                      <span className="block text-xs text-muted">{fmt.format(new Date(r.created_at))}</span>
-                    </span>
-                    <span className={`shrink-0 font-bold tabular-nums ${r.amount > 0 ? "text-good" : "text-ink"}`}>
-                      {r.amount > 0 ? "+" : "−"}
-                      {formatCoins(Math.abs(Number(r.amount)))}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {entries.length === 50 && <p className="px-4 pb-3 text-xs text-muted sm:px-5">Showing the latest 50.</p>}
+          <section className="card" aria-labelledby="hist-h">
+            <h2 id="hist-h" className="mb-3 font-semibold">History</h2>
+            <HistoryCalendar key={month} month={month} today={today} items={doneItems} />
           </section>
         </div>
 
@@ -166,10 +159,10 @@ async function StatsContent() {
   );
 }
 
-export default function StatsPage() {
+export default function StatsPage({ searchParams }: PageProps<"/stats">) {
   return (
     <Suspense fallback={<p className="text-sm text-muted">Loading your stats…</p>}>
-      <StatsContent />
+      <StatsContent searchParams={searchParams} />
     </Suspense>
   );
 }

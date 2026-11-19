@@ -3,7 +3,7 @@
 Where the project stands. Read with [PROJECT.md](./PROJECT.md) at the start of every session, and update this file
 when a piece of work is finished.
 
-_Last updated: 2026-11-24_
+_Last updated: 2026-11-25_
 
 ## Done
 
@@ -208,6 +208,18 @@ _Last updated: 2026-11-24_
   **Ctrl/⌘ + wheel** (and trackpad pinch, sent as Ctrl + wheel) zooms the map. A hint ("Hold Ctrl (⌘ on Mac) and scroll
   to zoom the map") shows briefly on plain wheel. +/− buttons, drag-to-pan and right-drag-to-rotate unchanged.
   Browser-checked: wheel scrolls the page over the map; Ctrl + wheel zooms without scrolling; hint appears and fades.
+
+### 13. Cheaper roads, "!" markers, delete-only tasks, history calendar, 3D only (2026-11-25)
+- **Roads cost 1 coin** a tile (migration `20261124000500_cheap_roads.sql`, applied live). Demolishing a road refunds nothing
+  (half of 1 rounds down).
+- **Map legend** lists only the markers. Buildings without a road show a red **"!"** badge (always facing the camera) in 3D.
+- **Tasks are deleted, not archived.** Migration `20261124000600_delete_tasks_keep_history.sql` (applied live):
+  `task_completions.title` (filled by a trigger at check-off), `task_id` nullable with `on delete set null`, so a deleted
+  task's check-offs keep counting toward points and history. The 4 archived live tasks were deleted (their check-offs kept).
+  6 pgTAP tests (`delete_tasks.test.sql`).
+- **Stats → History** is a month calendar of completed tasks (`history-calendar.tsx`, `?month=YYYY-MM`): area-colored dots
+  per day, tap a day for its tasks and times. The coin history list is gone.
+- **Flat view removed** (`flat-board.tsx` deleted); the city is 3D only.
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate

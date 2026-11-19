@@ -5,25 +5,23 @@ import type { MyTaskRow } from "@/lib/database.types";
 import { AREA_BY_ID, nextMilestone } from "@/lib/game";
 import { rateWords, type HabitSummary } from "@/lib/habits";
 import { describeNext, describeProgress, describeSchedule } from "@/lib/tasks";
-import { completeTask, removeTask, restoreTask, undoTask } from "../actions";
+import { completeTask, removeTask, undoTask } from "../actions";
 
 export function TaskList({
   todo,
   done,
   otherDays,
-  archived,
   habits,
 }: {
   todo: MyTaskRow[];
   done: MyTaskRow[];
   otherDays: MyTaskRow[];
-  archived: MyTaskRow[];
   habits: Record<string, HabitSummary>;
 }) {
   const [message, setMessage] = useState<{ text: string; tone: "good" | "bad" } | null>(null);
   const [pop, setPop] = useState<{ id: string; coins: number; key: number } | null>(null);
 
-  if (todo.length + done.length + otherDays.length + archived.length === 0) {
+  if (todo.length + done.length + otherDays.length === 0) {
     return (
       <div className="card text-center">
         <p className="text-4xl" aria-hidden>🌱</p>
@@ -69,16 +67,6 @@ export function TaskList({
             ))}
           </ul>
         </section>
-      )}
-      {archived.length > 0 && (
-        <details className="card">
-          <summary className="cursor-pointer text-sm font-medium text-ink">Archived ({archived.length})</summary>
-          <ul className="mt-2 divide-y divide-line">
-            {archived.map((t) => (
-              <ArchivedRow key={t.id} task={t} setMessage={setMessage} />
-            ))}
-          </ul>
-        </details>
       )}
     </div>
   );
@@ -130,11 +118,11 @@ function TaskRow({
   }
 
   function remove() {
-    const verb = task.total_completions > 0 ? "Archive" : "Delete";
-    if (!window.confirm(`${verb} “${task.title}”?`)) return;
+    const keep = task.total_completions > 0 ? " Its past check-offs still count toward your points and history." : "";
+    if (!window.confirm(`Delete “${task.title}”?${keep}`)) return;
     start(async () => {
       const r = await removeTask(task.id);
-      setMessage(r.ok ? { text: r.archived ? "Archived. Its past completions still count." : "Deleted.", tone: "good" } : { text: r.error, tone: "bad" });
+      setMessage(r.ok ? { text: "Deleted.", tone: "good" } : { text: r.error, tone: "bad" });
     });
   }
 
@@ -169,7 +157,7 @@ function TaskRow({
         type="button"
         onClick={remove}
         disabled={pending}
-        aria-label={`Remove “${task.title}”`}
+        aria-label={`Delete “${task.title}”`}
         className="flex size-9 shrink-0 items-center justify-center rounded-lg text-faint hover:bg-raised hover:text-ink"
       >
         ×
@@ -226,40 +214,18 @@ function OtherDayRow({ task, setMessage }: { task: MyTaskRow; setMessage: SetMes
       <button
         type="button"
         disabled={pending}
-        aria-label={`Remove “${task.title}”`}
+        aria-label={`Delete “${task.title}”`}
         onClick={() => {
-          const verb = task.total_completions > 0 ? "Archive" : "Delete";
-          if (!window.confirm(`${verb} “${task.title}”?`)) return;
+          const keep = task.total_completions > 0 ? " Its past check-offs still count toward your points and history." : "";
+          if (!window.confirm(`Delete “${task.title}”?${keep}`)) return;
           start(async () => {
             const r = await removeTask(task.id);
-            setMessage(r.ok ? { text: r.archived ? "Archived. Its past completions still count." : "Deleted.", tone: "good" } : { text: r.error, tone: "bad" });
+            setMessage(r.ok ? { text: "Deleted.", tone: "good" } : { text: r.error, tone: "bad" });
           });
         }}
         className="flex size-9 shrink-0 items-center justify-center rounded-lg text-faint hover:bg-raised hover:text-ink"
       >
         ×
-      </button>
-    </li>
-  );
-}
-
-function ArchivedRow({ task, setMessage }: { task: MyTaskRow; setMessage: SetMessage }) {
-  const [pending, start] = useTransition();
-  return (
-    <li className="flex items-center justify-between gap-3 py-2 text-sm">
-      <span className="truncate text-muted">{task.title}</span>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() =>
-          start(async () => {
-            const r = await restoreTask(task.id);
-            setMessage(r.ok ? { text: "Restored.", tone: "good" } : { text: r.error, tone: "bad" });
-          })
-        }
-        className="link shrink-0"
-      >
-        Restore
       </button>
     </li>
   );

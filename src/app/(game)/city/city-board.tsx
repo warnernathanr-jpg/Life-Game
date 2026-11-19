@@ -7,7 +7,6 @@ import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, formatCoins, landPrice, lot
 import { connectedIds, key, nextFacing, roadSet, type Facing, type Lot, type Tile } from "@/lib/roads";
 import { buyBuilding, buyLand, buyTiles, moveBuilding, sellBuilding, sellMany, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
-import { FlatBoard } from "./flat-board";
 import { CityName, CityStatsPanel, HealthPill, Legend, SelectedPanel, Shop } from "./panels";
 
 // three.js only loads on this page, in the browser.
@@ -30,7 +29,6 @@ export type Mode =
   | { kind: "paint"; typeId: PaintType }
   | { kind: "bulldoze" };
 
-const VIEW_KEY = "lifecity:view";
 const VIEW_BUTTONS = [
   { action: "in", label: "Zoom in", icon: "+" },
   { action: "out", label: "Zoom out", icon: "−" },
@@ -82,9 +80,7 @@ export function CityBoard(props: {
     if (!t || pointsToUnlock(t, progress) > 0) return { kind: "idle" };
     return isPaint(t.id) ? { kind: "paint", typeId: t.id } : { kind: "place", typeId: t.id };
   });
-  const [view, setView] = useState<"3d" | "flat">("3d");
   const [message, setMessage] = useState<{ text: string; tone: "good" | "bad" } | null>(null);
-  const [justBuilt, setJustBuilt] = useState<string | null>(null);
   const [stroke, setStroke] = useState<Tile[] | null>(null);
   const [pending, start] = useTransition();
   const city3d = useRef<City3DHandle>(null);
@@ -110,21 +106,7 @@ export function CityBoard(props: {
       el.removeEventListener("wheel", onWheel, { capture: true });
       clearTimeout(timer);
     };
-  }, [view]);
-
-  // Remember 3D / flat per browser (a convenience; falls back to 3D).
-  useEffect(() => {
-    try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (localStorage.getItem(VIEW_KEY) === "flat") setView("flat");
-    } catch {}
   }, []);
-  function chooseView(v: "3d" | "flat") {
-    setView(v);
-    try {
-      localStorage.setItem(VIEW_KEY, v);
-    } catch {}
-  }
 
   const placingType = mode.kind === "place" ? typeById.get(mode.typeId) : undefined;
   const paintType = mode.kind === "paint" ? typeById.get(mode.typeId) : undefined;
@@ -174,7 +156,6 @@ export function CityBoard(props: {
       start(async () => {
         const r = await buyBuilding(placingType.id, x, y);
         if (!r.ok) return say(r.error, "bad");
-        setJustBuilt(r.id);
         const nearRoad = connectedIds([...lots, { id: r.id, type_id: placingType.id, x, y, size: placingType.size }]).has(r.id);
         say(`Built a ${placingType.name} for ${formatCoins(placingType.cost)} coins.${nearRoad ? "" : " It needs a road beside it to count."}`);
         // One building per pick: back to looking around (no Cancel needed).
@@ -329,14 +310,10 @@ export function CityBoard(props: {
 
   const hint =
     mode.kind === "paint" && paintType
-      ? view === "3d"
-        ? `Drag across the map to paint ${paintType.name.toLowerCase()} (${paintType.cost} coins a tile). Two fingers move the map.`
-        : `Tap tiles to add ${paintType.name.toLowerCase()} (${paintType.cost} coins a tile).`
+      ? `Drag across the map to paint ${paintType.name.toLowerCase()} (${paintType.cost} coin${paintType.cost === 1 ? "" : "s"} a tile). Two fingers move the map.`
       : mode.kind === "bulldoze"
-        ? view === "3d"
-          ? "Drag over things to demolish them (you get half the price back)."
-          : "Tap something to demolish it (half the price back)."
-        : view === "3d" && (mode.kind === "idle" || mode.kind === "selected")
+        ? "Drag over things to demolish them (you get half the price back)."
+        : mode.kind === "idle" || mode.kind === "selected"
           ? "Tap a building to select it. On a phone: one finger scrolls the page, two fingers move and zoom the map. On a computer: drag to move, Ctrl/⌘ + scroll to zoom, right-drag to rotate."
           : null;
 
@@ -374,19 +351,6 @@ export function CityBoard(props: {
                 </button>
               ))}
             </div>
-            <div className="flex gap-1 rounded-xl bg-surface p-1 shadow-sm ring-1 ring-line" role="group" aria-label="View">
-              {(["3d", "flat"] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  aria-pressed={view === v}
-                  onClick={() => chooseView(v)}
-                  className={`min-h-10 rounded-lg px-3 text-sm font-medium ${view === v ? "bg-accent-soft text-accent-text" : "text-ink hover:bg-raised"}`}
-                >
-                  {v === "3d" ? "3D" : "Flat"}
-                </button>
-              ))}
-            </div>
           </div>
 
           {(mode.kind === "place" || mode.kind === "move") && (
@@ -412,7 +376,6 @@ export function CityBoard(props: {
           )}
           {hint && <p className="text-xs text-muted">{hint}</p>}
 
-          {view === "3d" ? (
             <div
               ref={mapBox}
               data-map={mode.kind === "paint" || mode.kind === "bulldoze" ? "paint" : "browse"}
@@ -468,22 +431,6 @@ export function CityBoard(props: {
                 ))}
               </div>
             </div>
-          ) : (
-            <FlatBoard
-              size={size}
-              lots={lots}
-              typeById={typeById}
-              needsRoad={needsRoad}
-              understaffed={stats.understaffed}
-              mode={mode}
-              selectedId={selected?.id}
-              movingId={movingLot?.id}
-              ghostSize={ghostSize}
-              justBuilt={justBuilt}
-              pending={pending}
-              onTile={onTile}
-            />
-          )}
           <Legend />
         </div>
 

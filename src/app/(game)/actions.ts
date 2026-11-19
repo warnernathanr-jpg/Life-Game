@@ -88,30 +88,11 @@ export async function undoTask(taskId: string): Promise<ActionResult<{ coins: nu
   return { ok: true, coins: Number(data.coins) };
 }
 
-/**
- * Remove a task from the list. Tasks that were ever completed are archived instead of
- * deleted, so their completions keep counting toward building unlocks.
- */
-export async function removeTask(taskId: string): Promise<ActionResult<{ archived: boolean }>> {
+/** Delete a task. Its past check-offs stay (they keep counting toward area points and show in the history calendar). */
+export async function removeTask(taskId: string): Promise<ActionResult> {
   if (!uuid.safeParse(taskId).success) return { ok: false, error: gameError(null) };
   const { supabase } = await requireUser();
-  const { count } = await supabase
-    .from("task_completions")
-    .select("id", { count: "exact", head: true })
-    .eq("task_id", taskId);
-  const archive = (count ?? 0) > 0;
-  const { error } = archive
-    ? await supabase.from("tasks").update({ archived_at: new Date().toISOString() }).eq("id", taskId)
-    : await supabase.from("tasks").delete().eq("id", taskId);
-  if (error) return { ok: false, error: gameError(error) };
-  refresh();
-  return { ok: true, archived: archive };
-}
-
-export async function restoreTask(taskId: string): Promise<ActionResult> {
-  if (!uuid.safeParse(taskId).success) return { ok: false, error: gameError(null) };
-  const { supabase } = await requireUser();
-  const { error } = await supabase.from("tasks").update({ archived_at: null }).eq("id", taskId);
+  const { error } = await supabase.from("tasks").delete().eq("id", taskId);
   if (error) return { ok: false, error: gameError(error) };
   refresh();
   return { ok: true };

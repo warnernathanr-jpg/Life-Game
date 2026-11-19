@@ -133,7 +133,7 @@ export type Database = {
       >;
       task_completions: Table<{
         id: string;
-        task_id: string;
+        task_id: string | null;
         user_id: string;
         area: LifeArea;
         period_start: string;
@@ -141,6 +141,7 @@ export type Database = {
         coins: number;
         points: number;
         bonus: number;
+        title: string | null;
         completed_at: string;
       }, never, never>;
       coin_ledger: Table<LedgerRow, never, never>;
