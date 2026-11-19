@@ -239,6 +239,14 @@ _Last updated: 2026-11-25_
 - Roads and bridges never offer Rotate.
 - Fix: the Stats history calendar showed nothing (the month query used an impossible date, e.g. Nov 31).
 
+### 15. Moving water, varied tree tiles (2026-11-25)
+- **Water moves**: a shader on the water tiles rolls two crossing swells across ponds (deep to light blue, soft foam where
+  they meet, flowing across tile edges) with a slight bob, plus drifting glints (one per tile, up to 60). The map keeps
+  redrawing while there's water (like cars).
+- **Trees tiles** pick one of six styles from the tile's seed (mixed grove of 4, pine stand of 5, big shade tree with
+  shrubs, slim clump with rocks, dense woods of 6, meadow with two trees and flowers), with jittered positions, sizes and
+  crown colors, so painted forests look natural.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

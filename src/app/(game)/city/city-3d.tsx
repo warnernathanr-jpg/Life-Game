@@ -556,12 +556,56 @@ function tileHash(x: number, y: number, salt = 0): number {
   return (h >>> 0) / 4294967296;
 }
 
-const WATER_PARTS = { water: mat("#3b82f6"), deep: mat("#2563eb"), shore: mat("#fde68a") };
+const WATER_PARTS = { shore: mat("#fde68a") };
 
-/** Water tiles joined into ponds and lakes: open water plus a sandy shore on sides without water. */
+/** Shared clock for the water shader (seconds). */
+const waterTime = { value: 0 };
+
+/**
+ * Water that moves: two crossing swells shade the surface lighter and darker as they roll by (worked out per pixel from
+ * world position, so neighboring tiles flow into each other), plus a slow bob of the surface.
+ */
+const WATER_MATERIAL = (() => {
+  const m = new THREE.MeshStandardMaterial({ color: "#3b82f6", roughness: 0.75, metalness: 0 });
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = waterTime;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nuniform float uTime;\nvarying vec2 vWaterXZ;")
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+        vec4 wp = vec4(transformed, 1.0);
+        #ifdef USE_INSTANCING
+          wp = instanceMatrix * wp;
+        #endif
+        wp = modelMatrix * wp;
+        vWaterXZ = wp.xz;
+        transformed.y += sin(wp.x * 1.7 + uTime * 1.1) * sin(wp.z * 1.3 + uTime * 0.9) * 0.15;`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform float uTime;\nvarying vec2 vWaterXZ;")
+      .replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
+        float w1 = sin(vWaterXZ.x * 3.1 + vWaterXZ.y * 1.7 + uTime * 1.6);
+        float w2 = sin(vWaterXZ.y * 3.7 - vWaterXZ.x * 1.3 - uTime * 1.25);
+        float w = (w1 + w2) * 0.5;
+        // Linear colors: deep to light blue.
+        diffuseColor.rgb = mix(vec3(0.006, 0.06, 0.38), vec3(0.03, 0.2, 0.72), w * 0.5 + 0.5);
+        // Thin bright crests where both swells peak.
+        diffuseColor.rgb += vec3(0.25, 0.35, 0.4) * smoothstep(0.88, 1.0, w);`,
+      );
+  };
+  return m;
+})();
+
+const GLINT_MATERIAL = new THREE.MeshBasicMaterial({ color: "#f8fafc", transparent: true, opacity: 0.85, depthWrite: false });
+
+/** Water tiles joined into ponds and lakes: moving water, a sandy shore on sides without water, and drifting glints. */
 function Water({ tiles }: { tiles: Lot[] }) {
   const waterRef = useRef<THREE.InstancedMesh>(null);
   const shoreRef = useRef<THREE.InstancedMesh>(null);
+  const glintRef = useRef<THREE.InstancedMesh>(null);
   const { invalidate } = useThree();
   const parts = useMemo(() => {
     const set = new Set(tiles.map((t) => key(t.x, t.y)));
@@ -575,13 +619,24 @@ function Water({ tiles }: { tiles: Lot[] }) {
       const cz = t.y + 0.5;
       water.push(m(cx, 0.012, cz, 1, 0.02, 1));
       const s = roadShape(t.x, t.y, set);
-      if (!s.n) shore.push(m(cx, 0.016, t.y + S / 2, 1, 0.02, S));
-      if (!s.s) shore.push(m(cx, 0.016, t.y + 1 - S / 2, 1, 0.02, S));
-      if (!s.w) shore.push(m(t.x + S / 2, 0.016, cz, S, 0.02, 1));
-      if (!s.e) shore.push(m(t.x + 1 - S / 2, 0.016, cz, S, 0.02, 1));
+      if (!s.n) shore.push(m(cx, 0.024, t.y + S / 2, 1, 0.02, S));
+      if (!s.s) shore.push(m(cx, 0.024, t.y + 1 - S / 2, 1, 0.02, S));
+      if (!s.w) shore.push(m(t.x + S / 2, 0.024, cz, S, 0.02, 1));
+      if (!s.e) shore.push(m(t.x + 1 - S / 2, 0.024, cz, S, 0.02, 1));
     }
     return { water, shore };
   }, [tiles]);
+  // One glint per tile (up to 60): each fades in, drifts a little and fades out, then moves to another spot.
+  const glints = useMemo(
+    () =>
+      tiles.slice(0, 60).map((t, i) => ({
+        x: t.x + 0.2 + tileHash(t.x, t.y, 5) * 0.6,
+        z: t.y + 0.2 + tileHash(t.x, t.y, 6) * 0.6,
+        phase: tileHash(i, t.x, 7) * 4,
+        speed: 0.18 + tileHash(t.y, i, 8) * 0.12,
+      })),
+    [tiles],
+  );
   useLayoutEffect(() => {
     for (const [ref, list] of [[waterRef, parts.water], [shoreRef, parts.shore]] as const) {
       const mesh = ref.current;
@@ -593,11 +648,43 @@ function Water({ tiles }: { tiles: Lot[] }) {
     }
     invalidate();
   }, [parts, invalidate]);
+
+  const tmp = useMemo(() => new THREE.Matrix4(), []);
+  useFrame((_, delta) => {
+    if (tiles.length === 0) return;
+    waterTime.value += Math.min(delta, 0.05);
+    const t = waterTime.value;
+    const mesh = glintRef.current;
+    if (mesh) {
+      glints.forEach((g, i) => {
+        const cycle = (t * g.speed + g.phase) % 1; // 0 → 1 over a few seconds
+        const size = Math.sin(cycle * Math.PI); // grow then shrink
+        const drift = (cycle - 0.5) * 0.25;
+        tmp.compose(
+          new THREE.Vector3(g.x + drift, 0.03, g.z + drift * 0.4),
+          new THREE.Quaternion(),
+          new THREE.Vector3(0.16 * size, 0.004, 0.035 * size),
+        );
+        mesh.setMatrixAt(i, tmp);
+      });
+      mesh.count = glints.length;
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+    invalidate(); // keep the water moving
+  });
+
   const cap = (n: number) => Math.max(1, n);
   return (
     <>
-      <instancedMesh key={`w${cap(parts.water.length)}`} ref={waterRef} args={[BOX, WATER_PARTS.water, cap(parts.water.length)]} receiveShadow />
+      <instancedMesh key={`w${cap(parts.water.length)}`} ref={waterRef} args={[BOX, WATER_MATERIAL, cap(parts.water.length)]} receiveShadow />
       <instancedMesh key={`s${cap(parts.shore.length)}`} ref={shoreRef} args={[BOX, WATER_PARTS.shore, cap(parts.shore.length)]} receiveShadow />
+      <instancedMesh
+        key={`g${cap(glints.length)}`}
+        ref={glintRef}
+        args={[BOX, GLINT_MATERIAL, cap(glints.length)]}
+        frustumCulled={false}
+        raycast={() => null}
+      />
     </>
   );
 }

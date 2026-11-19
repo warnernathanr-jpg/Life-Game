@@ -60,6 +60,78 @@ export function Tree({ p, s = 1, pine, crown = "#22c55e" }: { p: V3; s?: number;
   );
 }
 
+/** Tiny seeded random numbers in [0, 1) for one tile (same tile, same layout every visit). */
+function rand(seed: number) {
+  let h = seed >>> 0 || 1;
+  return () => {
+    h ^= h << 13;
+    h ^= h >>> 17;
+    h ^= h << 5;
+    return (h >>> 0) / 4294967296;
+  };
+}
+
+const TREE_STYLES = 6;
+
+/**
+ * A trees tile: one of six styles, picked by the tile's seed, with positions, sizes and colors varied too.
+ * Grove, pine stand, big oak with shrubs, birch clump with rocks, dense woods, and a meadow with a couple of trees.
+ */
+function TreeTile({ seed }: { seed: number }) {
+  const r = rand(seed * 2654435761);
+  const style = seed % TREE_STYLES;
+  const crown = (i: number) => pick(PALETTE.crowns, seed, 60 + i);
+  const jitter = (v: number, amt = 0.06) => v + (r() - 0.5) * amt * 2;
+  const trees: { p: V3; s: number; pine?: boolean; c?: string }[] = [];
+  const bits: React.ReactNode[] = [];
+  const rock = (x: number, z: number, k: number) => (
+    <B key={`r${k}`} p={[x, 0, z]} s={[0.07 + r() * 0.06, 0.04 + r() * 0.04, 0.06 + r() * 0.05]} c={r() < 0.5 ? "#a8a29e" : "#78716c"} />
+  );
+  const shrub = (x: number, z: number, k: number) => (
+    <mesh key={`b${k}`} geometry={CROWN} material={mat(r() < 0.5 ? "#4d7c0f" : "#65a30d")} position={[x, 0.06, z]} scale={[0.14, 0.1, 0.14]} castShadow />
+  );
+  switch (style) {
+    case 0: // mixed grove of 4
+      [[-0.22, -0.2], [0.22, -0.18], [-0.18, 0.22], [0.2, 0.2]].forEach(([x, z], i) =>
+        trees.push({ p: [jitter(x), 0, jitter(z)], s: 0.75 + r() * 0.35, pine: r() < 0.3, c: crown(i) }));
+      break;
+    case 1: // pine stand: five pines of different heights
+      [[-0.25, -0.25], [0.15, -0.28], [0.28, 0.1], [-0.05, 0.05], [-0.25, 0.27]].forEach(([x, z]) =>
+        trees.push({ p: [jitter(x), 0, jitter(z)], s: 0.65 + r() * 0.5, pine: true }));
+      break;
+    case 2: // one big shade tree with shrubs around it
+      trees.push({ p: [jitter(-0.05), 0, jitter(-0.05)], s: 1.45 + r() * 0.2, c: crown(0) });
+      [[0.3, 0.28], [-0.3, 0.3], [0.32, -0.3]].forEach(([x, z], i) => bits.push(shrub(jitter(x), jitter(z), i)));
+      break;
+    case 3: // a clump of three slim trees with rocks
+      [[-0.18, -0.12], [0.16, -0.2], [0.02, 0.18]].forEach(([x, z], i) =>
+        trees.push({ p: [jitter(x), 0, jitter(z)], s: 0.7 + r() * 0.25, c: i === 1 ? "#a3e635" : crown(i) }));
+      bits.push(rock(jitter(0.3), jitter(0.3), 0), rock(jitter(-0.32), jitter(0.3), 1));
+      break;
+    case 4: // dense woods: six trees packed together
+      for (let i = 0; i < 6; i++) {
+        const x = -0.28 + (i % 3) * 0.28;
+        const z = i < 3 ? -0.18 : 0.18;
+        trees.push({ p: [jitter(x, 0.05), 0, jitter(z, 0.08)], s: 0.6 + r() * 0.35, pine: r() < 0.5, c: crown(i) });
+      }
+      break;
+    default: // meadow: two trees, flowers and a rock
+      trees.push({ p: [jitter(-0.2), 0, jitter(-0.15)], s: 0.95 + r() * 0.2, c: crown(0) }, { p: [jitter(0.22), 0, jitter(0.2)], s: 0.75 + r() * 0.2, pine: r() < 0.4, c: crown(1) });
+      for (let i = 0; i < 7; i++) {
+        const c = ["#f472b6", "#facc15", "#f8fafc", "#a78bfa"][i % 4];
+        bits.push(<B key={`f${i}`} p={[(r() - 0.5) * 0.8, 0, (r() - 0.5) * 0.8]} s={[0.035, 0.03, 0.035]} c={c} />);
+      }
+      bits.push(rock(jitter(0.3), jitter(-0.3), 9));
+  }
+  return (
+    <>
+      {trees.map((t, i) => (
+        <Tree key={i} p={t.p} s={t.s} pine={t.pine} crown={t.c} />
+      ))}
+      {bits}
+    </>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Color variety: each building gets its own scheme, picked from these palettes by a
@@ -332,18 +404,8 @@ function Model({ typeId, seed, join }: { typeId: string; seed: number; join?: { 
           })}
         </>
       );
-    case "tree": {
-      // A small cluster of 1–3 trees, different on every tile.
-      const n = 1 + (seed % 3);
-      const spots: V3[] = [[-0.2, 0, -0.15], [0.2, 0, 0.18], [0.15, 0, -0.25]];
-      return (
-        <>
-          {spots.slice(0, n).map((p, i) => (
-            <Tree key={i} p={n === 1 ? [0, 0, 0] : p} s={1.1 + ((seed >> (i * 2)) & 3) * 0.15} pine={((seed >> (i + 5)) & 1) === 1} crown={pick(PALETTE.crowns, seed, 60 + i)} />
-          ))}
-        </>
-      );
-    }
+    case "tree":
+      return <TreeTile seed={seed} />;
     case "clinic":
       return (
         <>
