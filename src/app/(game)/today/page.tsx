@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { DAILY_COIN_CAP, formatCoins, nextUnlocks } from "@/lib/game";
+import { daysUntilNext } from "@/lib/tasks";
 import { AddTaskForm } from "./add-task-form";
 import { TaskList } from "./task-list";
 
@@ -19,8 +20,12 @@ async function TodayPageContent() {
 
   const all = tasks ?? [];
   const active = all.filter((t) => !t.archived_at);
-  const todo = active.filter((t) => !t.done);
-  const done = active.filter((t) => t.done && (t.repeat !== "once" || t.done_today));
+  // To do: on today and still needs doing. Done: checked off today, or done earlier this week/month/quarter/year.
+  const todo = active.filter((t) => t.scheduled_today && !t.done && !t.done_today);
+  const done = active.filter((t) => t.done_today || (t.done && !["once", "daily", "days"].includes(t.repeat)));
+  const otherDays = active
+    .filter((t) => !t.scheduled_today && !t.done_today)
+    .sort((a, b) => daysUntilNext(a.weekdays ?? [], a.today) - daysUntilNext(b.weekdays ?? [], b.today));
   const archived = all.filter((t) => t.archived_at);
   const earnedToday = Number(progress?.earned_today ?? 0);
   const unlocks = nextUnlocks(types ?? [], progress ?? null);
@@ -39,7 +44,7 @@ async function TodayPageContent() {
           </p>
         </div>
 
-        <TaskList todo={todo} done={done} archived={archived} />
+        <TaskList todo={todo} done={done} otherDays={otherDays} archived={archived} />
 
         <section className="card" aria-labelledby="add-task">
           <h2 id="add-task" className="mb-3 font-semibold">Add a task</h2>

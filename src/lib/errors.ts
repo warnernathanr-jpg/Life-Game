@@ -5,6 +5,7 @@ const MESSAGES: Record<string, string> = {
   task_archived: "That task is archived.",
   already_done: "Already done for now. Nice!",
   not_done: "There's nothing to undo.",
+  not_scheduled_today: "That task isn't on today.",
   unknown_building: "That building doesn't exist.",
   locked: "That building is still locked. Finish more tasks in its life area.",
   lot_taken: "That spot is taken or outside your land.",

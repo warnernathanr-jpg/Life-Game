@@ -3,16 +3,24 @@
 import { useState, useTransition } from "react";
 import type { MyTaskRow } from "@/lib/database.types";
 import { AREA_BY_ID } from "@/lib/game";
+import { describeNext, describeProgress, describeSchedule } from "@/lib/tasks";
 import { completeTask, removeTask, restoreTask, undoTask } from "../actions";
 
-const REPEAT_LABEL = { once: "One-off", daily: "Daily", weekly: "Weekly" } as const;
-const DONE_LABEL = { once: "Done", daily: "Done today", weekly: "Done this week" } as const;
-
-export function TaskList({ todo, done, archived }: { todo: MyTaskRow[]; done: MyTaskRow[]; archived: MyTaskRow[] }) {
+export function TaskList({
+  todo,
+  done,
+  otherDays,
+  archived,
+}: {
+  todo: MyTaskRow[];
+  done: MyTaskRow[];
+  otherDays: MyTaskRow[];
+  archived: MyTaskRow[];
+}) {
   const [message, setMessage] = useState<{ text: string; tone: "good" | "bad" } | null>(null);
   const [pop, setPop] = useState<{ id: string; coins: number; key: number } | null>(null);
 
-  if (todo.length + done.length + archived.length === 0) {
+  if (todo.length + done.length + otherDays.length + archived.length === 0) {
     return (
       <div className="card text-center">
         <p className="text-4xl" aria-hidden>🌱</p>
@@ -49,6 +57,16 @@ export function TaskList({ todo, done, archived }: { todo: MyTaskRow[]; done: My
           </ul>
         </section>
       )}
+      {otherDays.length > 0 && (
+        <section className="card p-0 sm:p-0" aria-labelledby="other-h">
+          <h2 id="other-h" className="px-4 pt-4 font-semibold sm:px-5">Other days</h2>
+          <ul className="divide-y divide-slate-100">
+            {otherDays.map((t) => (
+              <OtherDayRow key={t.id} task={t} setMessage={setMessage} />
+            ))}
+          </ul>
+        </section>
+      )}
       {archived.length > 0 && (
         <details className="card">
           <summary className="cursor-pointer text-sm font-medium text-slate-700">Archived ({archived.length})</summary>
@@ -78,10 +96,13 @@ function TaskRow({
 }) {
   const [pending, start] = useTransition();
   const area = AREA_BY_ID[task.area];
+  // Checked when done today, or done earlier in its week/month/quarter/year.
+  const checked = task.done_today || task.done;
+  const progress = describeProgress(task);
 
   function toggle() {
     start(async () => {
-      if (task.done) {
+      if (checked) {
         const r = await undoTask(task.id);
         setMessage(r.ok ? { text: `Undone. ${r.coins ? `−${r.coins} coins.` : ""}`, tone: "good" } : { text: r.error, tone: "bad" });
       } else {
@@ -114,23 +135,24 @@ function TaskRow({
         type="button"
         onClick={toggle}
         disabled={pending}
-        aria-pressed={task.done}
-        aria-label={task.done ? `Undo “${task.title}”` : `Complete “${task.title}” for ${task.reward} coins`}
+        aria-pressed={checked}
+        aria-label={checked ? `Undo “${task.title}”` : `Complete “${task.title}” for ${task.reward} coins`}
         className={`flex size-9 shrink-0 items-center justify-center rounded-full border-2 text-lg transition ${
-          task.done ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 bg-white hover:border-emerald-600"
+          checked ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 bg-white hover:border-emerald-600"
         }`}
       >
-        {task.done ? "✓" : ""}
+        {checked ? "✓" : ""}
       </button>
       <div className="min-w-0 flex-1">
         <p className={`break-words font-medium ${task.done ? "text-slate-500 line-through" : ""}`}>{task.title}</p>
         <p className="flex flex-wrap gap-x-2 text-xs text-slate-500">
           <span><span aria-hidden>{area.icon}</span> {area.label}</span>
-          <span>· {task.done ? DONE_LABEL[task.repeat] : REPEAT_LABEL[task.repeat]}</span>
+          <span>· {describeSchedule(task)}</span>
+          {progress && <span className={task.done ? "" : "font-medium text-emerald-700"}>· {progress}</span>}
           {task.total_completions > 0 && <span>· {task.total_completions}× total</span>}
         </p>
       </div>
-      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${task.done ? "bg-slate-100 text-slate-500" : "bg-amber-100 text-amber-900"}`}>
+      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${checked ? "bg-slate-100 text-slate-500" : "bg-amber-100 text-amber-900"}`}>
         +{task.reward}
       </span>
       <button
@@ -147,6 +169,40 @@ function TaskRow({
           +{pop.coins} 🪙
         </span>
       )}
+    </li>
+  );
+}
+
+function OtherDayRow({ task, setMessage }: { task: MyTaskRow; setMessage: SetMessage }) {
+  const [pending, start] = useTransition();
+  const area = AREA_BY_ID[task.area];
+  return (
+    <li className={`flex items-center gap-3 px-4 py-3 sm:px-5 ${pending ? "opacity-60" : ""}`}>
+      <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-base">📅</span>
+      <div className="min-w-0 flex-1">
+        <p className="break-words font-medium text-slate-700">{task.title}</p>
+        <p className="flex flex-wrap gap-x-2 text-xs text-slate-500">
+          <span><span aria-hidden>{area.icon}</span> {area.label}</span>
+          <span>· {describeSchedule(task)}</span>
+          <span>· Next: {describeNext(task.weekdays ?? [], task.today)}</span>
+        </p>
+      </div>
+      <button
+        type="button"
+        disabled={pending}
+        aria-label={`Remove “${task.title}”`}
+        onClick={() => {
+          const verb = task.total_completions > 0 ? "Archive" : "Delete";
+          if (!window.confirm(`${verb} “${task.title}”?`)) return;
+          start(async () => {
+            const r = await removeTask(task.id);
+            setMessage(r.ok ? { text: r.archived ? "Archived. Its past completions still count." : "Deleted.", tone: "good" } : { text: r.error, tone: "bad" });
+          });
+        }}
+        className="flex size-9 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+      >
+        ×
+      </button>
     </li>
   );
 }

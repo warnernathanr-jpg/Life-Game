@@ -3,7 +3,7 @@
 Where the project stands. Read with [PROJECT.md](./PROJECT.md) at the start of every session, and update this file
 when a piece of work is finished.
 
-_Last updated: 2026-11-20_
+_Last updated: 2026-11-21_
 
 ## Done
 
@@ -55,6 +55,19 @@ _Last updated: 2026-11-20_
 - Checked with a sample city in headless Chromium (WebGL): render, zoom/rotate buttons, road drag preview and cost,
   selecting a building by tapping it, flat view and remembered choice, 390px with no horizontal scroll, no console errors.
   Not checked: real touch gestures on a phone, and saving through a real Supabase (the next step below).
+
+### 3. More task schedules (2026-11-21)
+- Tasks repeat **once, daily, weekly, monthly, quarterly, yearly, on certain weekdays, or N times a week / month**
+  (`tasks.weekdays` ISO 1–7, `tasks.times_per_period` 2–7 a week or 2–31 a month, checked by constraints).
+- Every completion is for one local day (at most once a day per task); periods are the day, ISO week, calendar month,
+  quarter or year in the user's time zone. `complete_task()` refuses a certain-days task on other days
+  (`not_scheduled_today`) and stops once the period's count is reached; `undo_task()` takes back the latest check-off in
+  the current period. `my_tasks()` now returns `period_count`, `period_target`, `scheduled_today` and `today`.
+- **Today** page: "Other days" section for certain-days tasks that aren't on today ("Next: Monday"); progress such as
+  "1 of 3 this week" or "Done this quarter"; the add form has day chips (with Weekdays / Weekends shortcuts) and a
+  times-per-period number. Helpers in `src/lib/tasks.ts`.
+- Migrations `20261121000000_task_repeat_values.sql`, `20261121000100_task_schedules.sql`; 25 pgTAP tests
+  (`task_schedules.test.sql`), 4 unit tests (`tasks.test.ts`). Form and list checked at 390px.
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate

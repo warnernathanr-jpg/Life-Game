@@ -3,7 +3,8 @@
 
 export type LifeArea = "health" | "work" | "learning" | "home" | "social";
 export type TaskDifficulty = "easy" | "medium" | "hard";
-export type TaskRepeat = "once" | "daily" | "weekly";
+export type TaskRepeat =
+  | "once" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "days" | "times_per_week" | "times_per_month";
 export type BuildingCategory = "residential" | "commercial" | "industrial" | "service" | "road";
 export type LedgerKind = "task" | "task_undo" | "building" | "building_sold" | "land" | "bonus";
 
@@ -31,6 +32,8 @@ export type TaskRow = {
   area: LifeArea;
   difficulty: TaskDifficulty;
   repeat: TaskRepeat;
+  weekdays: number[] | null;
+  times_per_period: number | null;
   archived_at: string | null;
   created_at: string;
 };
@@ -78,13 +81,19 @@ export type MyTaskRow = {
   area: LifeArea;
   difficulty: TaskDifficulty;
   repeat: TaskRepeat;
+  weekdays: number[] | null;
+  times_per_period: number | null;
   archived_at: string | null;
   created_at: string;
   reward: number;
   done: boolean;
   done_at: string | null;
   done_today: boolean;
+  period_count: number;
+  period_target: number;
+  scheduled_today: boolean;
   total_completions: number;
+  today: string;
 };
 
 export type ProgressRow = {
@@ -103,8 +112,8 @@ export type Database = {
       profiles: Table<ProfileRow, Partial<ProfileRow>, Partial<Pick<ProfileRow, "display_name" | "timezone" | "city_name">>>;
       tasks: Table<
         TaskRow,
-        Pick<TaskRow, "title" | "area"> & Partial<Pick<TaskRow, "difficulty" | "repeat" | "user_id">>,
-        Partial<Pick<TaskRow, "title" | "area" | "difficulty" | "repeat" | "archived_at">>
+        Pick<TaskRow, "title" | "area"> & Partial<Pick<TaskRow, "difficulty" | "repeat" | "user_id" | "weekdays" | "times_per_period">>,
+        Partial<Pick<TaskRow, "title" | "area" | "difficulty" | "repeat" | "archived_at" | "weekdays" | "times_per_period">>
       >;
       task_completions: Table<{
         id: string;

@@ -7,7 +7,6 @@ import type {
   PlacedBuildingRow,
   ProgressRow,
   TaskDifficulty,
-  TaskRepeat,
 } from "./database.types";
 import { connectedIds } from "./roads";
 
@@ -41,11 +40,6 @@ export const DIFFICULTIES: { id: TaskDifficulty; label: string }[] = [
   { id: "hard", label: "Hard" },
 ];
 
-export const REPEATS: { id: TaskRepeat; label: string }[] = [
-  { id: "once", label: "One-off" },
-  { id: "daily", label: "Every day" },
-  { id: "weekly", label: "Every week" },
-];
 
 export const CATEGORIES: { id: BuildingCategory; label: string; tile: string; chip: string }[] = [
   { id: "residential", label: "Residential", tile: "bg-orange-100 border-orange-300", chip: "bg-orange-100 text-orange-900" },

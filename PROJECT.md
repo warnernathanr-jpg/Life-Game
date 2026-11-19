@@ -4,7 +4,8 @@
 
 **Life City**: a personal life dashboard with a city-building game.
 
-- **Life tracker:** tasks (one-off, daily, weekly) in five life areas: health, work, learning, home, social.
+- **Life tracker:** tasks (one-off, daily, weekly, monthly, quarterly, yearly, on certain weekdays, or N times a
+  week/month) in five life areas: health, work, learning, home, social.
   Later: goals with milestones, habit streaks, progress charts.
 - **Economy:** completing a task earns coins (easy 10, medium 25, hard 50; at most 400 a day).
 - **City game:** spend coins on residential, commercial, industrial and service buildings and place them on a grid.

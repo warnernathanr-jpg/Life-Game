@@ -20,15 +20,45 @@ const uuid = z.string().uuid();
 
 export type AddTaskState = { error?: string; added?: number };
 
-const taskSchema = z.object({
-  title: z.string().trim().min(1, "Give the task a name.").max(120, "Keep it under 120 characters."),
-  area: z.enum(["health", "work", "learning", "home", "social"], { message: "Choose a life area." }),
-  difficulty: z.enum(["easy", "medium", "hard"]),
-  repeat: z.enum(["once", "daily", "weekly"]),
-});
+const taskSchema = z
+  .object({
+    title: z.string().trim().min(1, "Give the task a name.").max(120, "Keep it under 120 characters."),
+    area: z.enum(["health", "work", "learning", "home", "social"], { message: "Choose a life area." }),
+    difficulty: z.enum(["easy", "medium", "hard"]),
+    repeat: z.enum(["once", "daily", "weekly", "monthly", "quarterly", "yearly", "days", "times_per_week", "times_per_month"]),
+    weekdays: z.array(z.coerce.number().int().min(1).max(7)),
+    times: z.string().optional(),
+  })
+  .transform((v, ctx) => {
+    const out = { title: v.title, area: v.area, difficulty: v.difficulty, repeat: v.repeat, weekdays: null as number[] | null, times_per_period: null as number | null };
+    if (v.repeat === "days") {
+      if (v.weekdays.length === 0) {
+        ctx.addIssue({ code: "custom", message: "Pick at least one day." });
+        return z.NEVER;
+      }
+      out.weekdays = [...new Set(v.weekdays)].sort();
+    }
+    if (v.repeat === "times_per_week" || v.repeat === "times_per_month") {
+      const max = v.repeat === "times_per_week" ? 7 : 31;
+      const n = Number(v.times);
+      if (!Number.isInteger(n) || n < 2 || n > max) {
+        ctx.addIssue({ code: "custom", message: `Choose between 2 and ${max} times a ${v.repeat === "times_per_week" ? "week" : "month"}.` });
+        return z.NEVER;
+      }
+      out.times_per_period = n;
+    }
+    return out;
+  });
 
 export async function addTask(prev: AddTaskState, formData: FormData): Promise<AddTaskState> {
-  const parsed = taskSchema.safeParse(Object.fromEntries(formData));
+  const parsed = taskSchema.safeParse({
+    title: formData.get("title") ?? "",
+    area: formData.get("area"),
+    difficulty: formData.get("difficulty"),
+    repeat: formData.get("repeat"),
+    weekdays: formData.getAll("weekdays"),
+    times: formData.get("times") ?? undefined,
+  });
   if (!parsed.success) return { error: parsed.error.issues[0].message, added: prev.added };
   const { supabase } = await requireUser();
   const { error } = await supabase.from("tasks").insert(parsed.data);
