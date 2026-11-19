@@ -15,7 +15,13 @@ const types = [
   type({ id: "factory", category: "industrial", jobs: 30, happiness: -6, size: 2, unlock_area: "work", unlock_count: 10 }),
   type({ id: "park", category: "service", happiness: 5, unlock_area: "health", unlock_count: 3 }),
   type({ id: "clinic", category: "service", jobs: 6, happiness: 6, unlock_area: "health", unlock_count: 10 }),
+  type({ id: "road", category: "road" }),
 ];
+
+let n = 0;
+const at = (type_id: string, x: number, y: number) => ({ id: `b${n++}`, type_id, x, y });
+/** A road along row 0 from x = 0 to 9; buildings on row 1 touch it. */
+const street = Array.from({ length: 10 }, (_, x) => at("road", x, 0));
 
 const progress = (p: Partial<ProgressRow>): ProgressRow => ({
   balance: 0, earned_today: 0, health: 0, work: 0, learning: 0, home: 0, social: 0, ...p,
@@ -52,16 +58,22 @@ describe("cityStats", () => {
     expect(s.tips[0]).toMatch(/Start with/);
   });
   it("adds population, jobs and happiness", () => {
-    const s = cityStats([{ type_id: "cottage" }, { type_id: "cottage" }, { type_id: "shop" }, { type_id: "park" }], types);
-    expect(s).toMatchObject({ population: 8, jobs: 4, employed: 4, happiness: 56, score: 4 });
+    const s = cityStats([...street, at("cottage", 0, 1), at("cottage", 1, 1), at("shop", 2, 1), at("park", 3, 1)], types);
+    expect(s).toMatchObject({ population: 8, jobs: 4, employed: 4, happiness: 56, score: 4, roads: 10, buildings: 4, unconnected: 0 });
+  });
+  it("buildings away from a road don't count", () => {
+    const s = cityStats([...street, at("cottage", 0, 1), at("cottage", 5, 5), at("factory", 7, 7)], types);
+    expect(s).toMatchObject({ population: 4, jobs: 0, unconnected: 2 });
+    expect(s.tips[0]).toMatch(/2 buildings aren't next to a road/);
   });
   it("penalises unemployment and clamps happiness", () => {
-    const homes = Array.from({ length: 10 }, () => ({ type_id: "cottage" }));
-    const s = cityStats(homes, types);
+    const homes = Array.from({ length: 10 }, (_, x) => at("cottage", x, 1));
+    const s = cityStats([...street, ...homes], types);
     expect(s.happiness).toBe(40);
     expect(s.tips.some((t) => t.includes("jobs"))).toBe(true);
-    const sad = cityStats(Array.from({ length: 20 }, () => ({ type_id: "factory" })), types);
-    expect(sad.happiness).toBe(0);
+    const factories = Array.from({ length: 5 }, (_, i) => at("factory", i * 2, 1));
+    const sad = cityStats([...street, ...factories], types);
+    expect(sad.happiness).toBe(20); // 50 − 5 × 6
   });
 });
 

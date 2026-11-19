@@ -8,7 +8,8 @@
   Later: goals with milestones, habit streaks, progress charts.
 - **Economy:** completing a task earns coins (easy 10, medium 25, hard 50; at most 400 a day).
 - **City game:** spend coins on residential, commercial, industrial and service buildings and place them on a grid.
-  Save up to buy more land. Buildings unlock by completing tasks in a matching life area (parks with health,
+  Lay roads to connect them (a building only counts when it touches a road). Save up to buy more land.
+  The city is shown in 3D (zoom, pan, rotate) with a flat top-down view as an alternative. Buildings unlock by completing tasks in a matching life area (parks with health,
   schools with learning, offices with work...), so a balanced life builds a balanced city.
 
 ## Stack
@@ -20,7 +21,7 @@
 ## Rules
 
 - **Coins are integers** and only change through the Postgres functions (`complete_task`, `undo_task`,
-  `buy_building`, `sell_building`, `buy_land`). Every change is a row in the append-only `coin_ledger`; the balance
+  `buy_building`, `sell_building`, `buy_roads`, `sell_buildings`, `buy_land`). Every change is a row in the append-only `coin_ledger`; the balance
   is the sum. Users can't insert, update or delete the ledger, completions or placed buildings directly.
 - **Game rules live in the database** (rewards, daily cap, unlocks, lot overlap, land prices). `src/lib/game.ts`
   mirrors the numbers for display only; keep both in sync and covered by tests.

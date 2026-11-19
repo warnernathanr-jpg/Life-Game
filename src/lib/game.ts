@@ -9,9 +9,11 @@ import type {
   TaskDifficulty,
   TaskRepeat,
 } from "./database.types";
+import { connectedIds } from "./roads";
 
 export const DAILY_COIN_CAP = 400; // public.daily_coin_cap()
 export const MAX_CITY_SIZE = 30; // public.max_city_size()
+export const MAX_STROKE_TILES = 200; // public.max_stroke_tiles()
 export const REWARDS: Record<TaskDifficulty, number> = { easy: 10, medium: 25, hard: 50 }; // public.task_reward()
 
 /** public.land_price(): 300 × 1.6ⁿ, rounded to the nearest 10. */
@@ -50,6 +52,7 @@ export const CATEGORIES: { id: BuildingCategory; label: string; tile: string; ch
   { id: "commercial", label: "Commercial", tile: "bg-sky-100 border-sky-300", chip: "bg-sky-100 text-sky-900" },
   { id: "industrial", label: "Industrial", tile: "bg-stone-200 border-stone-400", chip: "bg-stone-200 text-stone-900" },
   { id: "service", label: "Services", tile: "bg-violet-100 border-violet-300", chip: "bg-violet-100 text-violet-900" },
+  { id: "road", label: "Roads", tile: "bg-slate-500 border-slate-600", chip: "bg-slate-200 text-slate-900" },
 ];
 export const CATEGORY_BY_ID = Object.fromEntries(CATEGORIES.map((c) => [c.id, c])) as Record<
   BuildingCategory,
@@ -84,25 +87,45 @@ export type CityStats = {
   happiness: number;
   score: number;
   buildings: number;
+  roads: number;
+  /** Buildings that don't touch a road (they don't count yet). */
+  unconnected: number;
   tips: string[];
 };
 
 /**
- * City stats from the placed buildings:
+ * City stats from the placed buildings. Only buildings that touch a road count:
  * - population from homes, jobs from shops, industry and services;
- * - happiness starts at 50, plus each building's effect, minus 10 when fewer than half the
+ * - happiness starts at 50, plus each counted building's effect, minus 10 when fewer than half the
  *   residents have jobs, clamped to 0–100;
  * - score = population × happiness / 100 (rounded).
  */
-export function cityStats(placed: Pick<PlacedBuildingRow, "type_id">[], types: BuildingTypeRow[]): CityStats {
+export function cityStats(
+  placed: Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y">[],
+  types: BuildingTypeRow[],
+): CityStats {
   const byId = new Map(types.map((t) => [t.id, t]));
+  const lots = placed.map((b) => ({ ...b, size: byId.get(b.type_id)?.size ?? 1 }));
+  const connected = connectedIds(lots);
   let population = 0;
   let jobs = 0;
   let effect = 0;
   let services = 0;
-  for (const b of placed) {
+  let buildings = 0;
+  let roads = 0;
+  let unconnected = 0;
+  for (const b of lots) {
     const t = byId.get(b.type_id);
     if (!t) continue;
+    if (t.category === "road") {
+      roads += 1;
+      continue;
+    }
+    buildings += 1;
+    if (!connected.has(b.id)) {
+      unconnected += 1;
+      continue;
+    }
     population += t.population;
     jobs += t.jobs;
     effect += t.happiness;
@@ -110,6 +133,13 @@ export function cityStats(placed: Pick<PlacedBuildingRow, "type_id">[], types: B
   }
   const tips: string[] = [];
   let penalty = 0;
+  if (unconnected > 0) {
+    tips.push(
+      unconnected === 1
+        ? "1 building isn't next to a road, so it doesn't count yet. Build a road beside it."
+        : `${unconnected} buildings aren't next to a road, so they don't count yet. Build roads beside them.`,
+    );
+  }
   if (population > 0 && jobs < population / 2) {
     penalty = 10;
     tips.push("Fewer than half your residents have jobs. Add shops, workshops or services.");
@@ -120,8 +150,8 @@ export function cityStats(placed: Pick<PlacedBuildingRow, "type_id">[], types: B
   if (population >= 20 && services === 0) {
     tips.push("Your city has no services yet. Parks, schools and clinics make people happier.");
   }
-  if (placed.length === 0) {
-    tips.push("Start with a Cottage and a Corner Shop. Finish tasks to earn more coins.");
+  if (lots.length === 0) {
+    tips.push("Start with a short road, then a Cottage and a Corner Shop beside it. Finish tasks to earn more coins.");
   }
   const happiness = Math.max(0, Math.min(100, 50 + effect - penalty));
   return {
@@ -130,7 +160,9 @@ export function cityStats(placed: Pick<PlacedBuildingRow, "type_id">[], types: B
     employed: Math.min(population, jobs),
     happiness,
     score: Math.round((population * happiness) / 100),
-    buildings: placed.length,
+    buildings,
+    roads,
+    unconnected,
     tips,
   };
 }

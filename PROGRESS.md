@@ -3,7 +3,7 @@
 Where the project stands. Read with [PROJECT.md](./PROJECT.md) at the start of every session, and update this file
 when a piece of work is finished.
 
-_Last updated: 2026-11-19_
+_Last updated: 2026-11-20_
 
 ## Done
 
@@ -34,13 +34,36 @@ _Last updated: 2026-11-19_
   download the local Supabase Docker images (Docker Hub rate limit). The pgTAP tests ran on plain Postgres 16 with a
   stand-in `auth` schema.
 
+### 2. 3D city and streets (2026-11-20)
+- **3D view** (`src/app/(game)/city/city-3d.tsx`, React Three Fiber + drei, loaded only on `/city` in the browser):
+  map-style camera (drag to pan, scroll/pinch to zoom, right-drag/two fingers to rotate and tilt, limits keep it over the
+  city), plus zoom, rotate and reset buttons. Renders only on change (`frameloop="demand"`). Low-poly models for all 15
+  buildings built from shared shapes (`models.tsx`), shadows, a hedge around your land. Tap a building to select it;
+  placing shows a green/red footprint.
+- **Roads**: a new `road` category and building (5 coins a tile). In 3D, the Road tool draws by dragging (an L-shaped path
+  along the longer side first) with a live "N tiles · cost" bubble; existing road is skipped and free; a path through a
+  building or past the edge is refused. Road tiles pick their shape from their neighbors (curbs on open sides, dashed
+  centre lines) and are drawn as three instanced meshes. **Bulldoze** tool: drag over roads and buildings to demolish them
+  (half back, one confirm).
+- **Buildings only count when they touch a road** (`src/lib/roads.ts`, not diagonal). Unconnected buildings get a red
+  marker, aren't counted in population/jobs/happiness, and the City advisor says how many need a road.
+- **Flat view** (`flat-board.tsx`, the old grid) is still there with a 3D | Flat switch (remembered per browser): roads
+  shown joined, tap to lay one road tile or bulldoze one item, keyboard navigation as before.
+- Database: migrations `20261120000000_road_category.sql` and `20261120000100_roads.sql`: `buy_roads(jsonb)` (up to 200
+  tiles, one ledger row per stroke, all-or-nothing) and `sell_buildings(uuid[])`. 17 pgTAP tests (`roads.test.sql`);
+  6 more unit tests (stroke paths, road shapes, connections, stats with roads).
+- Checked with a sample city in headless Chromium (WebGL): render, zoom/rotate buttons, road drag preview and cost,
+  selecting a building by tapping it, flat view and remembered choice, 390px with no horizontal scroll, no console errors.
+  Not checked: real touch gestures on a phone, and saving through a real Supabase (the next step below).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
 2. Create a Supabase project and a Vercel project; push migrations (`npx supabase db push`) and set the env vars.
-3. Goals and milestones (bonus coins), habit streaks with a multiplier, progress charts on a dashboard.
-4. City depth: roads, adjacency effects (shops near homes, industry far from them), small passive income.
-5. Polish: isometric art (e.g. CC0 Kenney city tiles), building animations, phone app (PWA) and reminders.
+3. Little cars on roads, day/night lighting, CC0 3D models (e.g. Kenney city kit).
+4. Goals and milestones (bonus coins), habit streaks with a multiplier, progress charts on a dashboard.
+5. City depth: adjacency effects (shops near homes, industry far from them), small passive income.
+6. Polish: building animations, phone app (PWA) and reminders.
 
 ## Notes
 - Next.js 16: middleware is `src/proxy.ts`; with Cache Components, session reads go inside `<Suspense>`

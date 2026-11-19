@@ -4,7 +4,7 @@
 export type LifeArea = "health" | "work" | "learning" | "home" | "social";
 export type TaskDifficulty = "easy" | "medium" | "hard";
 export type TaskRepeat = "once" | "daily" | "weekly";
-export type BuildingCategory = "residential" | "commercial" | "industrial" | "service";
+export type BuildingCategory = "residential" | "commercial" | "industrial" | "service" | "road";
 export type LedgerKind = "task" | "task_undo" | "building" | "building_sold" | "land" | "bonus";
 
 type Table<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
@@ -127,6 +127,8 @@ export type Database = {
       buy_building: { Args: { p_type_id: string; p_x: number; p_y: number }; Returns: { building_id: string; balance: number }[] };
       move_building: { Args: { p_building_id: string; p_x: number; p_y: number }; Returns: undefined };
       sell_building: { Args: { p_building_id: string }; Returns: { refund: number; balance: number }[] };
+      buy_roads: { Args: { p_tiles: [number, number][] }; Returns: { built: number; cost: number; balance: number }[] };
+      sell_buildings: { Args: { p_ids: string[] }; Returns: { sold: number; refund: number; balance: number }[] };
       buy_land: { Args: Record<string, never>; Returns: { city_size: number; balance: number }[] };
       my_progress: { Args: Record<string, never>; Returns: ProgressRow[] };
       my_tasks: { Args: Record<string, never>; Returns: MyTaskRow[] };

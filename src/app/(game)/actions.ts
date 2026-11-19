@@ -124,6 +124,30 @@ export async function sellBuilding(buildingId: string): Promise<ActionResult<{ r
   return { ok: true, refund: Number(data.refund) };
 }
 
+const tiles = z.array(z.tuple([coord, coord])).min(1).max(200);
+
+/** Buy road tiles along a stroke (tiles that are already road are free). */
+export async function buyRoads(points: [number, number][]): Promise<ActionResult<{ built: number; cost: number }>> {
+  const parsed = tiles.safeParse(points);
+  if (!parsed.success) return { ok: false, error: gameError({ message: "too_many_tiles" }) };
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("buy_roads", { p_tiles: parsed.data }).single();
+  if (error || !data) return { ok: false, error: gameError(error) };
+  refresh();
+  return { ok: true, built: data.built, cost: Number(data.cost) };
+}
+
+/** Demolish several buildings/roads at once (half back each). */
+export async function sellMany(ids: string[]): Promise<ActionResult<{ sold: number; refund: number }>> {
+  const parsed = z.array(uuid).min(1).max(200).safeParse(ids);
+  if (!parsed.success) return { ok: false, error: gameError({ message: "too_many_tiles" }) };
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("sell_buildings", { p_ids: parsed.data }).single();
+  if (error || !data) return { ok: false, error: gameError(error) };
+  refresh();
+  return { ok: true, sold: data.sold, refund: Number(data.refund) };
+}
+
 export async function buyLand(): Promise<ActionResult<{ size: number }>> {
   const { supabase } = await requireUser();
   const { data, error } = await supabase.rpc("buy_land").single();

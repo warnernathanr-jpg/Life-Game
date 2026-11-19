@@ -11,6 +11,9 @@ const MESSAGES: Record<string, string> = {
   not_enough_coins: "Not enough coins yet. Finish some tasks!",
   building_not_found: "That building is gone.",
   max_size: "Your city is already as big as it can get.",
+  no_tiles: "Nothing selected.",
+  bad_tiles: "Those tiles couldn't be read. Please try again.",
+  too_many_tiles: "That's too long. Do it in shorter pieces (up to 200 tiles).",
 };
 
 export function gameError(error: { message?: string } | null | undefined): string {
