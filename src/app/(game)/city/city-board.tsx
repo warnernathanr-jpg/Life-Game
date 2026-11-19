@@ -143,6 +143,7 @@ export function CityBoard(props: {
   }
 
   function onTile(x: number, y: number) {
+    if (mode.kind === "paint") return onStroke([{ x, y }]);
     if (pending) return;
     if (mode.kind === "place" && placingType) {
       if (!lotFree(size, { x, y, size: placingType.size }, lots)) return say("That spot is taken or doesn't fit.", "bad");
@@ -168,13 +169,15 @@ export function CityBoard(props: {
       });
       return;
     }
-    if (mode.kind === "paint" || mode.kind === "bulldoze") return onStroke([{ x, y }]);
+    if (mode.kind === "bulldoze") return onStroke([{ x, y }]);
     const b = occupant.get(key(x, y));
     setMode(b ? { kind: "selected", id: b.id } : { kind: "idle" });
   }
 
   function onStroke(tiles: Tile[]) {
-    if (pending || tiles.length === 0) return;
+    // Painting accepts new strokes while earlier ones are still saving (the server checks each one);
+    // only bulldozing waits, so its confirm never lists something that is already gone.
+    if (tiles.length === 0 || (pending && mode.kind === "bulldoze")) return;
     if (mode.kind === "paint" && paintType) {
       const plan = planPaint(tiles, mode.typeId);
       const noun = mode.typeId === "road" ? "road" : mode.typeId === "tree" ? "trees" : "water";
