@@ -3,7 +3,7 @@
 Where the project stands. Read with [PROJECT.md](./PROJECT.md) at the start of every session, and update this file
 when a piece of work is finished.
 
-_Last updated: 2026-11-21_
+_Last updated: 2026-11-22_
 
 ## Done
 
@@ -79,10 +79,28 @@ _Last updated: 2026-11-21_
 - `src/lib/themes.ts`, `src/components/theme-picker.tsx`. Checked in a browser: default navy, switching to Forest and
   Light, remembered after reload, sign-in page, no console errors.
 
+### 5. Focus timer (2026-11-22)
+- **Focus** (`/focus`, new nav item): pick 5–60 minutes (slider in 5-minute steps, quick picks 15/25/45/60) and an
+  optional label; earn **1 coin per minute**, up to **180 focus coins a day** (separate from the 400 task-coin cap).
+- While running: countdown ring, screen kept on (Wake Lock API where supported), "leave the page?" warning on close.
+  Leaving the page (another app or tab) for more than **10 seconds** ends the session with no coins; a shorter absence
+  shows a warning. "Give up" asks to confirm. A refresh resumes a running session. Phones vibrate at the end.
+  The web can't tell locking the phone from switching apps, so the instructions say to leave the phone face down with
+  the page open.
+- Server rules (migrations `20261122000000_focus_ledger_kind.sql`, `20261122000100_focus_sessions.sql`):
+  `focus_sessions` (RLS read own, no direct writes; one running session per user), `start_focus(minutes, label)`
+  (abandons any running one), `complete_focus(id)` (only after the full time, within 10 minutes of the end; otherwise
+  abandoned with no coins; ledger kind `focus`), `fail_focus(id)`. 19 pgTAP tests (`focus.test.sql`).
+- Today's list shows sessions (done / ended early / not finished), minutes focused and focus coins vs the cap.
+- Checked in a browser at 390px: picker and reward text, countdown, short absence warns, 11-second absence ends the
+  session, no hydration warnings.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
-2. Create a Supabase project and a Vercel project; push migrations (`npx supabase db push`) and set the env vars.
+2. Supabase project "Life City" (`ucvdtyzfjztzxguwohif`, us-west-2) exists but is still empty: apply the 7
+   migrations in order (the Supabase MCP `apply_migration` waits for the user's confirmation), then create the
+   Vercel project and set `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 3. Little cars on roads, day/night lighting, CC0 3D models (e.g. Kenney city kit).
 4. Goals and milestones (bonus coins), habit streaks with a multiplier, progress charts on a dashboard.
 5. City depth: adjacency effects (shops near homes, industry far from them), small passive income.
