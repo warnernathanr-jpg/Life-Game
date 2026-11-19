@@ -213,12 +213,18 @@ function CameraRig({
   const { camera, invalidate } = useThree();
   const center = useMemo(() => new THREE.Vector3(size / 2, 0, size / 2), [size]);
 
+  const getState = useThree((s) => s.get);
   const reset = useCallback(() => {
-    camera.position.set(size / 2 + size * 0.55, size * 0.85 + 3, size / 2 + size * 0.95 + 3);
+    // Narrow (portrait) screens see less sideways, so pull back until the whole city fits.
+    const { width, height } = getState().size;
+    const aspect = height > 0 ? width / height : 1;
+    const k = aspect < 1.2 ? Math.min(2.2, 1.2 / Math.max(aspect, 0.3)) : 1;
+    const offset = new THREE.Vector3(size * 0.55, size * 0.85 + 3, size * 0.95 + 3).multiplyScalar(k);
+    camera.position.copy(center).add(offset);
     controls.current?.target.copy(center);
     controls.current?.update();
     invalidate();
-  }, [camera, center, size, invalidate]);
+  }, [camera, center, size, invalidate, getState]);
 
   // Frame the whole city on first load and whenever the land grows.
   useLayoutEffect(() => {

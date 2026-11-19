@@ -3,7 +3,7 @@
 Where the project stands. Read with [PROJECT.md](./PROJECT.md) at the start of every session, and update this file
 when a piece of work is finished.
 
-_Last updated: 2026-11-22_
+_Last updated: 2026-11-23_
 
 ## Done
 
@@ -110,14 +110,27 @@ _Last updated: 2026-11-22_
   work by team members); Claude is credited with a `Co-Authored-By` line.
 - The sandbox's network can't reach the deployed site, so live checks need the host allowed or happen elsewhere.
 
+### 7. Live: database, sign-in settings, end-to-end test (2026-11-23)
+- Life City is a **separate business**: the Supabase project moved to its own organization ("Life City",
+  `hazgvmhweytvjtbzevpy`; same project ref and keys). The Vercel project is still on the Laundromat Success team (next step).
+- Database set up by the owner in the SQL Editor (the MCP `apply_migration` confirmation never reached them). Verified:
+  7 tables with RLS, 16 building types, all 9 repeat kinds, anon can't read tables or call game functions. Security
+  advisor: 13 WARN "signed-in users can execute SECURITY DEFINER function" for the game actions, which is intended
+  (they only act on `auth.uid()`'s rows). Note: `supabase_migrations` history holds only a no-op `connection_check`
+  row, so `supabase db push` would try to re-run every migration; record the 7 versions before using the CLI.
+- Supabase Auth: Site URL `https://life-city-five.vercel.app`, redirect `https://life-city-five.vercel.app/**`,
+  "Confirm email" off (built-in mail only reaches team members; add a real sender before launch).
+- **Live end-to-end test** on the deployed site at 390px with a throwaway account (deleted afterwards): sign-up → 100
+  coins and Chicago time zone saved; daily task +25; 3×-a-week task "1 of 3 this week"; focus start + give up (failed, no
+  coins); road + cottage in flat view (105 coins, population 4); 3D view renders; coin history; sign out and back in.
+  The database rows matched. No console errors.
+- Fix: the 3D view's starting camera pulls back on portrait screens so the whole city fits.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
-2. **Finish the database**: Supabase project "Life City" (`ucvdtyzfjztzxguwohif`, us-west-2) is still empty. Apply
-   the 7 migrations in order (Supabase MCP `apply_migration` asks the user to confirm each; it timed out twice), or
-   the user runs the two bundled SQL files in the SQL Editor. Then: security advisors, Supabase Auth URL settings
-   (Site URL + redirect `https://life-city-five.vercel.app/**`), turn off "Confirm email" (built-in mail only reaches
-   team members), and a live end-to-end test with a throwaway account.
+2. **Move Vercel off the Laundromat Success team** (to the owner's personal Hobby account now, a Pro team before
+   charging), then reconnect the Vercel connector, update `.vercel/project.json` and redeploy.
 3. Little cars on roads, day/night lighting, CC0 3D models (e.g. Kenney city kit).
 4. Goals and milestones (bonus coins), habit streaks with a multiplier, progress charts on a dashboard.
 5. City depth: adjacency effects (shops near homes, industry far from them), small passive income.
