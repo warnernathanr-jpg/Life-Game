@@ -129,8 +129,12 @@ _Last updated: 2026-11-23_
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
-2. **Move Vercel off the Laundromat Success team** (to the owner's personal Hobby account now, a Pro team before
-   charging), then reconnect the Vercel connector, update `.vercel/project.json` and redeploy.
+2. **Vercel access after the move**: the owner moved `life-city` (`prj_2zdxO8FUOmQLItDjSGfCL9xWt2sU`) off the
+   Laundromat Success team; the sandbox's Vercel token only covers that team, so reconnect the Vercel connector with
+   access to the new account, recreate `.vercel/project.json` (`{"orgId": <new scope>, "projectId": "prj_2zdx…"}`) and
+   redeploy (the portrait-camera fix from 7 is committed but not deployed). Never deploy without that file: the CLI
+   then silently creates a new project. A stray empty `life-game` project created that way on the Laundromat Success
+   team (2026-11-23) still needs deleting.
 3. Little cars on roads, day/night lighting, CC0 3D models (e.g. Kenney city kit).
 4. Goals and milestones (bonus coins), habit streaks with a multiplier, progress charts on a dashboard.
 5. City depth: adjacency effects (shops near homes, industry far from them), small passive income.
