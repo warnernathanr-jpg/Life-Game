@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import type { MyTaskRow } from "@/lib/database.types";
-import { AREA_BY_ID } from "@/lib/game";
+import { AREA_BY_ID, nextMilestone } from "@/lib/game";
+import { rateWords, type HabitSummary } from "@/lib/habits";
 import { describeNext, describeProgress, describeSchedule } from "@/lib/tasks";
 import { completeTask, removeTask, restoreTask, undoTask } from "../actions";
 
@@ -11,11 +12,13 @@ export function TaskList({
   done,
   otherDays,
   archived,
+  habits,
 }: {
   todo: MyTaskRow[];
   done: MyTaskRow[];
   otherDays: MyTaskRow[];
   archived: MyTaskRow[];
+  habits: Record<string, HabitSummary>;
 }) {
   const [message, setMessage] = useState<{ text: string; tone: "good" | "bad" } | null>(null);
   const [pop, setPop] = useState<{ id: string; coins: number; key: number } | null>(null);
@@ -42,7 +45,7 @@ export function TaskList({
         ) : (
           <ul className="divide-y divide-line">
             {todo.map((t) => (
-              <TaskRow key={t.id} task={t} pop={pop} setPop={setPop} setMessage={setMessage} />
+              <TaskRow key={t.id} task={t} habit={habits[t.id]} pop={pop} setPop={setPop} setMessage={setMessage} />
             ))}
           </ul>
         )}
@@ -52,7 +55,7 @@ export function TaskList({
           <h2 id="done-h" className="px-4 pt-4 font-semibold sm:px-5">Done</h2>
           <ul className="divide-y divide-line">
             {done.map((t) => (
-              <TaskRow key={t.id} task={t} pop={pop} setPop={setPop} setMessage={setMessage} />
+              <TaskRow key={t.id} task={t} habit={habits[t.id]} pop={pop} setPop={setPop} setMessage={setMessage} />
             ))}
           </ul>
         </section>
@@ -85,11 +88,13 @@ type SetMessage = (m: { text: string; tone: "good" | "bad" } | null) => void;
 
 function TaskRow({
   task,
+  habit,
   pop,
   setPop,
   setMessage,
 }: {
   task: MyTaskRow;
+  habit?: HabitSummary;
   pop: { id: string; coins: number; key: number } | null;
   setPop: (p: { id: string; coins: number; key: number } | null) => void;
   setMessage: SetMessage;
@@ -109,8 +114,14 @@ function TaskRow({
         const r = await completeTask(task.id);
         if (r.ok) {
           setPop({ id: task.id, coins: r.coins, key: Date.now() });
+          const bonus = r.coins - Math.min(r.coins, task.reward);
           setMessage({
-            text: r.coins > 0 ? `+${r.coins} coins for “${task.title}”!` : `“${task.title}” done. Daily coin limit reached, but it still counts toward unlocks.`,
+            text:
+              bonus > 0
+                ? `+${r.coins} coins! Milestone bonus for ${task.total_completions + 1} check-offs of “${task.title}”.`
+                : r.coins > 0
+                  ? `+${r.coins} coins for “${task.title}”!`
+                  : `“${task.title}” done. Daily coin limit reached, but it still earns area points.`,
             tone: "good",
           });
         } else {
@@ -151,6 +162,7 @@ function TaskRow({
           {progress && <span className={task.done ? "" : "font-medium text-good"}>· {progress}</span>}
           {task.total_completions > 0 && <span>· {task.total_completions}× total</span>}
         </p>
+        {habit && <HabitRhythm habit={habit} total={task.total_completions} />}
       </div>
       <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${checked ? "bg-raised text-faint" : "bg-coin-soft text-coin"}`}>
         +{task.reward}
@@ -170,6 +182,32 @@ function TaskRow({
         </span>
       )}
     </li>
+  );
+}
+
+/** Last 7 days as dots, a gentle consistency line, and the next milestone. Nothing here ever resets. */
+function HabitRhythm({ habit, total }: { habit: HabitSummary; total: number }) {
+  const next = nextMilestone(total);
+  const dayName = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" });
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+      <span className="flex items-center gap-1" role="img" aria-label={`Last 7 days: ${habit.line}`}>
+        {habit.week.map((d) => (
+          <span
+            key={d.day}
+            title={`${dayName(d.day)}: ${d.done ? "done" : d.scheduled ? "not done" : "rest day"}`}
+            className={`size-2.5 rounded-full ${d.done ? "bg-good" : d.scheduled ? "border border-line bg-raised" : "bg-transparent"}`}
+          />
+        ))}
+      </span>
+      <span>{habit.line}</span>
+      {habit.rate > 0 && <span className="font-medium text-good">{rateWords(habit.rate)}</span>}
+      {next && (
+        <span>
+          🎯 {next.at - total} to go for +{next.bonus} bonus
+        </span>
+      )}
+    </div>
   );
 }
 

@@ -19,5 +19,5 @@ export async function GET(request: NextRequest) {
   if (tokenHash && type) ok = !(await supabase.auth.verifyOtp({ token_hash: tokenHash, type })).error;
   else if (code) ok = !(await supabase.auth.exchangeCodeForSession(code)).error;
 
-  return NextResponse.redirect(new URL(ok ? "/today" : "/login?error=link_invalid", origin));
+  return NextResponse.redirect(new URL(ok ? "/city" : "/login?error=link_invalid", origin));
 }

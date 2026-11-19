@@ -28,7 +28,7 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
     if (error.status === 429) return { error: "Too many attempts. Wait a minute and try again.", email: typedEmail };
     return { error: "Wrong email or password.", email: typedEmail };
   }
-  redirect("/today");
+  redirect("/city");
 }
 
 export async function signUp(_prev: AuthState, formData: FormData): Promise<AuthState> {
@@ -68,7 +68,7 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
     // Email confirmation is on (hosted projects): the user finishes from the email link.
     return { info: `Check ${parsed.data.email} for a link to confirm your account.`, ...typed };
   }
-  redirect("/today");
+  redirect("/city");
 }
 
 export async function signOut() {

@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { originFromHeaders } from "@/lib/origin";
 import { supabaseKey, supabaseUrl } from "@/lib/supabase/env";
 
-const GAME_PATHS = ["/today", "/focus", "/city", "/coins"];
+const GAME_PATHS = ["/city", "/tasks", "/focus", "/shop", "/stats", "/today", "/coins"];
 
 /**
  * Refreshes the Supabase session cookie on every request, keeps signed-out
@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
     return redirectWithCookies(request, response, "/login");
   }
   if (signedIn && (pathname === "/" || pathname === "/login" || pathname === "/signup")) {
-    return redirectWithCookies(request, response, "/today");
+    return redirectWithCookies(request, response, "/city");
   }
   return response;
 }

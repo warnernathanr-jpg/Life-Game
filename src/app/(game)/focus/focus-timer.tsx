@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { audioUnlocked, playChime, unlockAudio } from "@/lib/chime";
-import { formatCoins } from "@/lib/game";
+import type { LifeArea } from "@/lib/database.types";
+import { AREAS, formatCoins } from "@/lib/game";
 import { completeFocus, failFocus, startFocus } from "../actions";
 
 /** Leaving the page (another app or tab) for longer than this ends the session. */
@@ -29,6 +30,7 @@ export function FocusTimer(props: {
 }) {
   const [minutes, setMinutes] = useState(25);
   const [label, setLabel] = useState("");
+  const [area, setArea] = useState<LifeArea | null>(null);
   const [phase, setPhase] = useState<Phase>(props.running ? { kind: "running", session: props.running, offset: 0 } : { kind: "idle" });
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -54,7 +56,7 @@ export function FocusTimer(props: {
     // This tap is what allows the end chime to play later (browsers block sound without one).
     if (soundOn) unlockAudio();
     start(async () => {
-      const r = await startFocus(minutes, label);
+      const r = await startFocus(minutes, label, area);
       if (!r.ok) return setError(r.error);
       // Clock offset so the countdown follows the server's time, not a wrong phone clock.
       const offset = new Date(r.serverNow).getTime() - Date.now();
@@ -157,6 +159,25 @@ export function FocusTimer(props: {
             Play
           </button>
         </div>
+        <fieldset>
+          <legend className="text-sm font-medium text-ink">
+            Count toward a life area? <span className="font-normal text-muted">(earns {minutes} area points)</span>
+          </legend>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {[{ id: null, label: "None", icon: "" }, ...AREAS].map((a) => (
+              <button
+                key={a.id ?? "none"}
+                type="button"
+                aria-pressed={area === a.id}
+                onClick={() => setArea(a.id as LifeArea | null)}
+                className={`min-h-10 rounded-full px-3 text-sm font-medium ${area === a.id ? "bg-accent text-on-accent" : "bg-raised text-ink hover:bg-line"}`}
+              >
+                {a.icon && <span aria-hidden>{a.icon} </span>}
+                {a.label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
         {error && <p role="alert" className="text-sm text-bad">{error}</p>}
         <button type="button" className="btn-primary w-full text-lg" disabled={pending} onClick={begin}>
           {pending ? "Starting…" : `Start ${minutes}-minute focus`}

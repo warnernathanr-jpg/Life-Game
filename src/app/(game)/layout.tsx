@@ -4,18 +4,18 @@ import { requireUser } from "@/lib/auth";
 import { formatCoins } from "@/lib/game";
 import { signOut } from "../(auth)/actions";
 import { ThemePicker } from "@/components/theme-picker";
-import { Nav } from "./nav";
+import { BottomNav, TopNav } from "./nav";
 
 export default function GameLayout({ children }: LayoutProps<"/">) {
   return (
     <>
       <header className="bg-header text-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
-          <Link href="/today" className="flex items-center gap-1.5 font-bold">
+          <Link href="/city" className="flex items-center gap-1.5 font-bold">
             <span aria-hidden>🏙️</span>
-            <span className="hidden sm:inline">Life City</span>
+            <span>Life City</span>
           </Link>
-          <Nav />
+          <TopNav />
           <div className="ml-auto flex items-center gap-2">
             <Suspense fallback={<span className="h-9 w-20 rounded-full bg-white/10" />}>
               <CoinBadge />
@@ -27,7 +27,9 @@ export default function GameLayout({ children }: LayoutProps<"/">) {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
+      {/* Room at the bottom on phones for the tab bar. */}
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-28 md:pb-8">{children}</main>
+      <BottomNav />
     </>
   );
 }

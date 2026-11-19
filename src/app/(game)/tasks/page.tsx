@@ -3,13 +3,15 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { DAILY_COIN_CAP, formatCoins, nextUnlocks } from "@/lib/game";
+import { AreaPoints } from "@/components/area-points";
+import { addDays, isHabit, summarizeHabit, type HabitSummary } from "@/lib/habits";
 import { daysUntilNext } from "@/lib/tasks";
 import { AddTaskForm } from "./add-task-form";
 import { TaskList } from "./task-list";
 
-export const metadata: Metadata = { title: "Today · Life City" };
+export const metadata: Metadata = { title: "Tasks · Life City" };
 
-async function TodayPageContent() {
+async function TasksPageContent() {
   const { supabase } = await requireUser();
   const [{ data: tasks }, { data: progress }, { data: types }, { data: profile }] = await Promise.all([
     supabase.rpc("my_tasks"),
@@ -17,6 +19,14 @@ async function TodayPageContent() {
     supabase.from("building_types").select("*").order("sort_order"),
     supabase.from("profiles").select("display_name").maybeSingle(),
   ]);
+  const today = tasks?.[0]?.today ?? new Date().toISOString().slice(0, 10);
+  // Check-offs from the last 5 weeks, for each habit's recent rhythm.
+  const { data: recent } = await supabase
+    .from("task_completions")
+    .select("task_id, local_day")
+    .gte("local_day", addDays(today, -35));
+  const daysByTask = new Map<string, string[]>();
+  for (const c of recent ?? []) daysByTask.set(c.task_id, [...(daysByTask.get(c.task_id) ?? []), c.local_day]);
 
   const all = tasks ?? [];
   const active = all.filter((t) => !t.archived_at);
@@ -29,6 +39,8 @@ async function TodayPageContent() {
   const archived = all.filter((t) => t.archived_at);
   const earnedToday = Number(progress?.earned_today ?? 0);
   const unlocks = nextUnlocks(types ?? [], progress ?? null);
+  const habits: Record<string, HabitSummary> = {};
+  for (const t of active) if (isHabit(t)) habits[t.id] = summarizeHabit(t, daysByTask.get(t.id) ?? [], today);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
@@ -44,7 +56,7 @@ async function TodayPageContent() {
           </p>
         </div>
 
-        <TaskList todo={todo} done={done} otherDays={otherDays} archived={archived} />
+        <TaskList todo={todo} done={done} otherDays={otherDays} archived={archived} habits={habits} />
 
         <section className="card" aria-labelledby="add-task">
           <h2 id="add-task" className="mb-3 font-semibold">Add a task</h2>
@@ -64,47 +76,26 @@ async function TodayPageContent() {
           </div>
           <p className="mt-2 text-xs text-muted">
             {earnedToday >= DAILY_COIN_CAP
-              ? "Daily limit reached. Tasks still count toward unlocks."
-              : "Easy 10 · Medium 25 · Hard 50"}
+              ? "Daily coin limit reached. Tasks still earn area points."
+              : "Easy 10 · Medium 25 · Hard 50 · Epic 100"}
           </p>
-          <Link href="/city" className="btn-secondary mt-3 w-full">🏗️ Spend in your city</Link>
+          <Link href="/shop" className="btn-secondary mt-3 w-full">🛒 Spend in the shop</Link>
         </section>
 
         <section className="card" aria-labelledby="unlocks">
-          <h2 id="unlocks" className="font-semibold">Unlocks</h2>
-          <p className="mb-3 text-xs text-muted">Finish tasks in each life area to unlock new buildings.</p>
-          <ul className="space-y-3">
-            {unlocks.map(({ area, done: count, next, remaining }) => (
-              <li key={area.id}>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium"><span aria-hidden>{area.icon}</span> {area.label}</span>
-                  <span className="text-muted">{count} done</span>
-                </div>
-                {next ? (
-                  <>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-raised" aria-hidden>
-                      <div className="h-full rounded-full bg-accent" style={{ width: `${(count / (next.unlock_count ?? 1)) * 100}%` }} />
-                    </div>
-                    <p className="mt-1 text-xs text-muted">
-                      {remaining} more → <span aria-hidden>{next.icon}</span> {next.name}
-                    </p>
-                  </>
-                ) : (
-                  <p className="mt-1 text-xs text-good">All {area.label.toLowerCase()} buildings unlocked</p>
-                )}
-              </li>
-            ))}
-          </ul>
+          <h2 id="unlocks" className="font-semibold">Area points</h2>
+          <p className="mb-3 text-xs text-muted">Every check-off earns points in its life area. Points unlock buildings and are never spent.</p>
+          <AreaPoints unlocks={unlocks} />
         </section>
       </aside>
     </div>
   );
 }
 
-export default function TodayPage() {
+export default function TasksPage() {
   return (
     <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
-      <TodayPageContent />
+      <TasksPageContent />
     </Suspense>
   );
 }

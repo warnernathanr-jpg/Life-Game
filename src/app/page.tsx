@@ -1,10 +1,10 @@
 import Link from "next/link";
 
 const STEPS = [
-  { icon: "✅", title: "Do your tasks", text: "Daily habits, weekly routines and one-off to-dos across health, work, learning, home and social." },
-  { icon: "🪙", title: "Earn coins", text: "Easy tasks pay 10, medium 25, hard 50. Up to 400 a day, so it rewards consistency, not busywork." },
+  { icon: "✅", title: "Do your tasks", text: "Daily habits, weekly routines and one-off to-dos across health, work, knowledge and personal life." },
+  { icon: "🪙", title: "Earn coins", text: "Easy tasks pay 10, medium 25, hard 50, epic 100. Focus sessions and habit milestones pay too." },
   { icon: "🏗️", title: "Build your city", text: "Spend coins on homes, shops, industry and services. Save up to buy more land." },
-  { icon: "🔓", title: "Unlock by living well", text: "Parks and clinics unlock with health tasks, schools with learning, offices with work. A balanced life builds a balanced city." },
+  { icon: "🔓", title: "Unlock by living well", text: "Every check-off earns Health, Work, Knowledge or Personal points. Parks unlock with health, schools with knowledge, offices with work. A balanced life builds a balanced city." },
 ];
 
 export default function Home() {

@@ -44,8 +44,8 @@ select results_eq($$ select scheduled_today, done from public.my_tasks() where i
 
 -- Monthly / quarterly / yearly: once per period.
 insert into public.tasks (id, title, area, repeat) values
-  ('a0000000-0000-0000-0000-000000000003', 'Pay rent', 'home', 'monthly'),
-  ('a0000000-0000-0000-0000-000000000004', 'Change filters', 'home', 'quarterly'),
+  ('a0000000-0000-0000-0000-000000000003', 'Pay rent', 'personal', 'monthly'),
+  ('a0000000-0000-0000-0000-000000000004', 'Change filters', 'personal', 'quarterly'),
   ('a0000000-0000-0000-0000-000000000005', 'Taxes', 'work', 'yearly');
 select public.complete_task('a0000000-0000-0000-0000-000000000003');
 select public.complete_task('a0000000-0000-0000-0000-000000000004');
@@ -92,7 +92,7 @@ select results_eq($$ select coins from public.undo_task('a0000000-0000-0000-0000
 
 -- N times a month.
 insert into public.tasks (id, title, area, repeat, times_per_period) values
-  ('a0000000-0000-0000-0000-000000000008', 'Call mom', 'social', 'times_per_month', 2);
+  ('a0000000-0000-0000-0000-000000000008', 'Call mom', 'personal', 'times_per_month', 2);
 select public.complete_task('a0000000-0000-0000-0000-000000000008');
 select is((select period_start from public.task_completions where task_id = 'a0000000-0000-0000-0000-000000000008'),
   date_trunc('month', (select d from t_today))::date, 'N times a month counts per calendar month');

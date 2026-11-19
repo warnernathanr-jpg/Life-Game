@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
 import type { BuildingTypeRow, ProgressRow } from "./database.types";
-import { cityStats, landPrice, lotFree, nextUnlocks, sellRefund, tasksToUnlock } from "./game";
+import { cityStats, landPrice, lotFree, nextMilestone, nextUnlocks, sellRefund, pointsToUnlock } from "./game";
 
 function type(p: Partial<BuildingTypeRow> & Pick<BuildingTypeRow, "id">): BuildingTypeRow {
   return {
     name: p.id, category: "residential", icon: "🏠", description: "", cost: 10, size: 1,
-    population: 0, jobs: 0, happiness: 0, unlock_area: null, unlock_count: null, sort_order: 0, ...p,
+    population: 0, jobs: 0, happiness: 0, unlock_area: null, unlock_points: null, sort_order: 0, ...p,
   };
 }
 
 const types = [
   type({ id: "cottage", population: 4 }),
   type({ id: "shop", category: "commercial", jobs: 4, happiness: 1 }),
-  type({ id: "factory", category: "industrial", jobs: 30, happiness: -6, size: 2, unlock_area: "work", unlock_count: 10 }),
-  type({ id: "park", category: "service", happiness: 5, unlock_area: "health", unlock_count: 3 }),
-  type({ id: "clinic", category: "service", jobs: 6, happiness: 6, unlock_area: "health", unlock_count: 10 }),
+  type({ id: "factory", category: "industrial", jobs: 30, happiness: -6, size: 2, unlock_area: "work", unlock_points: 250 }),
+  type({ id: "park", category: "service", happiness: 5, unlock_area: "health", unlock_points: 75 }),
+  type({ id: "clinic", category: "service", jobs: 6, happiness: 6, unlock_area: "health", unlock_points: 250 }),
   type({ id: "road", category: "road" }),
 ];
 
@@ -24,7 +24,7 @@ const at = (type_id: string, x: number, y: number) => ({ id: `b${n++}`, type_id,
 const street = Array.from({ length: 10 }, (_, x) => at("road", x, 0));
 
 const progress = (p: Partial<ProgressRow>): ProgressRow => ({
-  balance: 0, earned_today: 0, health: 0, work: 0, learning: 0, home: 0, social: 0, ...p,
+  balance: 0, earned_today: 0, health: 0, work: 0, knowledge: 0, personal: 0, ...p,
 });
 
 describe("prices (same as the database)", () => {
@@ -36,18 +36,26 @@ describe("prices (same as the database)", () => {
   });
 });
 
-describe("unlocks", () => {
-  it("counts remaining tasks in the building's area", () => {
-    expect(tasksToUnlock(types[3], progress({ health: 1 }))).toBe(2);
-    expect(tasksToUnlock(types[3], progress({ health: 5 }))).toBe(0);
-    expect(tasksToUnlock(types[0], null)).toBe(0);
+describe("unlocks by area points", () => {
+  it("counts remaining points in the building's area", () => {
+    expect(pointsToUnlock(types[3], progress({ health: 25 }))).toBe(50);
+    expect(pointsToUnlock(types[3], progress({ health: 80 }))).toBe(0);
+    expect(pointsToUnlock(types[0], null)).toBe(0);
   });
   it("names the next unlock per area", () => {
-    const health = nextUnlocks(types, progress({ health: 4 })).find((u) => u.area.id === "health")!;
+    const health = nextUnlocks(types, progress({ health: 100 })).find((u) => u.area.id === "health")!;
     expect(health.next?.id).toBe("clinic");
-    expect(health.remaining).toBe(6);
-    const learning = nextUnlocks(types, progress({})).find((u) => u.area.id === "learning")!;
-    expect(learning.next).toBeUndefined();
+    expect(health.remaining).toBe(150);
+    const knowledge = nextUnlocks(types, progress({})).find((u) => u.area.id === "knowledge")!;
+    expect(knowledge.next).toBeUndefined();
+  });
+});
+
+describe("milestones", () => {
+  it("finds the next one", () => {
+    expect(nextMilestone(0)).toEqual({ at: 10, bonus: 25 });
+    expect(nextMilestone(10)).toEqual({ at: 30, bonus: 75 });
+    expect(nextMilestone(365)).toBeNull();
   });
 });
 

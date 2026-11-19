@@ -5,7 +5,8 @@ import { CityBoard } from "./city-board";
 
 export const metadata: Metadata = { title: "City · Life City" };
 
-async function CityPageContent() {
+async function CityPageContent({ searchParams }: { searchParams: PageProps<"/city">["searchParams"] }) {
+  const { place } = await searchParams;
   const { supabase } = await requireUser();
   const [{ data: profile }, { data: placed }, { data: types }, { data: progress }] = await Promise.all([
     supabase.from("profiles").select("city_name, city_size, land_purchases").maybeSingle(),
@@ -27,14 +28,15 @@ async function CityPageContent() {
       types={types}
       progress={progress ?? null}
       balance={Number(progress?.balance ?? 0)}
+      initialPlace={typeof place === "string" ? place : undefined}
     />
   );
 }
 
-export default function CityPage() {
+export default function CityPage({ searchParams }: PageProps<"/city">) {
   return (
     <Suspense fallback={<p className="text-sm text-muted">Loading your city…</p>}>
-      <CityPageContent />
+      <CityPageContent searchParams={searchParams} />
     </Suspense>
   );
 }

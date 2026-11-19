@@ -1,8 +1,8 @@
 // Hand-written to match supabase/migrations. Regenerate with `npm run db:types`
 // once a local Supabase is running (it will overwrite this file).
 
-export type LifeArea = "health" | "work" | "learning" | "home" | "social";
-export type TaskDifficulty = "easy" | "medium" | "hard";
+export type LifeArea = "health" | "work" | "knowledge" | "personal";
+export type TaskDifficulty = "easy" | "medium" | "hard" | "epic";
 export type TaskRepeat =
   | "once" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "days" | "times_per_week" | "times_per_month";
 export type BuildingCategory = "residential" | "commercial" | "industrial" | "service" | "road";
@@ -50,7 +50,7 @@ export type BuildingTypeRow = {
   jobs: number;
   happiness: number;
   unlock_area: LifeArea | null;
-  unlock_count: number | null;
+  unlock_points: number | null;
   sort_order: number;
 };
 
@@ -106,6 +106,8 @@ export type FocusSessionRow = {
   local_day: string;
   status: "running" | "completed" | "failed" | "abandoned";
   coins: number;
+  area: LifeArea | null;
+  points: number;
   finished_at: string | null;
 };
 
@@ -114,9 +116,8 @@ export type ProgressRow = {
   earned_today: number;
   health: number;
   work: number;
-  learning: number;
-  home: number;
-  social: number;
+  knowledge: number;
+  personal: number;
 };
 
 export type Database = {
@@ -136,6 +137,8 @@ export type Database = {
         period_start: string;
         local_day: string;
         coins: number;
+        points: number;
+        bonus: number;
         completed_at: string;
       }, never, never>;
       coin_ledger: Table<LedgerRow, never, never>;
@@ -153,7 +156,7 @@ export type Database = {
       buy_roads: { Args: { p_tiles: [number, number][] }; Returns: { built: number; cost: number; balance: number }[] };
       sell_buildings: { Args: { p_ids: string[] }; Returns: { sold: number; refund: number; balance: number }[] };
       start_focus: {
-        Args: { p_minutes: number; p_label?: string | null };
+        Args: { p_minutes: number; p_label?: string | null; p_area?: LifeArea | null };
         Returns: { id: string; started_at: string; ends_at: string; server_now: string }[];
       };
       complete_focus: { Args: { p_id: string }; Returns: { coins: number; balance: number }[] };

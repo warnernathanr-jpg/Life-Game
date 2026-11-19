@@ -25,6 +25,7 @@
   --color-coin: var(--t-coin);
   --color-coin-soft: var(--t-coin-soft);
   --color-on-coin: var(--t-on-coin);
+  --color-chart: var(--t-chart);           /* single-series chart marks (validated per theme) */
 }
 
 /* Navy (default) */
@@ -52,6 +53,7 @@
   --t-coin-soft: #3d3112;
   --t-on-coin: #2b1d00;
   --t-sky: #1b2a55;
+  --t-chart: #3b82f6;
 }
 
 [data-theme="midnight"] {
@@ -77,6 +79,7 @@
   --t-coin-soft: #3c2f14;
   --t-on-coin: #2b1d00;
   --t-sky: #2a1f50;
+  --t-chart: #8b5cf6;
 }
 
 [data-theme="forest"] {
@@ -102,6 +105,7 @@
   --t-coin-soft: #38300f;
   --t-on-coin: #2b1d00;
   --t-sky: #173828;
+  --t-chart: #0ea371;
 }
 
 [data-theme="ember"] {
@@ -127,6 +131,7 @@
   --t-coin-soft: #3b3012;
   --t-on-coin: #2b1d00;
   --t-sky: #2b2622;
+  --t-chart: #ea670c;
 }
 
 [data-theme="light"] {
@@ -152,6 +157,7 @@
   --t-coin-soft: #fef3c7;
   --t-on-coin: #ffffff;
   --t-sky: #bfe3f5;
+  --t-chart: #1d4ed8;
 }
 
 @layer components {

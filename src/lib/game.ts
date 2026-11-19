@@ -14,7 +14,20 @@ export const DAILY_COIN_CAP = 400; // public.daily_coin_cap()
 export const DAILY_FOCUS_CAP = 180; // public.daily_focus_cap()
 export const MAX_CITY_SIZE = 30; // public.max_city_size()
 export const MAX_STROKE_TILES = 200; // public.max_stroke_tiles()
-export const REWARDS: Record<TaskDifficulty, number> = { easy: 10, medium: 25, hard: 50 }; // public.task_reward()
+export const REWARDS: Record<TaskDifficulty, number> = { easy: 10, medium: 25, hard: 50, epic: 100 }; // public.task_reward()
+
+/** public.milestone_bonus(): one-off bonuses at these total check-offs of a recurring task (kept forever). */
+export const MILESTONES = [
+  { at: 10, bonus: 25 },
+  { at: 30, bonus: 75 },
+  { at: 100, bonus: 250 },
+  { at: 365, bonus: 500 },
+] as const;
+
+/** The next milestone after `total` check-offs (null once all are reached). */
+export function nextMilestone(total: number) {
+  return MILESTONES.find((m) => m.at > total) ?? null;
+}
 
 /** public.land_price(): 300 × 1.6ⁿ, rounded to the nearest 10. */
 export function landPrice(purchases: number): number {
@@ -28,10 +41,9 @@ export function sellRefund(pricePaid: number): number {
 
 export const AREAS: { id: LifeArea; label: string; icon: string; hint: string }[] = [
   { id: "health", label: "Health", icon: "💪", hint: "Exercise, sleep, eating well" },
-  { id: "work", label: "Work", icon: "💼", hint: "Career, projects, money" },
-  { id: "learning", label: "Learning", icon: "📖", hint: "Reading, courses, practice" },
-  { id: "home", label: "Home", icon: "🧹", hint: "Chores, errands, bills" },
-  { id: "social", label: "Social", icon: "💬", hint: "Friends, family, community" },
+  { id: "work", label: "Work", icon: "💼", hint: "Homework, jobs, projects" },
+  { id: "knowledge", label: "Knowledge", icon: "📖", hint: "Reading, studying, new skills" },
+  { id: "personal", label: "Personal", icon: "🌱", hint: "Friends, family, hobbies, home" },
 ];
 export const AREA_BY_ID = Object.fromEntries(AREAS.map((a) => [a.id, a])) as Record<LifeArea, (typeof AREAS)[number]>;
 
@@ -39,6 +51,7 @@ export const DIFFICULTIES: { id: TaskDifficulty; label: string }[] = [
   { id: "easy", label: "Easy" },
   { id: "medium", label: "Medium" },
   { id: "hard", label: "Hard" },
+  { id: "epic", label: "Epic" },
 ];
 
 
@@ -54,24 +67,25 @@ export const CATEGORY_BY_ID = Object.fromEntries(CATEGORIES.map((c) => [c.id, c]
   (typeof CATEGORIES)[number]
 >;
 
-export function areaCount(progress: ProgressRow | null, area: LifeArea): number {
+/** Area points (earned with every check-off, never spent) from my_progress(). */
+export function areaPoints(progress: ProgressRow | null, area: LifeArea): number {
   return progress ? Number(progress[area]) : 0;
 }
 
-/** How many more completions in its area a building needs (0 = unlocked). */
-export function tasksToUnlock(type: BuildingTypeRow, progress: ProgressRow | null): number {
-  if (!type.unlock_area || !type.unlock_count) return 0;
-  return Math.max(0, type.unlock_count - areaCount(progress, type.unlock_area));
+/** How many more area points a building needs (0 = unlocked). */
+export function pointsToUnlock(type: BuildingTypeRow, progress: ProgressRow | null): number {
+  if (!type.unlock_area || !type.unlock_points) return 0;
+  return Math.max(0, type.unlock_points - areaPoints(progress, type.unlock_area));
 }
 
 /** The next building each life area will unlock, for the "what's next" hints. */
 export function nextUnlocks(types: BuildingTypeRow[], progress: ProgressRow | null) {
   return AREAS.map((area) => {
     const locked = types
-      .filter((t) => t.unlock_area === area.id && tasksToUnlock(t, progress) > 0)
-      .sort((a, b) => (a.unlock_count ?? 0) - (b.unlock_count ?? 0));
+      .filter((t) => t.unlock_area === area.id && pointsToUnlock(t, progress) > 0)
+      .sort((a, b) => (a.unlock_points ?? 0) - (b.unlock_points ?? 0));
     const next = locked[0];
-    return { area, done: areaCount(progress, area.id), next, remaining: next ? tasksToUnlock(next, progress) : 0 };
+    return { area, points: areaPoints(progress, area.id), next, remaining: next ? pointsToUnlock(next, progress) : 0 };
   });
 }
 

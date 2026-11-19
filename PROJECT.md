@@ -5,14 +5,16 @@
 **Life City**: a personal life dashboard with a city-building game.
 
 - **Life tracker:** tasks (one-off, daily, weekly, monthly, quarterly, yearly, on certain weekdays, or N times a
-  week/month) in five life areas: health, work, learning, home, social.
+  week/month) in four life areas: Health, Work, Knowledge, Personal. Recurring tasks are habits: gentle consistency
+  (nothing resets) and milestone bonuses at 10/30/100/365 check-offs.
   Later: goals with milestones, habit streaks, progress charts.
-- **Economy:** completing a task earns coins (easy 10, medium 25, hard 50; at most 400 a day). The focus timer pays
+- **Economy:** one coin is spent on everything; completing a task earns coins (easy 10, medium 25, hard 50, epic 100;
+  at most 400 a day). Every check-off also earns **area points** in its life area (never spent) that unlock buildings. The focus timer pays
   1 coin per focused minute (5–60 minute sessions, at most 180 a day).
 - **City game:** spend coins on residential, commercial, industrial and service buildings and place them on a grid.
   Lay roads to connect them (a building only counts when it touches a road). Save up to buy more land.
-  The city is shown in 3D (zoom, pan, rotate) with a flat top-down view as an alternative. Buildings unlock by completing tasks in a matching life area (parks with health,
-  schools with learning, offices with work...), so a balanced life builds a balanced city.
+  The city is shown in 3D (zoom, pan, rotate) with a flat top-down view as an alternative. Buildings unlock with area points from a matching life area (parks with health,
+  schools with knowledge, offices with work...), so a balanced life builds a balanced city.
 
 ## Stack
 
@@ -32,3 +34,5 @@
 - Undoing a task takes its coins back (the balance may go negative). Tasks that were ever completed are
   archived, not deleted, so completions keep counting toward unlocks.
 - Don't recreate a specific existing game's names, art or look; keep the city original.
+- Never punish missed days: no streaks that reset, no penalties. Consistency is shown gently and rewarded with
+  milestones that are kept forever.

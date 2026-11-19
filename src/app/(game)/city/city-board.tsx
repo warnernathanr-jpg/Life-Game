@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
-import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, formatCoins, landPrice, lotFree, sellRefund } from "@/lib/game";
+import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, formatCoins, landPrice, lotFree, pointsToUnlock, sellRefund } from "@/lib/game";
 import { connectedIds, key, ROAD_TYPE, type Lot, type Tile } from "@/lib/roads";
 import { buyBuilding, buyLand, buyRoads, moveBuilding, sellBuilding, sellMany } from "../actions";
 import type { City3DHandle } from "./city-3d";
@@ -35,6 +35,8 @@ export function CityBoard(props: {
   types: BuildingTypeRow[];
   progress: ProgressRow | null;
   balance: number;
+  /** Building picked in the Shop (?place=…), placed right away if it's unlocked. */
+  initialPlace?: string;
 }) {
   const { size, placed, types, progress, balance } = props;
   const typeById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types]);
@@ -51,7 +53,11 @@ export function CityBoard(props: {
     return map;
   }, [lots]);
 
-  const [mode, setMode] = useState<Mode>({ kind: "idle" });
+  const [mode, setMode] = useState<Mode>(() => {
+    const t = props.initialPlace ? types.find((x) => x.id === props.initialPlace) : undefined;
+    if (!t || pointsToUnlock(t, progress) > 0) return { kind: "idle" };
+    return t.id === ROAD_TYPE ? { kind: "road" } : { kind: "place", typeId: t.id };
+  });
   const [view, setView] = useState<"3d" | "flat">("3d");
   const [message, setMessage] = useState<{ text: string; tone: "good" | "bad" } | null>(null);
   const [justBuilt, setJustBuilt] = useState<string | null>(null);

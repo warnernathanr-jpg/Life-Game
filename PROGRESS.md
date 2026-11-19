@@ -126,6 +126,28 @@ _Last updated: 2026-11-23_
   The database rows matched. No console errors.
 - Fix: the 3D view's starting camera pulls back on portrait screens so the whole city fits.
 
+### 8. Phase A: core loop (2026-11-23)
+- **Four life areas: Health, Work, Knowledge, Personal** (enum renames learning → knowledge, home → personal; social
+  merged into personal and blocked by constraints; the `social` label stays in the enum unused).
+- **One coin + area points.** Every check-off earns area points = the task's base reward (even past the daily coin cap);
+  focus sessions can count toward an area (points = minutes). Points are never spent. **Buildings unlock by points**
+  (`building_types.unlock_points`, e.g. Park 75 Health, Office Tower 375 Work); `unlock_count` is gone.
+  `my_progress()` now returns `health, work, knowledge, personal` points.
+- **Epic** difficulty (100 coins / points).
+- **Gentle habits**: recurring tasks pay one-off **milestone bonuses** at 10 / 30 / 100 / 365 total check-offs (25 / 75 /
+  250 / 500 coins, kept forever; undo takes back that check-off's bonus). Task rows show a 7-day rhythm strip, "5 of the
+  last 7 days" (or "2 of 3 this week"), an encouraging word and the next milestone. Missed days only ease the rate down;
+  nothing resets (`src/lib/habits.ts`; an unfinished today never counts against you).
+- **Navigation**: City is home; bottom tab bar on phones (City, Tasks, Focus, Shop, Stats), the same links in the header on
+  wide screens. `/today` → `/tasks` and `/coins` → `/stats` redirect. Sign-in lands on `/city`.
+- **Shop** (`/shop`): every building by category with price, effects and unlock progress; Build opens the city with it
+  picked (`/city?place=<id>`). **Stats** (`/stats`): coins, check-offs and focus (last 7 days / all time), population,
+  check-offs per day chart (single series, per-theme validated `--t-chart`, hover/focus tooltips, screen-reader table),
+  habit consistency, area points, city numbers, coin history.
+- Migrations `20261123000000_phase_a_enums.sql`, `20261123000100_phase_a.sql`; 19 pgTAP tests (`phase_a.test.sql`), other
+  suites updated (142 total); unit tests 27 (habits, milestones, points).
+- **Not yet applied to the live database** (owner runs the SQL) and not yet deployed/live-tested.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

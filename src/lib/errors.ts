@@ -14,6 +14,7 @@ const MESSAGES: Record<string, string> = {
   max_size: "Your city is already as big as it can get.",
   no_tiles: "Nothing selected.",
   bad_minutes: "Choose between 5 and 60 minutes.",
+  bad_area: "Choose a life area.",
   focus_not_found: "That focus session is gone.",
   focus_over: "That focus session has already ended.",
   focus_too_early: "Not quite yet. Keep going!",

@@ -23,8 +23,8 @@ select is((select balance from public.my_progress()), 100::bigint, 'welcome bonu
 
 insert into public.tasks (id, title, area, difficulty, repeat) values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'Go for a run', 'health', 'medium', 'daily'),
-  ('aaaaaaaa-0000-0000-0000-000000000002', 'File taxes', 'home', 'hard', 'once'),
-  ('aaaaaaaa-0000-0000-0000-000000000003', 'Read a chapter', 'learning', 'easy', 'weekly');
+  ('aaaaaaaa-0000-0000-0000-000000000002', 'File taxes', 'personal', 'hard', 'once'),
+  ('aaaaaaaa-0000-0000-0000-000000000003', 'Read a chapter', 'knowledge', 'easy', 'weekly');
 
 select results_eq($$ select coins, balance from public.complete_task('aaaaaaaa-0000-0000-0000-000000000001') $$,
   $$ values (25, 125::bigint) $$, 'medium task earns 25');
@@ -42,7 +42,7 @@ select is((select period_start from public.task_completions where task_id = 'aaa
   (select (now() at time zone 'America/Chicago')::date - (extract(isodow from (now() at time zone 'America/Chicago')::date)::int - 1)),
   'weekly completions count for the Monday of the week (user time zone)');
 select is((select balance from public.my_progress()), 185::bigint, 'balance is the sum of the ledger');
-select is((select health from public.my_progress()), 1::bigint, 'completions are counted per life area');
+select is((select health from public.my_progress()), 25::bigint, 'a medium health task earns 25 health points');
 
 select results_eq($$ select title, done, done_today, reward from public.my_tasks() order by title $$,
   $$ values ('File taxes', true, true, 50), ('Go for a run', true, true, 25), ('Read a chapter', true, true, 10) $$,
@@ -72,7 +72,7 @@ select results_eq($$ select coins from public.complete_task('bbbbbbbb-0000-0000-
 select results_eq($$ select coins from public.complete_task('bbbbbbbb-0000-0000-0000-000000000008') $$,
   $$ values (0) $$, 'after the cap, completions still count but earn 0');
 select is((select earned_today from public.my_progress()), 400, 'earned today stops at the cap');
-select is((select work from public.my_progress()), 8::bigint, 'capped completions still count toward unlocks');
+select is((select work from public.my_progress()), 400::bigint, 'capped completions still earn area points (8 hard = 400)');
 select is((select count(*)::int from public.coin_ledger where amount = 0), 0, 'no zero-coin ledger rows');
 
 -- Balance now: 175 + 10 + 300 + 15 = 500.
@@ -87,14 +87,14 @@ select throws_ok($$ select * from public.buy_building('cottage', 8, 0) $$,
   '23P01', 'lot_taken', 'cannot build outside the city');
 select throws_ok($$ select * from public.buy_building('cottage', -1, 0) $$,
   '23P01', 'lot_taken', 'negative coordinates are outside the city');
-select throws_ok($$ select * from public.buy_building('factory', 0, 0) $$,
-  '42501', 'locked', 'factory needs 10 work completions (8 so far)');
+select throws_ok($$ select * from public.buy_building('apartments', 0, 0) $$,
+  '42501', 'locked', 'apartments need 300 personal points (50 so far)');
 select results_eq($$ select balance from public.buy_building('warehouse', 0, 0) $$,
-  $$ values (360::bigint) $$, 'warehouse (unlocked at 5 work tasks) costs 140');
+  $$ values (360::bigint) $$, 'warehouse (unlocked at 125 work points) costs 140');
 select throws_ok($$ select * from public.buy_building('cottage', 0, 0) $$,
   '23P01', 'lot_taken', 'cannot build on an occupied tile');
 
--- Two more work tasks unlock the factory (they earn nothing: the cap is reached).
+-- Two more work tasks (they earn nothing: the cap is reached).
 insert into public.tasks (id, title, area, difficulty, repeat) values
   ('cccccccc-0000-0000-0000-000000000001', 'W1', 'work', 'easy', 'once'),
   ('cccccccc-0000-0000-0000-000000000002', 'W2', 'work', 'easy', 'once');

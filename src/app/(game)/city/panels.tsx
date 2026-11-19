@@ -3,7 +3,7 @@
 // Side panels and small pieces of the city screen.
 import { useState, useTransition } from "react";
 import type { BuildingCategory, BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
-import { AREA_BY_ID, CATEGORIES, CATEGORY_BY_ID, cityStats, formatCoins, sellRefund, tasksToUnlock } from "@/lib/game";
+import { AREA_BY_ID, CATEGORIES, CATEGORY_BY_ID, cityStats, formatCoins, pointsToUnlock, sellRefund } from "@/lib/game";
 import { renameCity } from "../actions";
 
 type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid">;
@@ -60,7 +60,7 @@ export function CityName({ name }: { name: string }) {
   );
 }
 
-function Effects({ t }: { t: BuildingTypeRow }) {
+export function Effects({ t }: { t: BuildingTypeRow }) {
   const parts: { text: string; bad?: boolean }[] = [];
   if (t.population) parts.push({ text: `+${t.population} 👥` });
   if (t.jobs) parts.push({ text: `+${t.jobs} 💼` });
@@ -111,7 +111,7 @@ export function Shop({
       </div>
       <ul className="mt-3 max-h-[28rem] space-y-2 overflow-y-auto pr-1">
         {shown.map((t) => {
-          const remaining = tasksToUnlock(t, progress);
+          const remaining = pointsToUnlock(t, progress);
           const locked = remaining > 0;
           const short = balance < t.cost;
           return (
@@ -122,7 +122,7 @@ export function Shop({
                 onClick={() => onPick(t)}
                 aria-label={
                   locked
-                    ? `${t.name}, locked: ${remaining} more ${AREA_BY_ID[t.unlock_area!].label.toLowerCase()} tasks`
+                    ? `${t.name}, locked: ${remaining} more ${AREA_BY_ID[t.unlock_area!].label} points`
                     : `${t.name}, ${t.cost} coins${short ? ", not enough coins" : ""}`
                 }
                 className={`flex w-full items-start gap-3 rounded-xl border p-2.5 text-left transition ${
@@ -141,7 +141,7 @@ export function Shop({
                   </span>
                   {locked ? (
                     <span className="mt-0.5 block text-xs text-muted">
-                      🔒 {remaining} more {AREA_BY_ID[t.unlock_area!].icon} {AREA_BY_ID[t.unlock_area!].label.toLowerCase()} task{remaining === 1 ? "" : "s"} to unlock
+                      🔒 {remaining} more {AREA_BY_ID[t.unlock_area!].icon} {AREA_BY_ID[t.unlock_area!].label} points to unlock
                     </span>
                   ) : (
                     <span className="mt-0.5 block text-xs text-muted">{t.description}</span>
