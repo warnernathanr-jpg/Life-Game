@@ -146,19 +146,24 @@ _Last updated: 2026-11-23_
   habit consistency, area points, city numbers, coin history.
 - Migrations `20261123000000_phase_a_enums.sql`, `20261123000100_phase_a.sql`; 19 pgTAP tests (`phase_a.test.sql`), other
   suites updated (142 total); unit tests 27 (habits, milestones, points).
-- **Not yet applied to the live database** (owner runs the SQL) and not yet deployed/live-tested.
+- **Live (2026-11-23):** owner applied the SQL; deployed from GitHub. Live test at 390px with throwaway accounts (deleted):
+  sign-up lands on City with the 5 bottom tabs; Epic Work task +100 coins / 100 Work points; daily habit shows the rhythm,
+  "1 of the last 1 days" and "9 to go for +25 bonus"; area points and next unlocks; Shop shows Warehouse locked
+  (25 more Work points); Build → "Placing Cottage" in the city; Focus area choices; Stats tiles, chart, habits, history.
+  No console errors.
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
-2. **Vercel access after the move**: the owner moved `life-city` (`prj_2zdxO8FUOmQLItDjSGfCL9xWt2sU`) off the
-   Laundromat Success team; the sandbox's Vercel token only covers that team, so reconnect the Vercel connector with
-   access to the new account, recreate `.vercel/project.json` (`{"orgId": <new scope>, "projectId": "prj_2zdx…"}`) and
-   redeploy (the portrait-camera fix from 7 is committed but not deployed). Never deploy without that file: the CLI
-   then silently creates a new project. A stray empty `life-game` project created that way on the Laundromat Success
-   team (2026-11-23) still needs deleting.
-3. Little cars on roads, day/night lighting, CC0 3D models (e.g. Kenney city kit).
-4. Goals and milestones (bonus coins), habit streaks with a multiplier, progress charts on a dashboard.
+2. **Deploys**: the `life-city` project (Life City team `team_LG1WjQ02e987XW4cCEEwM4pq`) is connected to GitHub
+   `warnernathanr-jpg/life-game`; production tracks branch `claude/kind-dirac-r6ohvf`, so pushes deploy automatically.
+   The Vercel MCP connector (`create_deployment` with `gitSource`) can also start one. The sandbox CLI/API token only
+   covers the Laundromat Success team: don't use `npx vercel deploy` for Life City.
+3. **Phase B**: goals with big rewards (150 / 500 / 750, must be set in advance and take real time), achievement
+   landmarks that can't be bought, a timeline of accomplishments. **Phase C**: the 7 city stages (Settlement → Capital)
+   and the full catalog (~35 buildings + infrastructure) with 3D models. **Phase D**: construction timers, passive
+   income for cosmetics. **Phase E**: friends' cities and seasonal events.
+4. Little cars on roads, day/night lighting, CC0 3D models (e.g. Kenney city kit).
 5. City depth: adjacency effects (shops near homes, industry far from them), small passive income.
 6. Polish: building animations, phone app (PWA) and reminders.
 
