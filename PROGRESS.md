@@ -99,12 +99,25 @@ _Last updated: 2026-11-22_
 - Checked in a browser at 390px: picker and reward text, countdown, short absence warns, 11-second absence ends the
   session, no hydration warnings.
 
+### 6. Deployment (2026-11-22)
+- **Vercel project `life-city`** on the Laundromat Success team (`prj_2zdxO8FUOmQLItDjSGfCL9xWt2sU`), live at
+  **https://life-city-five.vercel.app** (also `life-city-laundromat-success.vercel.app`). Production is public;
+  Vercel login protection applies to preview deployments only. Env vars: `NEXT_PUBLIC_SUPABASE_URL`,
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (production, preview, development).
+- Redeploy: `npx vercel deploy --prod --yes --token <any>` from the repo (the sandbox proxy supplies the real
+  credentials; the project link is in `.vercel/`, git-ignored). Not connected to GitHub auto-deploys.
+- Commit author: at the owner's request this repo's local git config uses the owner's account email (Vercel only builds
+  work by team members); Claude is credited with a `Co-Authored-By` line.
+- The sandbox's network can't reach the deployed site, so live checks need the host allowed or happen elsewhere.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
-2. Supabase project "Life City" (`ucvdtyzfjztzxguwohif`, us-west-2) exists but is still empty: apply the 7
-   migrations in order (the Supabase MCP `apply_migration` waits for the user's confirmation), then create the
-   Vercel project and set `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+2. **Finish the database**: Supabase project "Life City" (`ucvdtyzfjztzxguwohif`, us-west-2) is still empty. Apply
+   the 7 migrations in order (Supabase MCP `apply_migration` asks the user to confirm each; it timed out twice), or
+   the user runs the two bundled SQL files in the SQL Editor. Then: security advisors, Supabase Auth URL settings
+   (Site URL + redirect `https://life-city-five.vercel.app/**`), turn off "Confirm email" (built-in mail only reaches
+   team members), and a live end-to-end test with a throwaway account.
 3. Little cars on roads, day/night lighting, CC0 3D models (e.g. Kenney city kit).
 4. Goals and milestones (bonus coins), habit streaks with a multiplier, progress charts on a dashboard.
 5. City depth: adjacency effects (shops near homes, industry far from them), small passive income.
