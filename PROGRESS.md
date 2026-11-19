@@ -161,6 +161,12 @@ _Last updated: 2026-11-23_
 - Phase C note from the owner: the city core should get denser as you level up (upgrade a House in place to Townhome →
   Apartments → Skyscraper rather than demolishing).
 
+### 10. Building colors (2026-11-23)
+- Every 3D building gets its own color scheme from palettes per part (walls, roofs, doors, facades, awnings, office glass,
+  industrial siding, accents, tents, tree crowns), picked by a seed from the building's id (`colorSeed()` + `pick()` in
+  `models.tsx`), so colors are random across buildings but stable for each one across visits. Fire stations stay red
+  and clinics white so they stay recognizable. Checked with a 50-building sample: varied, identical after reload.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

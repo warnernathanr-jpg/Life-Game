@@ -7,7 +7,7 @@ import * as THREE from "three";
 import type { MapControls as MapControlsImpl } from "three-stdlib";
 import { THEME_EVENT } from "@/lib/themes";
 import { FACING_ROTATION, facingFor, key, roadSet, roadShape, ROAD_TYPE, strokePath, type Lot, type Tile } from "@/lib/roads";
-import { BOX, BuildingModel, MODEL_HEIGHT, NoRoadMarker, mat } from "./models";
+import { BOX, BuildingModel, MODEL_HEIGHT, NoRoadMarker, colorSeed, mat } from "./models";
 
 export type Preview = { tiles: Tile[]; ok: boolean; height?: number } | null;
 
@@ -169,7 +169,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
           <group key={b.id} position={[b.x + b.size / 2, 0, b.y + b.size / 2]} userData={{ lotId: b.id }}>
             {/* Turn the model so its front (doors, awnings) faces the road. */}
             <group rotation-y={FACING_ROTATION[facingFor(b, roads)]}>
-              <BuildingModel typeId={b.type_id} />
+              <BuildingModel typeId={b.type_id} seed={colorSeed(b.id)} />
             </group>
             {!connected.has(b.id) && <NoRoadMarker y={MODEL_HEIGHT[b.type_id] ?? 1} />}
           </group>
