@@ -61,10 +61,12 @@ export const CATEGORIES: { id: BuildingCategory; label: string; tile: string; ch
   { id: "road", label: "Roads", tile: "bg-slate-500 border-slate-600", chip: "bg-slate-200 text-slate-900" },
   { id: "landscape", label: "Landscape", tile: "bg-emerald-200 border-emerald-400", chip: "bg-emerald-100 text-emerald-900" },
 ];
-/** Parks are services, but the build menu gives them their own group. */
+/** Parks are services, but the build menu gives them their own group (as it does Knowledge). */
 export const PARK_IDS = new Set(["park", "court", "garden", "central_park"]);
+/** Schools and libraries: services too, grouped as Knowledge in the build menu. */
+export const KNOWLEDGE_IDS = new Set(["school", "library"]);
 
-export type BuildGroupId = "residential" | "commercial" | "industrial" | "service" | "road" | "park" | "landscape";
+export type BuildGroupId = "residential" | "commercial" | "industrial" | "service" | "knowledge" | "road" | "park" | "landscape";
 
 /** The build menu's groups (with icons), in menu order. Bridges are drawn with the road tool, not picked. */
 export const BUILD_GROUPS: { id: BuildGroupId; label: string; icon: string; tile: string }[] = [
@@ -72,6 +74,7 @@ export const BUILD_GROUPS: { id: BuildGroupId; label: string; icon: string; tile
   { id: "commercial", label: "Commercial", icon: "🏪", tile: "bg-sky-100 border-sky-300" },
   { id: "industrial", label: "Industrial", icon: "🏭", tile: "bg-stone-200 border-stone-400" },
   { id: "service", label: "Services", icon: "🏛️", tile: "bg-violet-100 border-violet-300" },
+  { id: "knowledge", label: "Knowledge", icon: "📚", tile: "bg-amber-100 border-amber-300" },
   { id: "road", label: "Roads", icon: "🛣️", tile: "bg-slate-300 border-slate-500" },
   { id: "park", label: "Parks", icon: "🌳", tile: "bg-lime-100 border-lime-400" },
   { id: "landscape", label: "Landscape", icon: "🌲", tile: "bg-emerald-200 border-emerald-400" },
@@ -80,6 +83,7 @@ export const BUILD_GROUPS: { id: BuildGroupId; label: string; icon: string; tile
 export function buildGroupOf(t: Pick<BuildingTypeRow, "id" | "category">): BuildGroupId | null {
   if (t.id === "bridge") return null;
   if (PARK_IDS.has(t.id)) return "park";
+  if (KNOWLEDGE_IDS.has(t.id)) return "knowledge";
   return t.category as BuildGroupId;
 }
 

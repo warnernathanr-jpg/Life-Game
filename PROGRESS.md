@@ -246,11 +246,18 @@ _Last updated: 2026-11-25_
 - **Trees tiles** pick one of six styles from the tile's seed (mixed grove of 4, pine stand of 5, big shade tree with
   shrubs, slim clump with rocks, dense woods of 6, meadow with two trees and flowers), with jittered positions, sizes and
   crown colors.
-- **Phones**: one finger drags the map, two fingers pinch to zoom and twist to rotate (while painting: one finger draws,
-  two move/zoom); the page scrolls by swiping above or below the map (map is 50vh on phones). Animations (cars, water)
-  pause while the page scrolls, when the map is off screen and when the tab is hidden (`MotionGate`); phones render at most
-  1.5× resolution with 1024px shadows. Checked with real touch events in iPhone 13 emulation.
+- **Phones**: finger gestures on the map are handled by the app itself with plain touch events (the controls library's
+  pointer-based touch handling didn't move the map on the owner's real phone): one finger drags the map, two fingers pan,
+  pinch to zoom and twist to rotate (while painting, one finger draws). The controls only handle the mouse
+  (`touches` both off). `[data-map] canvas { touch-action: none }` everywhere; the page scrolls by swiping above or below
+  the map (50vh on phones). Animations pause while the page scrolls, off screen and in background tabs (`MotionGate`);
+  phones render at most 1.5× with 1024px shadows. Emulated iPhone 13 with real touch events: drag, pinch, twist all move
+  the map, the page doesn't scroll.
 - The water's ripple pattern ("bubbles") was removed at the owner's request; only the shore foam line moves.
+
+### 16. Knowledge group (2026-11-25)
+- Schools and libraries (already unlocked by Knowledge points) have their own **📚 Knowledge** group in the build menu, the
+  full-screen build bar and the Shop page (`KNOWLEDGE_IDS`; the Shop page now uses `BUILD_GROUPS` too). 1 unit test.
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate

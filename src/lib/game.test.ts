@@ -124,3 +124,14 @@ describe("lotFree", () => {
     expect(lotFree(8, { x: 3, y: 2, size: 2 }, placed, "f")).toBe(true);
   });
 });
+
+describe("build groups", () => {
+  it("puts schools and libraries under Knowledge and parks under Parks", async () => {
+    const { buildGroupOf } = await import("./game");
+    expect(buildGroupOf({ id: "school", category: "service" })).toBe("knowledge");
+    expect(buildGroupOf({ id: "library", category: "service" })).toBe("knowledge");
+    expect(buildGroupOf({ id: "court", category: "service" })).toBe("park");
+    expect(buildGroupOf({ id: "clinic", category: "service" })).toBe("service");
+    expect(buildGroupOf({ id: "bridge", category: "road" })).toBeNull();
+  });
+});

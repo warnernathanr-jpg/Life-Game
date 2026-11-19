@@ -296,14 +296,86 @@ function CameraRig({
     invalidate();
   }, [camera, center, size, invalidate, getState]);
 
-  // Phones: one finger scrolls the page (or paints, while painting); two fingers move and zoom the map.
-  // Computers keep drag-to-pan, scroll-to-zoom and right-drag-to-rotate.
+  // Touch gestures are handled here with plain touch events (the most reliable thing on phones, iPhones especially);
+  // the controls only handle the mouse. One finger drags the map (unless painting, where it draws); two fingers pan,
+  // pinch to zoom and twist to rotate. A tap still selects (no movement, so the browser still sends the click).
   const gl = useThree((st) => st.gl);
+  const paintingRef = useRef(painting);
+  useLayoutEffect(() => {
+    paintingRef.current = painting;
+  }, [painting]);
   useLayoutEffect(() => {
     const c = controls.current;
-    if (!c || typeof window === "undefined") return;
-    applyTouchGestures(c, painting);
-  }, [gl, painting]);
+    if (!c) return;
+    c.touches = { ONE: -1 as unknown as THREE.TOUCH, TWO: -1 as unknown as THREE.TOUCH };
+    const el = gl.domElement;
+    const persp = camera as THREE.PerspectiveCamera;
+    let last: { x: number; y: number; dist: number; angle: number; n: number } | null = null;
+    const read = (e: TouchEvent) => {
+      const t = e.touches;
+      if (t.length >= 2) {
+        const dx = t[1].clientX - t[0].clientX;
+        const dy = t[1].clientY - t[0].clientY;
+        return { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2, dist: Math.hypot(dx, dy), angle: Math.atan2(dy, dx), n: 2 };
+      }
+      return { x: t[0].clientX, y: t[0].clientY, dist: 0, angle: 0, n: 1 };
+    };
+    const panBy = (dx: number, dy: number) => {
+      const offset = camera.position.clone().sub(c.target);
+      const dist = offset.length();
+      const perPx = (2 * dist * Math.tan(THREE.MathUtils.degToRad(persp.fov / 2))) / Math.max(1, el.clientHeight);
+      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0).setY(0).normalize();
+      const forward = new THREE.Vector3(-offset.x, 0, -offset.z).normalize();
+      // The ground is foreshortened when tilted: a pixel up the screen covers more ground.
+      const tilt = Math.max(0.35, offset.y / dist);
+      const move = right.multiplyScalar(-dx * perPx).add(forward.multiplyScalar((dy * perPx) / tilt));
+      camera.position.add(move);
+      c.target.add(move);
+    };
+    const settle = () => {
+      const margin = 4;
+      const t = c.target;
+      const clamped = new THREE.Vector3(THREE.MathUtils.clamp(t.x, -margin, size + margin), 0, THREE.MathUtils.clamp(t.z, -margin, size + margin));
+      camera.position.add(clamped.clone().sub(t));
+      t.copy(clamped);
+      c.update();
+      invalidate();
+    };
+    const onStart = (e: TouchEvent) => {
+      last = e.touches.length === 1 && paintingRef.current ? null : read(e);
+    };
+    const onMove = (e: TouchEvent) => {
+      if (e.touches.length === 1 && paintingRef.current) return; // drawing a road/trees/water stroke
+      const now = read(e);
+      if (!last || last.n !== now.n) {
+        last = now;
+        return;
+      }
+      e.preventDefault();
+      panBy(now.x - last.x, now.y - last.y);
+      if (now.n === 2 && last.dist > 0 && now.dist > 0) {
+        const offset = camera.position.clone().sub(c.target);
+        const len = THREE.MathUtils.clamp(offset.length() * (last.dist / now.dist), c.minDistance, c.maxDistance);
+        offset.setLength(len).applyAxisAngle(new THREE.Vector3(0, 1, 0), now.angle - last.angle);
+        camera.position.copy(c.target).add(offset);
+      }
+      last = now;
+      settle();
+    };
+    const onEnd = (e: TouchEvent) => {
+      last = e.touches.length > 0 && !(e.touches.length === 1 && paintingRef.current) ? read(e) : null;
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd);
+    el.addEventListener("touchcancel", onEnd);
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
+  }, [gl, camera, invalidate, size]);
 
   // Frame the whole city on first load and whenever the land grows.
   useLayoutEffect(() => {
@@ -363,19 +435,6 @@ function CameraRig({
       }}
     />
   );
-}
-
-/**
- * Touch screens: one finger drags the map, two fingers pinch to zoom and twist to rotate. While painting, one finger
- * draws instead and two fingers move and zoom. (The page scrolls when you swipe outside the map.)
- */
-function applyTouchGestures(controls: MapControlsImpl, painting: boolean) {
-  if (!window.matchMedia("(pointer: coarse)").matches) return;
-  // -1 = ignore one-finger touches. The canvas's touch-action is set in globals.css ([data-map] rules):
-  // the controls library resets inline styles.
-  controls.touches = painting
-    ? { ONE: -1 as unknown as THREE.TOUCH, TWO: THREE.TOUCH.DOLLY_PAN }
-    : { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
 }
 
 // ---------------------------------------------------------------------------

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { AreaPoints } from "@/components/area-points";
 import { requireUser } from "@/lib/auth";
-import { AREA_BY_ID, CATEGORIES, CATEGORY_BY_ID, formatCoins, nextUnlocks, pointsToUnlock } from "@/lib/game";
+import { AREA_BY_ID, BUILD_GROUPS, buildGroupOf, formatCoins, nextUnlocks, pointsToUnlock } from "@/lib/game";
 import { Effects } from "../city/panels";
 
 export const metadata: Metadata = { title: "Shop · Life City" };
@@ -16,8 +16,6 @@ async function ShopContent() {
   ]);
   const all = types ?? [];
   const balance = Number(progress?.balance ?? 0);
-  // Roads and landscaping first, then the four building categories.
-  const order = ["road", "landscape", "residential", "commercial", "industrial", "service"] as const;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
@@ -28,14 +26,15 @@ async function ShopContent() {
             Buy with coins, unlock with area points. Pick something to build and place it in your city.
           </p>
         </div>
-        {order.map((cat) => {
-          const items = all.filter((t) => t.id !== "bridge" && t.category === cat);
+        {/* Same groups as the city's build menu (Parks and Knowledge split out of Services). */}
+        {BUILD_GROUPS.map((c) => {
+          const cat = c.id;
+          const items = all.filter((t) => buildGroupOf(t) === cat);
           if (items.length === 0) return null;
-          const c = CATEGORY_BY_ID[cat] ?? CATEGORIES[0];
           return (
             <section key={cat} aria-labelledby={`cat-${cat}`} className="space-y-2">
               <h2 id={`cat-${cat}`} className="flex items-center gap-2 font-semibold">
-                <span className={`size-3 rounded border-2 ${c.tile}`} aria-hidden />
+                <span aria-hidden>{c.icon}</span>
                 {c.label}
               </h2>
               <ul className="grid gap-2 sm:grid-cols-2">

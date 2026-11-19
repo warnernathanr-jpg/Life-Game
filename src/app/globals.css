@@ -196,10 +196,6 @@
   .coin-pop { animation: none; }
 }
 
-/* 3D map on touch screens: one finger scrolls the page while browsing (two fingers move the map),
-   and draws while painting roads, trees or water. !important beats the 3D controls' inline style. */
-@media (pointer: coarse) {
-  [data-map="browse"] canvas { touch-action: none !important; }
-  [data-map="paint"] canvas { touch-action: none !important; }
-  [data-map="full"] canvas { touch-action: none !important; }
-}
+/* 3D map: the app handles every finger gesture on it itself (drag, pinch, twist, painting), so the browser must not
+   scroll or zoom the page from touches on the map. */
+[data-map] canvas { touch-action: none; }
