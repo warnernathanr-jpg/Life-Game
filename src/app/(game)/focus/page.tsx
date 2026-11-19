@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
-import { DAILY_FOCUS_CAP } from "@/lib/game";
 import { FocusTimer } from "./focus-timer";
 
 export const metadata: Metadata = { title: "Focus · Life City" };
@@ -28,7 +27,6 @@ async function FocusPageContent() {
     <FocusTimer
       running={running ? { id: running.id, endsAt: running.ends_at, startedAt: running.started_at, minutes: running.minutes, label: running.label } : null}
       earnedToday={earned}
-      cap={DAILY_FOCUS_CAP}
       minutesToday={minutes}
       history={todays.map((s) => ({ id: s.id, minutes: s.minutes, label: s.label, status: s.status, coins: s.coins, startedAt: s.started_at }))}
       timezone={tz}

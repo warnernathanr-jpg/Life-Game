@@ -23,7 +23,6 @@ type Phase =
 export function FocusTimer(props: {
   running: Running | null;
   earnedToday: number;
-  cap: number;
   minutesToday: number;
   history: HistoryItem[];
   timezone: string;
@@ -48,8 +47,6 @@ export function FocusTimer(props: {
     } catch {}
     if (on) unlockAudio();
   }
-  const capLeft = Math.max(0, props.cap - props.earnedToday);
-  const reward = Math.min(minutes, capLeft);
 
   function begin() {
     setError(null);
@@ -87,7 +84,7 @@ export function FocusTimer(props: {
         <div role="status" className="card border-good/40 bg-good-soft text-center">
           <p className="text-4xl" aria-hidden>🎉</p>
           <p className="mt-1 text-lg font-bold">You focused for {phase.minutes} minutes!</p>
-          <p className="text-good">{phase.coins > 0 ? `+${formatCoins(phase.coins)} coins` : "You've reached today's focus coin limit, but well done."}</p>
+          <p className="text-good">{`+${formatCoins(phase.coins)} coins`}</p>
           <Link href="/city" className="btn-secondary mt-3">🏗️ Spend in your city</Link>
         </div>
       )}
@@ -103,7 +100,7 @@ export function FocusTimer(props: {
         <div className="text-center">
           <p className="text-5xl font-bold tabular-nums">{minutes}<span className="text-xl font-medium text-muted"> min</span></p>
           <p className="mt-1 text-sm font-semibold text-coin">
-            {capLeft === 0 ? "Daily focus coin limit reached" : `+${reward} coins`}
+            +{minutes} coins
           </p>
         </div>
         <label className="block">
@@ -186,7 +183,7 @@ export function FocusTimer(props: {
           <li>📱 Leave this page open and put your phone face down. The screen stays on while you focus.</li>
           <li>🚪 Switching to another app or tab for more than 10 seconds ends the session with no coins.</li>
           <li>🔔 The chime plays through this page, so keep it open. On iPhone, the silent switch mutes it.</li>
-          <li>🪙 1 coin per minute, up to {props.cap} focus coins a day (separate from task coins).</li>
+          <li>🪙 1 coin per minute, as many sessions as you like.</li>
         </ul>
       </section>
 
@@ -194,7 +191,7 @@ export function FocusTimer(props: {
         <div className="flex items-baseline justify-between gap-2">
           <h2 id="today-h" className="font-semibold">Today</h2>
           <p className="text-sm text-muted">
-            {props.minutesToday} min focused · <span className="font-semibold text-coin">{props.earnedToday}</span> / {props.cap} coins
+            {props.minutesToday} min focused · <span className="font-semibold text-coin">{props.earnedToday}</span> coins
           </p>
         </div>
         {props.history.length === 0 ? (

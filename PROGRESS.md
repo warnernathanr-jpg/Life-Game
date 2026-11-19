@@ -3,7 +3,7 @@
 Where the project stands. Read with [PROJECT.md](./PROJECT.md) at the start of every session, and update this file
 when a piece of work is finished.
 
-_Last updated: 2026-11-23_
+_Last updated: 2026-11-24_
 
 ## Done
 
@@ -166,6 +166,42 @@ _Last updated: 2026-11-23_
   industrial siding, accents, tents, tree crowns), picked by a seed from the building's id (`colorSeed()` + `pick()` in
   `models.tsx`), so colors are random across buildings but stable for each one across visits. Fire stations stay red
   and clinics white so they stay recognizable. Checked with a 50-building sample: varied, identical after reload.
+
+### 11. City depth, landscaping, upgrades, rewards (2026-11-24)
+- **Rotate**: buildings with road on 2+ sides get a Rotate button (cycles road sides); saved in
+  `placed_buildings.facing` via `set_building_facing()`; a saved side only applies while it still has road
+  (`roadSides` / `effectiveFacing` / `nextFacing` in `src/lib/roads.ts`). One road side → automatic.
+- **2x2 industry**: Workshop and Warehouse are 2x2 with new models (the live Workshop fit where it stood).
+- **Parks**: Small Park 1x1, **Basketball Court** 2x2, **Garden Park** 3x3, **Central Park** 4x4 (sizes up to 4 allowed).
+- **Placing** ends after one building (no Cancel needed); paint tools stay on.
+- **City Stats** card (`CityStatsPanel`, `HealthPill`): city health 0–100 (happiness, jobs balance, road connections,
+  service coverage) with label; population/jobs/happiness/score with notes; "Why happiness is N%" factor list (services,
+  shops, housing, pollution, nature (capped at +10), unemployment, worker shortage, no services, buildings without roads,
+  **life balance** from the four area points); "What to do" tips. Engine: `cityStats(placed, types, progress)`.
+- **Worker shortage**: when jobs > residents, shops and industry get a yellow marker (3D and flat) and a warning in the
+  selected panel with the staffing %.
+- **Landscaping**: new `landscape` category with **Trees** (3) and **Water** (6), painted by dragging like roads through
+  the new `buy_tiles(type, tiles)` (roads use it too). Water joins into ponds with sandy shores; tree tiles are seeded
+  clusters. Empty land shows grass tufts, rocks and bushes; **beyond the city edge** there are woods, rocks and grass.
+- **Townhome rows**: neighboring townhomes facing the same way join walls and roofline (`rowJoins()`).
+- **Upgrades**: House → Townhome → Apartments for the price difference (`building_types.upgrades_to`,
+  `upgrade_building()`; Apartments need a free 2x2 covering the old tile, shifted up/left if needed).
+- **No daily coin limits** (tasks and focus pay in full).
+- **Cars** drive the road network (right-hand lane, random turns, U-turn at dead ends; up to 14).
+- **Build menu**: under All, buildable items first, then a "Locked" group.
+- **Phone gestures on the 3D map**: one finger scrolls the page (tap still selects), two fingers pan and zoom; while
+  painting one finger draws. Set with CSS `[data-map] canvas { touch-action: … !important }` because the controls library
+  resets the inline style. Verified with touch emulation (swipe scrolls 235px; pinch changes the map, not the page).
+- **Home screen + notifications rewards**: PWA manifest, icons (`public/icons`), `public/sw.js` (shows pushes, opens the app).
+  Popups (`src/components/reward-prompts.tsx`): add-to-home-screen walkthrough (iPhone Share steps, Android menu steps, or
+  an Install button) → 200 coins paid when the app is opened standalone; then "Turn on notifications" → subscription saved
+  (`push_subscriptions`, endpoint/keys not readable by the app) → 200 more. One-time via `user_rewards` + `claim_reward()`.
+  Dismissing snoozes a popup for 3 days. **Sending notifications isn't built yet**: the VAPID public key is in
+  `src/lib/push.ts`, but its private key was not stored (the sandbox can't move secrets). When building sending: create a
+  new key pair server-side, put the private key in Vercel (sensitive) and the public key in `push.ts`, and re-subscribe
+  devices whose subscription uses the old key.
+- Migrations `20261124000000`–`000400` (applied live via `execute_sql`). pgTAP 185 (new: `parks_industry`, `landscape`,
+  `upgrades`, `rewards`); unit tests 38.
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate

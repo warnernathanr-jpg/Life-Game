@@ -11,7 +11,8 @@ export function FlatBoard({
   size,
   lots,
   typeById,
-  connected,
+  needsRoad,
+  understaffed,
   mode,
   selectedId,
   movingId,
@@ -23,7 +24,8 @@ export function FlatBoard({
   size: number;
   lots: Lot[];
   typeById: Map<string, BuildingTypeRow>;
-  connected: Set<string>;
+  needsRoad: Set<string>;
+  understaffed: Set<string>;
   mode: Mode;
   selectedId?: string;
   movingId?: string;
@@ -42,7 +44,8 @@ export function FlatBoard({
     return map;
   }, [lots]);
 
-  const tileCursor = mode.kind === "bulldoze" ? 1 : mode.kind === "road" ? 1 : ghostSize;
+  const tileCursor = mode.kind === "bulldoze" || mode.kind === "paint" ? 1 : ghostSize;
+  const water = useMemo(() => new Set(lots.filter((l) => l.type_id === "water").map((l) => key(l.x, l.y))), [lots]);
   const preview =
     hover && tileCursor
       ? {
@@ -88,7 +91,7 @@ export function FlatBoard({
           const b = occupant.get(key(x, y));
           const t = b ? typeById.get(b.type_id) : undefined;
           const label = t
-            ? `${t.name} at column ${x + 1}, row ${y + 1}${t.category !== "road" && b && !connected.has(b.id) ? ", needs a road" : ""}`
+            ? `${t.name} at column ${x + 1}, row ${y + 1}${b && needsRoad.has(b.id) ? ", needs a road" : ""}${b && understaffed.has(b.id) ? ", not enough workers" : ""}`
             : `Empty lot at column ${x + 1}, row ${y + 1}`;
           return (
             <button
@@ -115,6 +118,36 @@ export function FlatBoard({
           const t = typeById.get(b.type_id);
           if (!t) return null;
           const isSelected = selectedId === b.id || movingId === b.id;
+          if (b.type_id === "water") {
+            const w = roadShape(b.x, b.y, water);
+            return (
+              <div
+                key={b.id}
+                aria-hidden
+                className={`pointer-events-none z-10 bg-sky-500 ${isSelected ? "ring-4 ring-amber-400" : ""}`}
+                style={{
+                  gridColumn: b.x + 1,
+                  gridRow: b.y + 1,
+                  borderTopLeftRadius: !w.n && !w.w ? "40%" : undefined,
+                  borderTopRightRadius: !w.n && !w.e ? "40%" : undefined,
+                  borderBottomLeftRadius: !w.s && !w.w ? "40%" : undefined,
+                  borderBottomRightRadius: !w.s && !w.e ? "40%" : undefined,
+                }}
+              />
+            );
+          }
+          if (b.type_id === "tree") {
+            return (
+              <div
+                key={b.id}
+                aria-hidden
+                className={`pointer-events-none z-10 flex items-center justify-center ${isSelected ? "ring-4 ring-amber-400" : ""}`}
+                style={{ gridColumn: b.x + 1, gridRow: b.y + 1, fontSize: `${62 / size}cqw`, lineHeight: 1 }}
+              >
+                🌲
+              </div>
+            );
+          }
           if (b.type_id === ROAD_TYPE) {
             const s = roadShape(b.x, b.y, roads);
             return (
@@ -153,7 +186,8 @@ export function FlatBoard({
               }}
             >
               {t.icon}
-              {!connected.has(b.id) && <span className="absolute -top-1 -right-1 size-2.5 rotate-45 bg-red-500 ring-1 ring-white" />}
+              {needsRoad.has(b.id) && <span className="absolute -top-1 -right-1 size-2.5 rotate-45 bg-red-500 ring-1 ring-white" />}
+              {understaffed.has(b.id) && <span className="absolute -top-1 -left-1 size-2.5 rotate-45 bg-yellow-400 ring-1 ring-white" />}
             </div>
           );
         })}

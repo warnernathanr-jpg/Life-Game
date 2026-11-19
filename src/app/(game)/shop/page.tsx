@@ -16,8 +16,8 @@ async function ShopContent() {
   ]);
   const all = types ?? [];
   const balance = Number(progress?.balance ?? 0);
-  // Roads first, then the four building categories.
-  const order = ["road", "residential", "commercial", "industrial", "service"] as const;
+  // Roads and landscaping first, then the four building categories.
+  const order = ["road", "landscape", "residential", "commercial", "industrial", "service"] as const;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">

@@ -201,3 +201,10 @@
 @media (prefers-reduced-motion: reduce) {
   .coin-pop, .build-in { animation: none; }
 }
+
+/* 3D map on touch screens: one finger scrolls the page while browsing (two fingers move the map),
+   and draws while painting roads, trees or water. !important beats the 3D controls' inline style. */
+@media (pointer: coarse) {
+  [data-map="browse"] canvas { touch-action: pan-y !important; }
+  [data-map="paint"] canvas { touch-action: none !important; }
+}

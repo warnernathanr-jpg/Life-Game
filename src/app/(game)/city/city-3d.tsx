@@ -1,20 +1,23 @@
 "use client";
 
 import { MapControls } from "@react-three/drei";
-import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
+import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { forwardRef, useCallback, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { MapControls as MapControlsImpl } from "three-stdlib";
 import { THEME_EVENT } from "@/lib/themes";
-import { FACING_ROTATION, facingFor, key, roadSet, roadShape, ROAD_TYPE, strokePath, type Lot, type Tile } from "@/lib/roads";
-import { BOX, BuildingModel, MODEL_HEIGHT, NoRoadMarker, colorSeed, mat } from "./models";
+import { effectiveFacing, FACING_ROTATION, key, rowJoins, roadSet, roadShape, ROAD_TYPE, strokePath, type Lot, type Tile } from "@/lib/roads";
+import { BOX, BuildingModel, CROWN, MODEL_HEIGHT, NoRoadMarker, OCTA, WorkerMarker, colorSeed, mat } from "./models";
 
 export type Preview = { tiles: Tile[]; ok: boolean; height?: number } | null;
 
 export type City3DProps = {
   size: number;
   lots: Lot[];
-  connected: Set<string>;
+  /** Buildings with no road beside them (red marker). */
+  needsRoad: Set<string>;
+  /** Shops and industry short of workers (yellow marker). */
+  understaffed: Set<string>;
   selectedId?: string;
   dimmedId?: string;
   /** "stroke": drag paints a path (roads, bulldozer); "point": tap a tile. */
@@ -24,6 +27,8 @@ export type City3DProps = {
   ghostOk: (x: number, y: number) => boolean;
   strokeOk: (tiles: Tile[]) => boolean;
   strokeColor: "build" | "demolish";
+  /** Type being painted (road, tree, water): tiles that already have it are free and not highlighted. */
+  paintTypeId?: string;
   onTile: (x: number, y: number) => void;
   onStroke: (tiles: Tile[]) => void;
   onStrokeChange: (tiles: Tile[] | null) => void;
@@ -66,9 +71,12 @@ function ThemeSky() {
 }
 
 function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle> }) {
-  const { size, lots, connected, input } = props;
+  const { size, lots, needsRoad, understaffed, input } = props;
   const roads = useMemo(() => roadSet(lots), [lots]);
-  const buildings = useMemo(() => lots.filter((l) => l.type_id !== ROAD_TYPE), [lots]);
+  const buildings = useMemo(() => lots.filter((l) => l.type_id !== ROAD_TYPE && l.type_id !== WATER_TYPE), [lots]);
+  const waterTiles = useMemo(() => lots.filter((l) => l.type_id === WATER_TYPE), [lots]);
+  // Townhomes side by side facing the same way join into a row.
+  const joins = useMemo(() => rowJoins(lots, roadSet(lots), "house"), [lots]);
   const roadTiles = useMemo(() => lots.filter((l) => l.type_id === ROAD_TYPE), [lots]);
   const byTile = useMemo(() => {
     const m = new Map<string, Lot>();
@@ -140,7 +148,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
 
   return (
     <>
-      <CameraRig size={size} handleRef={props.handleRef} panEnabled={input === "point"} />
+      <CameraRig size={size} handleRef={props.handleRef} panEnabled={input === "point"} painting={input === "stroke"} />
       <hemisphereLight args={["#e0f2fe", "#4d7c0f", 1.1]} />
       <directionalLight
         position={[size * 0.4 + 8, 18, size * 0.2 - 4]}
@@ -165,13 +173,17 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
       >
         <Ground size={size} />
         <Roads tiles={roadTiles} roads={roads} />
+        <Water tiles={waterTiles} />
+        <Cars tiles={roadTiles} />
+        <Wilds size={size} occupied={byTile} />
         {buildings.map((b) => (
           <group key={b.id} position={[b.x + b.size / 2, 0, b.y + b.size / 2]} userData={{ lotId: b.id }}>
             {/* Turn the model so its front (doors, awnings) faces the road. */}
-            <group rotation-y={FACING_ROTATION[facingFor(b, roads)]}>
-              <BuildingModel typeId={b.type_id} seed={colorSeed(b.id)} />
+            <group rotation-y={FACING_ROTATION[effectiveFacing(b, roads)]}>
+              <BuildingModel typeId={b.type_id} seed={colorSeed(b.id)} join={joins.get(b.id)} />
             </group>
-            {!connected.has(b.id) && <NoRoadMarker y={MODEL_HEIGHT[b.type_id] ?? 1} />}
+            {needsRoad.has(b.id) && <NoRoadMarker y={MODEL_HEIGHT[b.type_id] ?? 1} />}
+            {understaffed.has(b.id) && <WorkerMarker y={MODEL_HEIGHT[b.type_id] ?? 1} />}
           </group>
         ))}
       </group>
@@ -185,7 +197,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
           size={1}
           ok={strokeOk}
           demolish={props.strokeColor === "demolish"}
-          skip={props.strokeColor === "build" ? (t) => byTile.get(key(t.x, t.y))?.type_id === ROAD_TYPE : undefined}
+          skip={props.strokeColor === "build" ? (t) => byTile.get(key(t.x, t.y))?.type_id === (props.paintTypeId ?? ROAD_TYPE) : undefined}
         />
       )}
       {input === "stroke" && hover && !stroke && <Footprint tiles={[hover]} size={1} ok demolish={props.strokeColor === "demolish"} />}
@@ -207,10 +219,12 @@ function CameraRig({
   size,
   handleRef,
   panEnabled,
+  painting,
 }: {
   size: number;
   handleRef: React.ForwardedRef<City3DHandle>;
   panEnabled: boolean;
+  painting: boolean;
 }) {
   const controls = useRef<MapControlsImpl>(null);
   const { camera, invalidate } = useThree();
@@ -228,6 +242,15 @@ function CameraRig({
     controls.current?.update();
     invalidate();
   }, [camera, center, size, invalidate, getState]);
+
+  // Phones: one finger scrolls the page (or paints, while painting); two fingers move and zoom the map.
+  // Computers keep drag-to-pan, scroll-to-zoom and right-drag-to-rotate.
+  const gl = useThree((st) => st.gl);
+  useLayoutEffect(() => {
+    const c = controls.current;
+    if (!c || typeof window === "undefined") return;
+    applyTouchGestures(c, gl.domElement, painting);
+  }, [gl, painting]);
 
   // Frame the whole city on first load and whenever the land grows.
   useLayoutEffect(() => {
@@ -287,6 +310,16 @@ function CameraRig({
       }}
     />
   );
+}
+
+/** On touch screens: one finger is left to the page (scroll) or to painting; two fingers pan and zoom the map. */
+function applyTouchGestures(controls: MapControlsImpl, canvas: HTMLCanvasElement, painting: boolean) {
+  if (!window.matchMedia("(pointer: coarse)").matches) return;
+  // -1 = ignore one-finger touches.
+  controls.touches = { ONE: -1 as unknown as THREE.TOUCH, TWO: THREE.TOUCH.DOLLY_PAN };
+  // The canvas's touch-action is set in globals.css ([data-map] rules): the controls library resets inline styles.
+  void canvas;
+  void painting;
 }
 
 // ---------------------------------------------------------------------------
@@ -461,5 +494,263 @@ function Selection({ lot, color = "#fbbf24" }: { lot?: Lot; color?: string }) {
         <mesh key={i} geometry={BOX} material={m} position={[x, 0.06, z]} scale={[sx, 0.08, sz]} raycast={() => null} />
       ))}
     </group>
+  );
+}
+
+const WATER_TYPE = "water";
+
+/** Hash of a tile position (stable "random" per tile). */
+function tileHash(x: number, y: number, salt = 0): number {
+  let h = Math.imul(x * 73856093 ^ y * 19349663 ^ salt * 83492791, 0x9e3779b1);
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  return (h >>> 0) / 4294967296;
+}
+
+const WATER_PARTS = { water: mat("#3b82f6"), deep: mat("#2563eb"), shore: mat("#fde68a") };
+
+/** Water tiles joined into ponds and lakes: open water plus a sandy shore on sides without water. */
+function Water({ tiles }: { tiles: Lot[] }) {
+  const waterRef = useRef<THREE.InstancedMesh>(null);
+  const shoreRef = useRef<THREE.InstancedMesh>(null);
+  const { invalidate } = useThree();
+  const parts = useMemo(() => {
+    const set = new Set(tiles.map((t) => key(t.x, t.y)));
+    const water: THREE.Matrix4[] = [];
+    const shore: THREE.Matrix4[] = [];
+    const m = (x: number, y: number, z: number, sx: number, sy: number, sz: number) =>
+      new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(sx, sy, sz));
+    const S = 0.14;
+    for (const t of tiles) {
+      const cx = t.x + 0.5;
+      const cz = t.y + 0.5;
+      water.push(m(cx, 0.012, cz, 1, 0.02, 1));
+      const s = roadShape(t.x, t.y, set);
+      if (!s.n) shore.push(m(cx, 0.016, t.y + S / 2, 1, 0.02, S));
+      if (!s.s) shore.push(m(cx, 0.016, t.y + 1 - S / 2, 1, 0.02, S));
+      if (!s.w) shore.push(m(t.x + S / 2, 0.016, cz, S, 0.02, 1));
+      if (!s.e) shore.push(m(t.x + 1 - S / 2, 0.016, cz, S, 0.02, 1));
+    }
+    return { water, shore };
+  }, [tiles]);
+  useLayoutEffect(() => {
+    for (const [ref, list] of [[waterRef, parts.water], [shoreRef, parts.shore]] as const) {
+      const mesh = ref.current;
+      if (!mesh) continue;
+      list.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
+      mesh.count = list.length;
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.computeBoundingSphere();
+    }
+    invalidate();
+  }, [parts, invalidate]);
+  const cap = (n: number) => Math.max(1, n);
+  return (
+    <>
+      <instancedMesh key={`w${cap(parts.water.length)}`} ref={waterRef} args={[BOX, WATER_PARTS.water, cap(parts.water.length)]} receiveShadow />
+      <instancedMesh key={`s${cap(parts.shore.length)}`} ref={shoreRef} args={[BOX, WATER_PARTS.shore, cap(parts.shore.length)]} receiveShadow />
+    </>
+  );
+}
+
+const WILD = {
+  rock: mat("#a8a29e"),
+  rockDark: mat("#78716c"),
+  tuft: mat("#65a30d"),
+  bush: mat("#3f6212"),
+  trunk: mat("#78350f"),
+  crown: mat("#2f7d32"),
+  pine: mat("#1f5f2a"),
+};
+
+/**
+ * Undeveloped land: grass tufts, rocks and the odd wild bush, placed the same way every time (from the tile position).
+ * Anything built on a tile clears it. Drawn as instanced meshes that ignore clicks.
+ */
+function Wilds({ size, occupied }: { size: number; occupied: Map<string, Lot> }) {
+  const MARGIN = 10;
+  const rockRef = useRef<THREE.InstancedMesh>(null);
+  const tuftRef = useRef<THREE.InstancedMesh>(null);
+  const bushRef = useRef<THREE.InstancedMesh>(null);
+  const trunkRef = useRef<THREE.InstancedMesh>(null);
+  const crownRef = useRef<THREE.InstancedMesh>(null);
+  const pineRef = useRef<THREE.InstancedMesh>(null);
+  const { invalidate } = useThree();
+  const parts = useMemo(() => {
+    const rock: THREE.Matrix4[] = [];
+    const tuft: THREE.Matrix4[] = [];
+    const bush: THREE.Matrix4[] = [];
+    const trunk: THREE.Matrix4[] = [];
+    const crown: THREE.Matrix4[] = [];
+    const pine: THREE.Matrix4[] = [];
+    const q = new THREE.Quaternion();
+    const m = (x: number, y: number, z: number, sx: number, sy: number, sz: number, rot = 0) =>
+      new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), q.clone().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rot), new THREE.Vector3(sx, sy, sz));
+    for (let x = -MARGIN; x < size + MARGIN; x++) {
+      for (let y = -MARGIN; y < size + MARGIN; y++) {
+        const outside = x < 0 || y < 0 || x >= size || y >= size;
+        if (outside) {
+          // Beyond your land: woods that thin out near the hedge, with rocks in the clearings.
+          const edge = Math.min(Math.abs(x < 0 ? x + 1 : x - size), Math.abs(y < 0 ? y + 1 : y - size), MARGIN);
+          const near = x >= -1 && y >= -1 && x <= size && y <= size; // the strip right outside the hedge
+          const r = tileHash(x, y, 7);
+          const treeChance = near ? 0.12 : 0.28 + Math.min(0.3, edge * 0.04);
+          if (r < treeChance) {
+            const count = 1 + Math.floor(tileHash(x, y, 8) * 2);
+            for (let i = 0; i < count; i++) {
+              const tx = x + 0.2 + tileHash(x, y, 40 + i) * 0.6;
+              const tz = y + 0.2 + tileHash(x, y, 50 + i) * 0.6;
+              const sc = 0.8 + tileHash(x, y, 60 + i) * 0.7;
+              trunk.push(m(tx, 0.09 * sc, tz, 0.08 * sc, 0.18 * sc, 0.08 * sc));
+              if (tileHash(x, y, 70 + i) < 0.45) pine.push(m(tx, 0.42 * sc, tz, 0.34 * sc, 0.55 * sc, 0.34 * sc));
+              else crown.push(m(tx, 0.34 * sc, tz, 0.36 * sc, 0.34 * sc, 0.36 * sc, tileHash(x, y, 80 + i) * 6));
+            }
+            continue;
+          }
+          if (r < treeChance + 0.08) {
+            const sc = 0.08 + tileHash(x, y, 3) * 0.12;
+            rock.push(m(x + 0.5, sc * 0.4, y + 0.5, sc * 1.3, sc, sc, tileHash(x, y, 4) * 6));
+            continue;
+          }
+          const tufts = 1 + Math.floor(tileHash(x, y, 6) * 3);
+          for (let i = 0; i < tufts; i++) {
+            tuft.push(m(x + 0.15 + tileHash(x, y, 10 + i) * 0.7, 0.015, y + 0.15 + tileHash(x, y, 20 + i) * 0.7, 0.035, 0.08, 0.035, tileHash(x, y, 30 + i) * 6));
+          }
+          continue;
+        }
+        if (occupied.has(key(x, y))) continue;
+        const r = tileHash(x, y);
+        const jx = x + 0.2 + tileHash(x, y, 1) * 0.6;
+        const jz = y + 0.2 + tileHash(x, y, 2) * 0.6;
+        if (r < 0.14) {
+          const sc = 0.07 + tileHash(x, y, 3) * 0.08;
+          rock.push(m(jx, sc * 0.4, jz, sc * 1.3, sc, sc, tileHash(x, y, 4) * 6));
+          if (tileHash(x, y, 5) < 0.5) rock.push(m(jx + 0.12, 0.025, jz + 0.08, 0.05, 0.04, 0.05, 1));
+        } else if (r < 0.2) {
+          bush.push(m(jx, 0.08, jz, 0.16, 0.13, 0.16));
+        }
+        // Grass tufts on most empty tiles.
+        const tufts = Math.floor(tileHash(x, y, 6) * 3);
+        for (let i = 0; i < tufts; i++) {
+          tuft.push(m(x + 0.15 + tileHash(x, y, 10 + i) * 0.7, 0.035, y + 0.15 + tileHash(x, y, 20 + i) * 0.7, 0.03, 0.07, 0.03, tileHash(x, y, 30 + i) * 6));
+        }
+      }
+    }
+    return { rock, tuft, bush, trunk, crown, pine };
+  }, [size, occupied]);
+  useLayoutEffect(() => {
+    for (const [ref, list] of [
+      [rockRef, parts.rock],
+      [tuftRef, parts.tuft],
+      [bushRef, parts.bush],
+      [trunkRef, parts.trunk],
+      [crownRef, parts.crown],
+      [pineRef, parts.pine],
+    ] as const) {
+      const mesh = ref.current;
+      if (!mesh) continue;
+      list.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
+      mesh.count = list.length;
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.computeBoundingSphere();
+    }
+    invalidate();
+  }, [parts, invalidate]);
+  const cap = (n: number) => Math.max(1, n);
+  const none = () => null;
+  return (
+    <>
+      <instancedMesh key={`r${cap(parts.rock.length)}`} ref={rockRef} args={[OCTA, WILD.rock, cap(parts.rock.length)]} castShadow raycast={none} />
+      <instancedMesh key={`t${cap(parts.tuft.length)}`} ref={tuftRef} args={[TUFT, WILD.tuft, cap(parts.tuft.length)]} raycast={none} />
+      <instancedMesh key={`b${cap(parts.bush.length)}`} ref={bushRef} args={[CROWN, WILD.bush, cap(parts.bush.length)]} castShadow raycast={none} />
+      <instancedMesh key={`k${cap(parts.trunk.length)}`} ref={trunkRef} args={[TRUNK, WILD.trunk, cap(parts.trunk.length)]} raycast={none} />
+      <instancedMesh key={`c${cap(parts.crown.length)}`} ref={crownRef} args={[CROWN, WILD.crown, cap(parts.crown.length)]} raycast={none} />
+      <instancedMesh key={`p${cap(parts.pine.length)}`} ref={pineRef} args={[PINE_WILD, WILD.pine, cap(parts.pine.length)]} raycast={none} />
+    </>
+  );
+}
+
+const TUFT = new THREE.ConeGeometry(0.5, 1, 4);
+const TRUNK = new THREE.CylinderGeometry(0.5, 0.5, 1, 6);
+const PINE_WILD = new THREE.ConeGeometry(0.5, 1, 6);
+
+// ---------------------------------------------------------------------------
+// Traffic: a few cars wander the road network, keeping to the right-hand lane.
+// ---------------------------------------------------------------------------
+
+const CAR_COLORS = ["#ef4444", "#3b82f6", "#facc15", "#f8fafc", "#22c55e", "#a855f7", "#f97316", "#0f172a"];
+const CAR_GLASS = mat("#1e293b");
+
+type CarState = { from: [number, number]; to: [number, number]; t: number; speed: number };
+
+function Cars({ tiles }: { tiles: Lot[] }) {
+  const { invalidate } = useThree();
+  const graph = useMemo(() => {
+    const set = new Set(tiles.map((t) => key(t.x, t.y)));
+    const next = new Map<string, [number, number][]>();
+    for (const t of tiles) {
+      const n: [number, number][] = [];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (set.has(key(t.x + dx, t.y + dy))) n.push([t.x + dx, t.y + dy]);
+      next.set(key(t.x, t.y), n);
+    }
+    return next;
+  }, [tiles]);
+  // One car per ~5 connected road tiles, up to 14.
+  const count = useMemo(() => {
+    const linked = tiles.filter((t) => (graph.get(key(t.x, t.y))?.length ?? 0) > 0).length;
+    return Math.min(14, Math.floor(linked / 5));
+  }, [tiles, graph]);
+  const cars = useRef<CarState[]>([]);
+  const meshes = useRef<(THREE.Group | null)[]>([]);
+
+  // (Re)seed cars on road tiles that have neighbors whenever the network changes.
+  useLayoutEffect(() => {
+    const starts = tiles.filter((t) => (graph.get(key(t.x, t.y))?.length ?? 0) > 0);
+    cars.current = Array.from({ length: count }, (_, i) => {
+      const s = starts[Math.floor(tileHash(i, starts.length, 91) * starts.length)];
+      const n = graph.get(key(s.x, s.y))!;
+      const to = n[Math.floor(tileHash(i, 7, 92) * n.length)];
+      return { from: [s.x, s.y], to, t: tileHash(i, 3, 93), speed: 0.55 + tileHash(i, 5, 94) * 0.45 };
+    });
+    invalidate();
+  }, [tiles, graph, count, invalidate]);
+
+  useFrame((_, delta) => {
+    if (cars.current.length === 0) return;
+    const dt = Math.min(delta, 0.05);
+    cars.current.forEach((c, i) => {
+      c.t += dt * c.speed;
+      while (c.t >= 1) {
+        c.t -= 1;
+        const options = graph.get(key(c.to[0], c.to[1])) ?? [];
+        const forward = options.filter(([x, y]) => x !== c.from[0] || y !== c.from[1]);
+        const pickFrom = forward.length > 0 ? forward : options; // dead end: turn around
+        const nxt = pickFrom.length > 0 ? pickFrom[Math.floor(Math.random() * pickFrom.length)] : c.from;
+        c.from = c.to;
+        c.to = nxt;
+      }
+      const g = meshes.current[i];
+      if (!g) return;
+      const dx = c.to[0] - c.from[0];
+      const dz = c.to[1] - c.from[1];
+      // Right-hand lane: offset to the right of the direction of travel.
+      const ox = -dz * 0.2;
+      const oz = dx * 0.2;
+      g.position.set(c.from[0] + 0.5 + dx * c.t + ox, 0.03, c.from[1] + 0.5 + dz * c.t + oz);
+      g.rotation.y = Math.atan2(dx, dz);
+    });
+    invalidate(); // keep animating (the canvas otherwise only redraws on change)
+  });
+
+  return (
+    <>
+      {Array.from({ length: count }, (_, i) => (
+        <group key={i} ref={(el) => { meshes.current[i] = el; }} raycast={() => null}>
+          <mesh geometry={BOX} material={mat(CAR_COLORS[i % CAR_COLORS.length])} position={[0, 0.05, 0]} scale={[0.16, 0.07, 0.28]} castShadow raycast={() => null} />
+          <mesh geometry={BOX} material={CAR_GLASS} position={[0, 0.11, -0.02]} scale={[0.13, 0.06, 0.14]} raycast={() => null} />
+        </group>
+      ))}
+    </>
   );
 }

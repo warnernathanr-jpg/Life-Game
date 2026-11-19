@@ -99,11 +99,11 @@ function pick<T>(list: readonly T[], seed: number, salt: number): T {
 
 /** Rough top height of each model, for markers floating above it. */
 export const MODEL_HEIGHT: Record<string, number> = {
-  cottage: 0.75, house: 0.95, apartments: 1.75, corner_shop: 0.5, cafe: 0.5, office: 3.2, workshop: 0.7,
-  warehouse: 0.6, factory: 1.5, park: 0.5, clinic: 0.65, school: 0.9, library: 0.7, fire_station: 0.85, community: 0.8,
+  cottage: 0.75, house: 0.95, apartments: 1.75, corner_shop: 0.5, cafe: 0.5, office: 3.2, workshop: 0.8,
+  warehouse: 0.8, factory: 1.5, park: 0.5, court: 0.65, garden: 0.8, central_park: 1.0, tree: 0.9, clinic: 0.65, school: 0.9, library: 0.7, fire_station: 0.85, community: 0.8,
 };
 
-function Model({ typeId, seed }: { typeId: string; seed: number }) {
+function Model({ typeId, seed, join }: { typeId: string; seed: number; join?: { left: boolean; right: boolean } }) {
   const wall = pick(PALETTE.walls, seed, 1);
   const roof = pick(PALETTE.roofs, seed, 2);
   const door = pick(PALETTE.doors, seed, 3);
@@ -124,17 +124,28 @@ function Model({ typeId, seed }: { typeId: string; seed: number }) {
           <B p={[0.16, 0.14, 0.251]} s={[0.11, 0.1, 0.02]} c="#93c5fd" />
         </>
       );
-    case "house":
+    case "house": {
+      // Townhome. Joined sides run the walls and roof to the edge so a row reads as one terrace.
+      const xl = join?.left ? -0.5 : -0.35;
+      const xr = join?.right ? 0.5 : 0.35;
+      const w = xr - xl;
+      const cx = (xl + xr) / 2;
+      const roofL = join?.left ? -0.5 : -0.45;
+      const roofR = join?.right ? 0.5 : 0.45;
       return (
         <>
-          <B p={[0, 0, 0]} s={[0.7, 0.48, 0.56]} c={wall} />
-          <Roof p={[0, 0.48, 0]} s={[0.9, 0.4, 0.74]} c={roof} />
-          <B p={[0.2, 0.5, -0.1]} s={[0.1, 0.38, 0.1]} c="#78716c" />
+          <B p={[cx, 0, 0]} s={[w, 0.5, 0.56]} c={wall} />
+          {/* Gable roof along the row */}
+          <mesh geometry={BOX} material={mat(roof)} position={[(roofL + roofR) / 2, 0.6, -0.15]} rotation={[0.62, 0, 0]} scale={[roofR - roofL, 0.05, 0.42]} castShadow />
+          <mesh geometry={BOX} material={mat(roof)} position={[(roofL + roofR) / 2, 0.6, 0.15]} rotation={[-0.62, 0, 0]} scale={[roofR - roofL, 0.05, 0.42]} castShadow />
+          {!join?.right && <B p={[0.22, 0.6, -0.12]} s={[0.09, 0.3, 0.09]} c="#78716c" />}
           <B p={[-0.12, 0, 0.281]} s={[0.13, 0.24, 0.02]} c={door} />
-          <B p={[0.14, 0.2, 0.281]} s={[0.14, 0.12, 0.02]} c="#93c5fd" />
-          <Tree p={[0.36, 0, 0.36]} s={0.7} crown={crown} />
+          <B p={[0.14, 0.22, 0.281]} s={[0.14, 0.12, 0.02]} c="#93c5fd" />
+          <B p={[-0.14, 0.34, 0.281]} s={[0.12, 0.1, 0.02]} c="#93c5fd" />
+          {!join?.right && <Tree p={[0.42, 0, 0.4]} s={0.6} crown={crown} />}
         </>
       );
+    }
     case "apartments":
       return (
         <>
@@ -179,23 +190,34 @@ function Model({ typeId, seed }: { typeId: string; seed: number }) {
         </>
       );
     case "workshop":
+      // 2x2: a sawtooth-roofed shed with a yard of crates.
       return (
         <>
-          <B p={[0, 0, 0]} s={[0.74, 0.34, 0.6]} c={siding} />
-          <mesh geometry={BOX} material={mat("#57534e")} position={[-0.18, 0.42, 0]} rotation={[0, 0, 0.45]} scale={[0.42, 0.04, 0.62]} castShadow />
-          <mesh geometry={BOX} material={mat("#57534e")} position={[0.18, 0.42, 0]} rotation={[0, 0, 0.45]} scale={[0.42, 0.04, 0.62]} castShadow />
-          <Cyl p={[0.26, 0.34, -0.18]} r={0.05} h={0.34} c="#78716c" />
-          <B p={[0, 0, 0.301]} s={[0.3, 0.22, 0.02]} c={accent} />
+          <B p={[-0.2, 0, -0.15]} s={[1.3, 0.55, 1.2]} c={siding} />
+          {[-0.62, -0.2, 0.22].map((x) => (
+            <mesh key={x} geometry={BOX} material={mat(sidingDark)} position={[x, 0.7, -0.15]} rotation={[0, 0, 0.5]} scale={[0.46, 0.05, 1.22]} castShadow />
+          ))}
+          <B p={[-0.2, 0, 0.451]} s={[0.5, 0.38, 0.02]} c={accent} />
+          <Cyl p={[0.35, 0.55, -0.55]} r={0.07} h={0.5} c={sidingDark} />
+          <B p={[0.72, 0, 0.55]} s={[0.22, 0.18, 0.22]} c="#b45309" />
+          <B p={[0.72, 0.18, 0.55]} s={[0.16, 0.14, 0.16]} c="#92400e" />
+          <B p={[0.55, 0, 0.75]} s={[0.2, 0.16, 0.2]} c="#a16207" />
+          <B p={[0, 0, 0.92]} s={[1.9, 0.02, 0.06]} c="#a8a29e" />
         </>
       );
     case "warehouse":
+      // 2x2: a long depot with loading doors, a dock and a truck.
       return (
         <>
-          <B p={[0, 0, 0]} s={[0.86, 0.46, 0.72]} c={siding} />
-          <B p={[0, 0.46, 0]} s={[0.88, 0.06, 0.74]} c={sidingDark} />
-          <B p={[-0.18, 0, 0.361]} s={[0.26, 0.3, 0.02]} c="#e7e5e4" />
-          <B p={[0.18, 0, 0.361]} s={[0.26, 0.3, 0.02]} c="#e7e5e4" />
-          <B p={[0.3, 0, -0.2]} s={[0.12, 0.1, 0.12]} c={accent} />
+          <B p={[0, 0, -0.2]} s={[1.75, 0.7, 1.1]} c={siding} />
+          <B p={[0, 0.7, -0.2]} s={[1.8, 0.07, 1.15]} c={sidingDark} />
+          {[-0.55, 0, 0.55].map((x) => (
+            <B key={x} p={[x, 0, 0.351]} s={[0.36, 0.42, 0.02]} c="#e7e5e4" />
+          ))}
+          <B p={[0, 0, 0.5]} s={[1.75, 0.12, 0.28]} c="#78716c" />
+          <B p={[-0.55, 0, 0.8]} s={[0.3, 0.3, 0.18]} c={accent} />
+          <B p={[-0.55, 0, 0.62]} s={[0.34, 0.36, 0.22]} c="#f8fafc" />
+          <B p={[0.75, 0.7, -0.6]} s={[0.16, 0.12, 0.16]} c={accent} />
         </>
       );
     case "factory":
@@ -223,6 +245,102 @@ function Model({ typeId, seed }: { typeId: string; seed: number }) {
           <B p={[-0.24, 0.04, 0.24]} s={[0.24, 0.06, 0.08]} c="#92400e" />
         </>
       );
+    case "court":
+      // 2x2 basketball court: painted surface, lines, two hoops, fence posts.
+      return (
+        <>
+          <B p={[0, 0, 0]} s={[1.92, 0.03, 1.92]} c="#15803d" />
+          <B p={[0, 0.03, 0]} s={[1.6, 0.01, 1.2]} c={pick(["#c2410c", "#1d4ed8", "#7c3aed", "#0f766e"], seed, 12)} />
+          {[
+            [0, -0.6, 1.6, 0.03], [0, 0.6, 1.6, 0.03], [-0.8, 0, 0.03, 1.2], [0.8, 0, 0.03, 1.2], [0, 0, 0.03, 1.2],
+          ].map(([x, z, w, d], i) => (
+            <B key={i} p={[x, 0.041, z]} s={[w, 0.005, d]} c="#f8fafc" />
+          ))}
+          <mesh geometry={CYLINDER} material={mat("#f8fafc")} position={[0, 0.045, 0]} scale={[0.36, 0.005, 0.36]} />
+          {[-1, 1].map((side) => (
+            <group key={side} position={[side * 0.86, 0, 0]}>
+              <Cyl p={[side * 0.06, 0, 0]} r={0.025} h={0.62} c="#334155" />
+              <B p={[0, 0.5, 0]} s={[0.03, 0.18, 0.28]} c="#f8fafc" />
+              <mesh geometry={CYLINDER} material={mat("#f97316")} position={[-side * 0.06, 0.48, 0]} scale={[0.1, 0.012, 0.1]} />
+            </group>
+          ))}
+          {[[-0.94, -0.94], [0.94, -0.94], [-0.94, 0.94], [0.94, 0.94]].map(([x, z], i) => (
+            <Cyl key={i} p={[x, 0, z]} r={0.02} h={0.32} c="#94a3b8" />
+          ))}
+        </>
+      );
+    case "garden":
+      // 3x3 garden park: cross paths, a pond, flower beds, trees and benches.
+      return (
+        <>
+          <B p={[0, 0, 0]} s={[2.92, 0.04, 2.92]} c="#4ade80" />
+          <B p={[0, 0.04, 0]} s={[2.92, 0.01, 0.22]} c="#e7e5e4" />
+          <B p={[0, 0.04, 0]} s={[0.22, 0.01, 2.92]} c="#e7e5e4" />
+          <mesh geometry={CYLINDER} material={mat("#38bdf8")} position={[0.75, 0.05, -0.75]} scale={[0.9, 0.02, 0.7]} />
+          {[[-0.75, -0.75], [-0.75, 0.75], [0.75, 0.75]].map(([x, z], i) => (
+            <group key={i} position={[x, 0.04, z]}>
+              <B p={[0, 0, 0]} s={[0.7, 0.06, 0.7]} c="#78350f" />
+              {[[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18], [0, 0]].map(([fx, fz], j) => (
+                <mesh key={j} geometry={CROWN} material={mat(["#f472b6", "#facc15", "#f87171", "#c084fc", "#fb923c"][(j + i + seed) % 5])} position={[fx, 0.1, fz]} scale={0.14} />
+              ))}
+            </group>
+          ))}
+          {[[-1.25, -1.25], [1.25, 1.25], [-1.25, 1.25], [1.25, -1.3], [0.3, -1.3], [-1.3, 0.3]].map(([x, z], i) => (
+            <Tree key={i} p={[x, 0.04, z]} s={1.1} pine={i % 3 === 1} crown={pick(PALETTE.crowns, seed, 20 + i)} />
+          ))}
+          <B p={[-0.3, 0.04, 0.25]} s={[0.3, 0.07, 0.08]} c="#92400e" />
+          <B p={[0.25, 0.04, -0.3]} s={[0.08, 0.07, 0.3]} c="#92400e" />
+        </>
+      );
+    case "central_park":
+      // 4x4 central park: a lake, woods, a gazebo, a playground and winding paths.
+      return (
+        <>
+          <B p={[0, 0, 0]} s={[3.92, 0.04, 3.92]} c="#4ade80" />
+          <mesh geometry={CYLINDER} material={mat("#3b82f6")} position={[-0.7, 0.05, -0.6]} scale={[1.8, 0.02, 1.3]} />
+          <mesh geometry={CYLINDER} material={mat("#fde68a")} position={[-0.7, 0.045, -0.6]} scale={[1.95, 0.012, 1.45]} />
+          <B p={[0.8, 0.04, 0.2]} s={[0.22, 0.01, 3.9]} c="#e7e5e4" />
+          <B p={[0, 0.04, 1.1]} s={[3.9, 0.01, 0.22]} c="#e7e5e4" />
+          {/* Gazebo */}
+          <group position={[1.35, 0.04, -1.2]}>
+            <Cyl p={[0, 0, 0]} r={0.32} h={0.06} c="#f8fafc" />
+            {[0, 1, 2, 3, 4, 5].map((k) => (
+              <Cyl key={k} p={[Math.cos((k * Math.PI) / 3) * 0.26, 0.06, Math.sin((k * Math.PI) / 3) * 0.26]} r={0.02} h={0.3} c="#f8fafc" />
+            ))}
+            <mesh geometry={TENT} material={mat(roof)} position={[0, 0.5, 0]} scale={[0.75, 0.3, 0.75]} castShadow />
+          </group>
+          {/* Playground */}
+          <group position={[-1.2, 0.04, 1.5]}>
+            <B p={[0, 0, 0]} s={[0.8, 0.02, 0.6]} c="#fcd34d" />
+            <B p={[-0.2, 0, 0]} s={[0.16, 0.3, 0.16]} c={accent} />
+            <mesh geometry={BOX} material={mat("#ef4444")} position={[0.02, 0.17, 0]} rotation={[0, 0, -0.6]} scale={[0.4, 0.03, 0.12]} />
+            {[-0.1, 0.1].map((z) => (
+              <B key={z} p={[0.28, 0, z * 2]} s={[0.03, 0.32, 0.03]} c="#475569" />
+            ))}
+            <B p={[0.28, 0.32, 0]} s={[0.03, 0.03, 0.44]} c="#475569" />
+          </group>
+          {Array.from({ length: 16 }, (_, i) => {
+            const spots = [
+              [-1.7, 0.4], [-1.7, -1.7], [-0.4, -1.75], [0.3, -1.6], [1.7, -0.3], [1.75, 0.5], [1.6, 1.7], [0.3, 1.75],
+              [-0.3, 0.6], [0.3, 0.55], [1.3, 0.6], [-1.75, 1.0], [0.4, -0.4], [1.3, -0.4], [-0.2, 1.65], [1.75, -1.75],
+            ];
+            const [x, z] = spots[i];
+            return <Tree key={i} p={[x, 0.04, z]} s={0.9 + ((seed >> i) & 3) * 0.12} pine={((seed >> (i + 3)) & 3) === 0} crown={pick(PALETTE.crowns, seed, 40 + i)} />;
+          })}
+        </>
+      );
+    case "tree": {
+      // A small cluster of 1–3 trees, different on every tile.
+      const n = 1 + (seed % 3);
+      const spots: V3[] = [[-0.2, 0, -0.15], [0.2, 0, 0.18], [0.15, 0, -0.25]];
+      return (
+        <>
+          {spots.slice(0, n).map((p, i) => (
+            <Tree key={i} p={n === 1 ? [0, 0, 0] : p} s={1.1 + ((seed >> (i * 2)) & 3) * 0.15} pine={((seed >> (i + 5)) & 1) === 1} crown={pick(PALETTE.crowns, seed, 60 + i)} />
+          ))}
+        </>
+      );
+    }
     case "clinic":
       return (
         <>
@@ -293,4 +411,13 @@ export function NoRoadMarker({ y }: { y: number }) {
   );
 }
 
-export { BOX };
+/** Floating yellow marker above a shop or factory that doesn't have enough workers. */
+export function WorkerMarker({ y }: { y: number }) {
+  return (
+    <group position={[0, y + 0.35, 0]}>
+      <mesh geometry={OCTA} material={mat("#facc15")} scale={[0.17, 0.26, 0.17]} />
+    </group>
+  );
+}
+
+export { BOX, CROWN, OCTA };

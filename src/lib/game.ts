@@ -10,8 +10,6 @@ import type {
 } from "./database.types";
 import { connectedIds } from "./roads";
 
-export const DAILY_COIN_CAP = 400; // public.daily_coin_cap()
-export const DAILY_FOCUS_CAP = 180; // public.daily_focus_cap()
 export const MAX_CITY_SIZE = 30; // public.max_city_size()
 export const MAX_STROKE_TILES = 200; // public.max_stroke_tiles()
 export const REWARDS: Record<TaskDifficulty, number> = { easy: 10, medium: 25, hard: 50, epic: 100 }; // public.task_reward()
@@ -61,6 +59,7 @@ export const CATEGORIES: { id: BuildingCategory; label: string; tile: string; ch
   { id: "industrial", label: "Industrial", tile: "bg-stone-200 border-stone-400", chip: "bg-stone-200 text-stone-900" },
   { id: "service", label: "Services", tile: "bg-violet-100 border-violet-300", chip: "bg-violet-100 text-violet-900" },
   { id: "road", label: "Roads", tile: "bg-slate-500 border-slate-600", chip: "bg-slate-200 text-slate-900" },
+  { id: "landscape", label: "Landscape", tile: "bg-emerald-200 border-emerald-400", chip: "bg-emerald-100 text-emerald-900" },
 ];
 export const CATEGORY_BY_ID = Object.fromEntries(CATEGORIES.map((c) => [c.id, c])) as Record<
   BuildingCategory,
@@ -89,45 +88,82 @@ export function nextUnlocks(types: BuildingTypeRow[], progress: ProgressRow | nu
   });
 }
 
+export type HappinessFactor = {
+  key: string;
+  label: string;
+  /** Points added to (or taken from) happiness. */
+  value: number;
+  /** What to do about it, when there's something to do. */
+  tip?: string;
+};
+
 export type CityStats = {
   population: number;
   jobs: number;
   employed: number;
+  unemployed: number;
+  /** Share of jobs that have a worker, 0–1 (1 when there are no jobs). */
+  staffing: number;
+  /** Shops and industry that are short of workers (all of them while staffing < 1). */
+  understaffed: Set<string>;
   happiness: number;
+  /** What makes up happiness, biggest effects first. */
+  factors: HappinessFactor[];
+  /** City health 0–100 and its parts (each 0–100). */
+  health: number;
+  healthLabel: string;
+  healthParts: { key: string; label: string; value: number }[];
   score: number;
   buildings: number;
   roads: number;
+  landscape: number;
   /** Buildings that don't touch a road (they don't count yet). */
   unconnected: number;
+  /** The most useful things to do next, most important first. */
   tips: string[];
 };
 
+/** Most happiness trees and water can add. */
+export const NATURE_CAP = 10;
+
 /**
- * City stats from the placed buildings. Only buildings that touch a road count:
- * - population from homes, jobs from shops, industry and services;
- * - happiness starts at 50, plus each counted building's effect, minus 10 when fewer than half the
- *   residents have jobs, clamped to 0–100;
- * - score = population × happiness / 100 (rounded).
+ * City stats from the placed buildings (display only; nothing here changes coins).
+ * Only buildings that touch a road count. Landscape tiles (trees, water) never need a road.
+ * - Population = homes' residents; jobs = shops, industry and services. Staffing = population / jobs (max 1).
+ * - Happiness = 50 plus the factors below, clamped to 0–100.
+ * - Health = average of happiness, employment balance, road connections and service coverage.
  */
 export function cityStats(
   placed: Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y">[],
   types: BuildingTypeRow[],
+  progress: ProgressRow | null = null,
 ): CityStats {
   const byId = new Map(types.map((t) => [t.id, t]));
   const lots = placed.map((b) => ({ ...b, size: byId.get(b.type_id)?.size ?? 1 }));
   const connected = connectedIds(lots);
   let population = 0;
   let jobs = 0;
-  let effect = 0;
   let services = 0;
+  let servicePoints = 0;
+  let shopsHappy = 0;
+  let homesHappy = 0;
+  let pollution = 0;
+  let nature = 0;
   let buildings = 0;
   let roads = 0;
+  let landscape = 0;
   let unconnected = 0;
+  const jobBuildings: string[] = [];
   for (const b of lots) {
     const t = byId.get(b.type_id);
     if (!t) continue;
     if (t.category === "road") {
       roads += 1;
+      continue;
+    }
+    if (t.category === "landscape") {
+      landscape += 1;
+      nature += t.happiness;
       continue;
     }
     buildings += 1;
@@ -137,40 +173,130 @@ export function cityStats(
     }
     population += t.population;
     jobs += t.jobs;
-    effect += t.happiness;
-    if (t.category === "service") services += 1;
+    if (t.category === "service") {
+      services += 1;
+      servicePoints += Math.max(0, t.happiness);
+    } else if (t.category === "commercial") {
+      shopsHappy += t.happiness;
+      jobBuildings.push(b.id);
+    } else if (t.category === "industrial") {
+      pollution += t.happiness;
+      jobBuildings.push(b.id);
+    } else if (t.category === "residential") {
+      homesHappy += t.happiness;
+    }
   }
-  const tips: string[] = [];
-  let penalty = 0;
-  if (unconnected > 0) {
-    tips.push(
-      unconnected === 1
-        ? "1 building isn't next to a road, so it doesn't count yet. Build a road beside it."
-        : `${unconnected} buildings aren't next to a road, so they don't count yet. Build roads beside them.`,
-    );
+
+  const employed = Math.min(population, jobs);
+  const unemployed = Math.max(0, population - jobs);
+  const staffing = jobs > 0 ? Math.min(1, population / jobs) : 1;
+  const understaffed = new Set(staffing < 1 ? jobBuildings : []);
+
+  const factors: HappinessFactor[] = [];
+  const add = (f: HappinessFactor) => factors.push(f);
+  add({
+    key: "services",
+    label: "Parks & services",
+    value: servicePoints,
+    tip: servicePoints === 0 && population > 0 ? "Build a park, school or clinic. Services make residents happier." : undefined,
+  });
+  if (shopsHappy !== 0) add({ key: "shops", label: "Shops & cafés", value: shopsHappy });
+  if (homesHappy !== 0) add({ key: "homes", label: "Housing", value: homesHappy });
+  if (pollution !== 0) {
+    add({
+      key: "pollution",
+      label: "Industry noise & pollution",
+      value: pollution,
+      tip: pollution <= -6 ? "Balance industry with parks, trees or water." : undefined,
+    });
   }
-  if (population > 0 && jobs < population / 2) {
-    penalty = 10;
-    tips.push("Fewer than half your residents have jobs. Add shops, workshops or services.");
+  const natureValue = Math.min(NATURE_CAP, nature);
+  add({
+    key: "nature",
+    label: "Nature (trees & water)",
+    value: natureValue,
+    tip: natureValue < 3 && buildings > 0 ? "Plant trees or dig a pond for a little extra happiness." : undefined,
+  });
+  if (population > 0 && unemployed > 0) {
+    add({
+      key: "unemployment",
+      label: "Unemployment",
+      value: -Math.min(20, Math.round((unemployed / population) * 20)),
+      tip: `${unemployed} resident${unemployed === 1 ? "" : "s"} can't find work. Build shops, offices or industry.`,
+    });
   }
-  if (jobs > 0 && population < jobs / 2) {
-    tips.push("Lots of jobs but few residents. Build homes so businesses can hire.");
+  if (jobs > population && jobs > 0) {
+    add({
+      key: "workers",
+      label: "Not enough workers",
+      value: -Math.min(10, Math.round(((jobs - population) / jobs) * 10)),
+      tip: `Businesses are only ${Math.round(staffing * 100)}% staffed. Build homes so they can hire.`,
+    });
   }
   if (population >= 20 && services === 0) {
-    tips.push("Your city has no services yet. Parks, schools and clinics make people happier.");
+    add({ key: "no_services", label: "No services", value: -10, tip: "A city this size needs services. Build a park, school or clinic." });
   }
+  if (unconnected > 0) {
+    add({
+      key: "roads",
+      label: "Buildings without roads",
+      value: -Math.min(10, unconnected * 2),
+      tip: `${unconnected} building${unconnected === 1 ? " isn't" : "s aren't"} next to a road, so ${unconnected === 1 ? "it doesn't" : "they don't"} count yet. Build a road beside ${unconnected === 1 ? "it" : "them"}.`,
+    });
+  }
+  // Real life → city: points spread evenly across the four life areas make the city happier.
+  const pts = AREAS.map((a) => ({ a, p: areaPoints(progress, a.id) }));
+  const total = pts.reduce((sum, x) => sum + x.p, 0);
+  if (progress) {
+    const maxP = Math.max(...pts.map((x) => x.p));
+    const lowest = pts.reduce((lo, x) => (x.p < lo.p ? x : lo), pts[0]);
+    const balance = total > 0 && maxP > 0 ? lowest.p / maxP : 0;
+    add({
+      key: "balance",
+      label: "Life balance",
+      value: Math.round(balance * 10),
+      tip: balance < 0.5 ? `Your ${lowest.a.label} points are lowest. A ${lowest.a.label.toLowerCase()} task lifts the whole city.` : undefined,
+    });
+  }
+
+  const happiness = Math.max(0, Math.min(100, 50 + factors.reduce((sum, f) => sum + f.value, 0)));
+  factors.sort((x, y) => Math.abs(y.value) - Math.abs(x.value));
+
+  const employmentHealth = population + jobs === 0 ? 100 : Math.round((Math.min(population, jobs) / Math.max(population, jobs)) * 100);
+  const roadHealth = buildings === 0 ? 100 : Math.round(((buildings - unconnected) / buildings) * 100);
+  const serviceHealth = population === 0 ? 100 : Math.round(Math.min(1, servicePoints / (population / 2)) * 100);
+  const healthParts = [
+    { key: "happiness", label: "Happiness", value: happiness },
+    { key: "jobs", label: "Jobs balance", value: employmentHealth },
+    { key: "roads", label: "Road connections", value: roadHealth },
+    { key: "services", label: "Service coverage", value: serviceHealth },
+  ];
+  const health = buildings === 0 ? 0 : Math.round(healthParts.reduce((sum, h) => sum + h.value, 0) / healthParts.length);
+  const healthLabel =
+    buildings === 0 ? "Empty land" : health >= 80 ? "Thriving" : health >= 60 ? "Healthy" : health >= 40 ? "Struggling" : "Needs care";
+
+  const tips = factors.filter((f) => f.tip && f.value <= 0).map((f) => f.tip!);
+  for (const f of factors) if (f.tip && f.value > 0 && !tips.includes(f.tip)) tips.push(f.tip);
   if (lots.length === 0) {
-    tips.push("Start with a short road, then a House and a Corner Shop beside it. Finish tasks to earn more coins.");
+    tips.unshift("Start with a short road, then a House and a Corner Shop beside it. Finish tasks to earn more coins.");
   }
-  const happiness = Math.max(0, Math.min(100, 50 + effect - penalty));
+
   return {
     population,
     jobs,
-    employed: Math.min(population, jobs),
+    employed,
+    unemployed,
+    staffing,
+    understaffed,
     happiness,
+    factors,
+    health,
+    healthLabel,
+    healthParts,
     score: Math.round((population * happiness) / 100),
     buildings,
     roads,
+    landscape,
     unconnected,
     tips,
   };

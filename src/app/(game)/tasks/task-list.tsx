@@ -119,9 +119,7 @@ function TaskRow({
             text:
               bonus > 0
                 ? `+${r.coins} coins! Milestone bonus for ${task.total_completions + 1} check-offs of “${task.title}”.`
-                : r.coins > 0
-                  ? `+${r.coins} coins for “${task.title}”!`
-                  : `“${task.title}” done. Daily coin limit reached, but it still earns area points.`,
+                : `+${r.coins} coins for “${task.title}”!`,
             tone: "good",
           });
         } else {

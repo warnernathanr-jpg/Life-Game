@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { DAILY_COIN_CAP, formatCoins, nextUnlocks } from "@/lib/game";
+import { formatCoins, nextUnlocks } from "@/lib/game";
 import { AreaPoints } from "@/components/area-points";
 import { addDays, isHabit, summarizeHabit, type HabitSummary } from "@/lib/habits";
 import { daysUntilNext } from "@/lib/tasks";
@@ -69,16 +69,8 @@ async function TasksPageContent() {
           <h2 id="coins-today" className="text-sm font-semibold text-muted">Coins earned today</h2>
           <p className="mt-1 text-3xl font-bold text-coin">
             <span aria-hidden>🪙</span> {formatCoins(earnedToday)}
-            <span className="text-base font-medium text-muted"> / {DAILY_COIN_CAP}</span>
           </p>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-raised" aria-hidden>
-            <div className="h-full rounded-full bg-coin" style={{ width: `${Math.min(100, (earnedToday / DAILY_COIN_CAP) * 100)}%` }} />
-          </div>
-          <p className="mt-2 text-xs text-muted">
-            {earnedToday >= DAILY_COIN_CAP
-              ? "Daily coin limit reached. Tasks still earn area points."
-              : "Easy 10 · Medium 25 · Hard 50 · Epic 100"}
-          </p>
+          <p className="mt-2 text-xs text-muted">Easy 10 · Medium 25 · Hard 50 · Epic 100. No daily limit.</p>
           <Link href="/shop" className="btn-secondary mt-3 w-full">🛒 Spend in the shop</Link>
         </section>
 

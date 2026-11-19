@@ -1,7 +1,7 @@
 // Road helpers: drag strokes, auto-connecting road shapes, and which buildings touch a road.
 
 export type Tile = { x: number; y: number };
-export type Lot = { id: string; type_id: string; x: number; y: number; size: number };
+export type Lot = { id: string; type_id: string; x: number; y: number; size: number; facing?: Facing | null };
 
 export const ROAD_TYPE = "road";
 
@@ -86,4 +86,53 @@ export function facingFor(lot: Pick<Lot, "x" | "y" | "size">, roads: Set<string>
   let best: Facing = "south";
   for (const side of ["south", "east", "west", "north"] as const) if (count[side] > count[best]) best = side;
   return best;
+}
+
+/** Sides of a building that have road along them (south, east, west, north order). */
+export function roadSides(lot: Pick<Lot, "x" | "y" | "size">, roads: Set<string>): Facing[] {
+  const sides: Facing[] = [];
+  const has = (tiles: [number, number][]) => tiles.some(([x, y]) => roads.has(key(x, y)));
+  const span = Array.from({ length: lot.size }, (_, i) => i);
+  if (has(span.map((i) => [lot.x + i, lot.y + lot.size]))) sides.push("south");
+  if (has(span.map((i) => [lot.x + lot.size, lot.y + i]))) sides.push("east");
+  if (has(span.map((i) => [lot.x - 1, lot.y + i]))) sides.push("west");
+  if (has(span.map((i) => [lot.x + i, lot.y - 1]))) sides.push("north");
+  return sides;
+}
+
+/** The side a building faces: the owner's choice if it still has road, otherwise automatic (facingFor). */
+export function effectiveFacing(lot: Pick<Lot, "x" | "y" | "size" | "facing">, roads: Set<string>): Facing {
+  if (lot.facing && roadSides(lot, roads).includes(lot.facing)) return lot.facing;
+  return facingFor(lot, roads);
+}
+
+/** The next road side to turn to (for the Rotate button), or null when there's only one choice. */
+export function nextFacing(lot: Pick<Lot, "x" | "y" | "size" | "facing">, roads: Set<string>): Facing | null {
+  const sides = roadSides(lot, roads);
+  if (sides.length < 2) return null;
+  const now = effectiveFacing(lot, roads);
+  return sides[(sides.indexOf(now) + 1) % sides.length];
+}
+
+/** World step to a building's right-hand side (its local +x) for each facing. */
+const RIGHT_OF: Record<Facing, [number, number]> = { south: [1, 0], north: [-1, 0], east: [0, -1], west: [0, 1] };
+
+/**
+ * Which townhomes join their neighbors into a row: a neighbor directly to the left or right that is also a
+ * townhome facing the same way. Returns, per joined townhome, which sides join.
+ */
+export function rowJoins(lots: Lot[], roads: Set<string>, typeId: string): Map<string, { left: boolean; right: boolean }> {
+  const homes = lots.filter((l) => l.type_id === typeId && l.size === 1);
+  const at = new Map(homes.map((h) => [key(h.x, h.y), h]));
+  const facing = new Map(homes.map((h) => [h.id, effectiveFacing(h, roads)]));
+  const out = new Map<string, { left: boolean; right: boolean }>();
+  for (const h of homes) {
+    const f = facing.get(h.id)!;
+    const [dx, dy] = RIGHT_OF[f];
+    const right = at.get(key(h.x + dx, h.y + dy));
+    const left = at.get(key(h.x - dx, h.y - dy));
+    const joins = { left: !!left && facing.get(left.id) === f, right: !!right && facing.get(right.id) === f };
+    if (joins.left || joins.right) out.set(h.id, joins);
+  }
+  return out;
 }

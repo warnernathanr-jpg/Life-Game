@@ -5,7 +5,7 @@ export type LifeArea = "health" | "work" | "knowledge" | "personal";
 export type TaskDifficulty = "easy" | "medium" | "hard" | "epic";
 export type TaskRepeat =
   | "once" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "days" | "times_per_week" | "times_per_month";
-export type BuildingCategory = "residential" | "commercial" | "industrial" | "service" | "road";
+export type BuildingCategory = "residential" | "commercial" | "industrial" | "service" | "road" | "landscape";
 export type LedgerKind = "task" | "task_undo" | "building" | "building_sold" | "land" | "bonus" | "focus";
 
 type Table<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
@@ -51,6 +51,7 @@ export type BuildingTypeRow = {
   happiness: number;
   unlock_area: LifeArea | null;
   unlock_points: number | null;
+  upgrades_to: string | null;
   sort_order: number;
 };
 
@@ -61,6 +62,7 @@ export type PlacedBuildingRow = {
   x: number;
   y: number;
   price_paid: number;
+  facing: "south" | "east" | "west" | "north" | null;
   created_at: string;
 };
 
@@ -145,6 +147,7 @@ export type Database = {
       building_types: Table<BuildingTypeRow, never, never>;
       placed_buildings: Table<PlacedBuildingRow, never, never>;
       focus_sessions: Table<FocusSessionRow, never, never>;
+      user_rewards: Table<{ user_id: string; reward: "home_screen" | "notifications"; coins: number; claimed_at: string }, never, never>;
     };
     Views: Record<string, never>;
     Functions: {
@@ -153,6 +156,11 @@ export type Database = {
       buy_building: { Args: { p_type_id: string; p_x: number; p_y: number }; Returns: { building_id: string; balance: number }[] };
       move_building: { Args: { p_building_id: string; p_x: number; p_y: number }; Returns: undefined };
       sell_building: { Args: { p_building_id: string }; Returns: { refund: number; balance: number }[] };
+      buy_tiles: { Args: { p_type_id: string; p_tiles: [number, number][] }; Returns: { built: number; cost: number; balance: number }[] };
+      claim_reward: { Args: { p_reward: string }; Returns: { coins: number; balance: number }[] };
+      save_push_subscription: { Args: { p_endpoint: string; p_p256dh: string; p_auth: string; p_user_agent?: string | null }; Returns: undefined };
+      upgrade_building: { Args: { p_building_id: string }; Returns: { building_id: string; cost: number; balance: number }[] };
+      set_building_facing: { Args: { p_building_id: string; p_facing: string | null }; Returns: undefined };
       buy_roads: { Args: { p_tiles: [number, number][] }; Returns: { built: number; cost: number; balance: number }[] };
       sell_buildings: { Args: { p_ids: string[] }; Returns: { sold: number; refund: number; balance: number }[] };
       start_focus: {

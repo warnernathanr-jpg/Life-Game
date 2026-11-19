@@ -50,7 +50,7 @@ create temporary table s4 as select * from public.start_focus(15);
 select lives_ok(format('select public.fail_focus(%L)', (select id from s4)), 'give up');
 select is((select status from public.focus_sessions where id = (select id from s4)), 'failed', 'marked failed');
 
--- Daily cap: 10 earned so far; three 60-minute sessions → 60, 60, 50.
+-- No daily cap: a third 60-minute session in a day still pays 60.
 reset role;
 insert into public.focus_sessions (user_id, minutes, started_at, ends_at, local_day, status, coins)
 values ('51111111-1111-1111-1111-111111111111', 60, now() - interval '3 hours', now() - interval '2 hours',
@@ -64,7 +64,7 @@ update public.focus_sessions set started_at = started_at - interval '60 minutes'
 where id = (select id from s5);
 set local role authenticated;
 select results_eq(format('select coins from public.complete_focus(%L)', (select id from s5)),
-  $$ values (50) $$, 'focus coins stop at 180 a day');
+  $$ values (60) $$, 'focus pays in full (no daily cap)');
 
 -- Users can't write sessions directly; others can't see or touch them.
 select throws_ok($$ insert into public.focus_sessions (user_id, minutes, ends_at, local_day) values (auth.uid(), 5, now(), current_date) $$,

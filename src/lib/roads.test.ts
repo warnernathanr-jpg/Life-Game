@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { connectedIds, facingFor, roadSet, roadShape, strokePath, touchesRoad } from "./roads";
+import { connectedIds, effectiveFacing, facingFor, nextFacing, roadSet, rowJoins, roadShape, roadSides, strokePath, touchesRoad } from "./roads";
 
 describe("strokePath", () => {
   it("is straight along a row", () => {
@@ -56,5 +56,38 @@ describe("facingFor", () => {
   });
   it("keeps facing south with no road", () => {
     expect(facingFor({ x: 0, y: 0, size: 1 }, new Set())).toBe("south");
+  });
+});
+
+describe("rotating buildings on corners", () => {
+  const roads = new Set(["2,3", "3,2"]); // south and east of (2,2)
+  const lot = { x: 2, y: 2, size: 1 };
+  it("lists the road sides and cycles through them", () => {
+    expect(roadSides(lot, roads)).toEqual(["south", "east"]);
+    expect(nextFacing({ ...lot, facing: null }, roads)).toBe("east");
+    expect(nextFacing({ ...lot, facing: "east" }, roads)).toBe("south");
+  });
+  it("keeps a saved choice only while that side has road", () => {
+    expect(effectiveFacing({ ...lot, facing: "east" }, roads)).toBe("east");
+    expect(effectiveFacing({ ...lot, facing: "north" }, roads)).toBe("south");
+  });
+  it("one road side: no rotate option", () => {
+    expect(nextFacing({ ...lot, facing: null }, new Set(["2,3"]))).toBeNull();
+  });
+});
+
+describe("townhome rows", () => {
+  const street = new Set(["0,1", "1,1", "2,1", "3,1"]); // road along row 1
+  const th = (id: string, x: number, y: number) => ({ id, type_id: "house", x, y, size: 1 });
+  it("joins neighbors that face the same road", () => {
+    const j = rowJoins([th("a", 0, 0), th("b", 1, 0), th("c", 2, 0)], street, "house");
+    // All face south toward the road; south-facing right = east.
+    expect(j.get("a")).toEqual({ left: false, right: true });
+    expect(j.get("b")).toEqual({ left: true, right: true });
+    expect(j.get("c")).toEqual({ left: true, right: false });
+  });
+  it("doesn't join across different facings or other building types", () => {
+    const j = rowJoins([th("a", 0, 0), { ...th("x", 1, 0), type_id: "cottage" }, th("c", 0, 2)], street, "house");
+    expect(j.size).toBe(0);
   });
 });

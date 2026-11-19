@@ -61,22 +61,22 @@ values ('aaaaaaaa-0000-0000-0000-000000000004', 'Old', 'work', 'easy', 'daily', 
 select throws_ok($$ select * from public.complete_task('aaaaaaaa-0000-0000-0000-000000000004') $$,
   '22023', 'task_archived', 'archived tasks cannot be completed');
 
--- Daily cap: earned today so far = 25 + 50 + 10 = 85. Add hard tasks until the cap (400).
+-- No daily cap: earned today so far = 25 + 50 + 10 = 85; eight hard tasks pay 50 each.
 insert into public.tasks (id, title, area, difficulty, repeat)
 select ('bbbbbbbb-0000-0000-0000-0000000000' || lpad(g::text, 2, '0'))::uuid, 'Hard ' || g, 'work', 'hard', 'once'
 from generate_series(1, 8) g;
 select public.complete_task(('bbbbbbbb-0000-0000-0000-0000000000' || lpad(g::text, 2, '0'))::uuid)
 from generate_series(1, 6) g; -- +300 -> 385 today
 select results_eq($$ select coins from public.complete_task('bbbbbbbb-0000-0000-0000-000000000007') $$,
-  $$ values (15) $$, 'the completion that hits the daily cap earns only the rest');
+  $$ values (50) $$, 'tasks pay in full (no daily cap)');
 select results_eq($$ select coins from public.complete_task('bbbbbbbb-0000-0000-0000-000000000008') $$,
-  $$ values (0) $$, 'after the cap, completions still count but earn 0');
-select is((select earned_today from public.my_progress()), 400, 'earned today stops at the cap');
+  $$ values (50) $$, 'still full pay past 400 coins in a day');
+select is((select earned_today from public.my_progress()), 485, 'earned today keeps counting');
 select is((select work from public.my_progress()), 400::bigint, 'capped completions still earn area points (8 hard = 400)');
 select is((select count(*)::int from public.coin_ledger where amount = 0), 0, 'no zero-coin ledger rows');
 
--- Balance now: 175 + 10 + 300 + 15 = 500.
-select is((select balance from public.my_progress()), 500::bigint, 'balance after tasks');
+-- Balance now: 175 + 10 + 400 = 585.
+select is((select balance from public.my_progress()), 585::bigint, 'balance after tasks');
 
 -- Buildings.
 select throws_ok($$ select * from public.buy_building('clinic', 0, 0) $$,
@@ -90,11 +90,11 @@ select throws_ok($$ select * from public.buy_building('cottage', -1, 0) $$,
 select throws_ok($$ select * from public.buy_building('apartments', 0, 0) $$,
   '42501', 'locked', 'apartments need 300 personal points (50 so far)');
 select results_eq($$ select balance from public.buy_building('warehouse', 0, 0) $$,
-  $$ values (360::bigint) $$, 'warehouse (unlocked at 125 work points) costs 140');
+  $$ values (445::bigint) $$, 'warehouse (unlocked at 125 work points) costs 140');
 select throws_ok($$ select * from public.buy_building('cottage', 0, 0) $$,
   '23P01', 'lot_taken', 'cannot build on an occupied tile');
 
--- Two more work tasks (they earn nothing: the cap is reached).
+-- Two more work tasks (+10 each).
 insert into public.tasks (id, title, area, difficulty, repeat) values
   ('cccccccc-0000-0000-0000-000000000001', 'W1', 'work', 'easy', 'once'),
   ('cccccccc-0000-0000-0000-000000000002', 'W2', 'work', 'easy', 'once');
@@ -105,12 +105,12 @@ select throws_ok($$ select * from public.buy_building('factory', 0, 0) $$,
 select throws_ok($$ select * from public.buy_building('factory', 7, 7) $$,
   '23P01', 'lot_taken', 'a 2x2 building must fit inside the city');
 select results_eq($$ select balance from public.buy_building('factory', 2, 2) $$,
-  $$ values (80::bigint) $$, 'factory placed on a 2x2 lot');
+  $$ values (185::bigint) $$, 'factory placed on a 2x2 lot');
 select throws_ok($$ select * from public.buy_building('cottage', 3, 3) $$,
   '23P01', 'lot_taken', 'the 2x2 building covers all four tiles');
 select results_eq($$ select balance from public.buy_building('cottage', 4, 4) $$,
-  $$ values (40::bigint) $$, 'cottage next to the factory');
-select throws_ok($$ select * from public.buy_building('corner_shop', 6, 6) $$,
+  $$ values (145::bigint) $$, 'cottage next to the factory');
+select throws_ok($$ select * from public.buy_building('office', 6, 0) $$,
   '22023', 'not_enough_coins', 'cannot buy without enough coins');
 
 -- Move and sell.
@@ -121,7 +121,7 @@ select lives_ok($$ select public.move_building((select id from public.placed_bui
 select results_eq($$ select x, y from public.placed_buildings where type_id = 'cottage' $$,
   $$ values (7, 7) $$, 'the building moved');
 select results_eq($$ select refund, balance from public.sell_building((select id from public.placed_buildings where type_id = 'factory')) $$,
-  $$ values (140::bigint, 180::bigint) $$, 'selling refunds half the price');
+  $$ values (140::bigint, 285::bigint) $$, 'selling refunds half the price');
 
 -- Land.
 select is(array[public.land_price(0), public.land_price(1), public.land_price(2)], array[300, 480, 770]::bigint[],
@@ -132,9 +132,9 @@ insert into public.coin_ledger (user_id, amount, kind, reason)
 values ('11111111-1111-1111-1111-111111111111', 1000, 'bonus', 'Test bonus');
 set local role authenticated;
 select results_eq($$ select city_size, balance from public.buy_land() $$,
-  $$ values (10, 880::bigint) $$, 'first expansion: 8 -> 10 for 300');
+  $$ values (10, 985::bigint) $$, 'first expansion: 8 -> 10 for 300');
 select results_eq($$ select city_size, balance from public.buy_land() $$,
-  $$ values (12, 400::bigint) $$, 'second expansion: 10 -> 12 for 480');
+  $$ values (12, 505::bigint) $$, 'second expansion: 10 -> 12 for 480');
 select lives_ok($$ select * from public.buy_building('cottage', 11, 11) $$, 'can build on the new land');
 select throws_ok($$ update public.profiles set city_size = 30 $$, '42501', null, 'cannot grow the city directly');
 select throws_ok($$ insert into public.coin_ledger (user_id, amount, kind, reason) values (auth.uid(), 5000, 'bonus', 'cheat') $$,
