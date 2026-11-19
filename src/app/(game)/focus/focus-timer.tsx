@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { audioUnlocked, playChime, unlockAudio } from "@/lib/chime";
 import { formatCoins } from "@/lib/game";
 import { completeFocus, failFocus, startFocus } from "../actions";
 
 /** Leaving the page (another app or tab) for longer than this ends the session. */
 const AWAY_LIMIT_MS = 10_000;
 const QUICK = [15, 25, 45, 60];
+const SOUND_KEY = "lifecity:focus-sound";
 
 type Running = { id: string; endsAt: string; startedAt: string; minutes: number; label: string | null };
 type HistoryItem = { id: string; minutes: number; label: string | null; status: string; coins: number; startedAt: string };
@@ -30,11 +32,27 @@ export function FocusTimer(props: {
   const [phase, setPhase] = useState<Phase>(props.running ? { kind: "running", session: props.running, offset: 0 } : { kind: "idle" });
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [soundOn, setSoundOn] = useState(true);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (localStorage.getItem(SOUND_KEY) === "off") setSoundOn(false);
+    } catch {}
+  }, []);
+  function toggleSound(on: boolean) {
+    setSoundOn(on);
+    try {
+      localStorage.setItem(SOUND_KEY, on ? "on" : "off");
+    } catch {}
+    if (on) unlockAudio();
+  }
   const capLeft = Math.max(0, props.cap - props.earnedToday);
   const reward = Math.min(minutes, capLeft);
 
   function begin() {
     setError(null);
+    // This tap is what allows the end chime to play later (browsers block sound without one).
+    if (soundOn) unlockAudio();
     start(async () => {
       const r = await startFocus(minutes, label);
       if (!r.ok) return setError(r.error);
@@ -49,6 +67,7 @@ export function FocusTimer(props: {
       <RunningView
         session={phase.session}
         offset={phase.offset}
+        soundOn={soundOn}
         onWin={(coins) => setPhase({ kind: "won", coins, minutes: phase.session.minutes })}
         onLose={(reason) => setPhase({ kind: "lost", reason, minutes: phase.session.minutes })}
       />
@@ -116,6 +135,28 @@ export function FocusTimer(props: {
           <span className="text-sm font-medium text-ink">What are you focusing on? <span className="font-normal text-muted">(optional)</span></span>
           <input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={80} placeholder="e.g. Study for the exam" className="input mt-1" />
         </label>
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-raised px-3 py-2">
+          <label className="flex min-h-10 cursor-pointer items-center gap-3 text-sm font-medium">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={soundOn}
+              onChange={(e) => toggleSound(e.target.checked)}
+              className="size-5 accent-[var(--t-accent)]"
+            />
+            🔔 Chime when time is up
+          </label>
+          <button
+            type="button"
+            className="link text-sm"
+            onClick={() => {
+              unlockAudio();
+              playChime();
+            }}
+          >
+            Play
+          </button>
+        </div>
         {error && <p role="alert" className="text-sm text-bad">{error}</p>}
         <button type="button" className="btn-primary w-full text-lg" disabled={pending} onClick={begin}>
           {pending ? "Starting…" : `Start ${minutes}-minute focus`}
@@ -123,6 +164,7 @@ export function FocusTimer(props: {
         <ul className="space-y-1 text-xs text-muted">
           <li>📱 Leave this page open and put your phone face down. The screen stays on while you focus.</li>
           <li>🚪 Switching to another app or tab for more than 10 seconds ends the session with no coins.</li>
+          <li>🔔 The chime plays through this page, so keep it open. On iPhone, the silent switch mutes it.</li>
           <li>🪙 1 coin per minute, up to {props.cap} focus coins a day (separate from task coins).</li>
         </ul>
       </section>
@@ -161,11 +203,13 @@ export function FocusTimer(props: {
 function RunningView({
   session,
   offset,
+  soundOn,
   onWin,
   onLose,
 }: {
   session: Running;
   offset: number;
+  soundOn: boolean;
   onWin: (coins: number) => void;
   onLose: (reason: "left" | "gave_up") => void;
 }) {
@@ -175,6 +219,13 @@ function RunningView({
   const [now, setNow] = useState<number | null>(null);
   const [awayWarning, setAwayWarning] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+  // After a refresh the page hasn't been tapped yet, so the chime needs one tap to be allowed.
+  const [needsTap, setNeedsTap] = useState(false);
+  useEffect(() => {
+    if (!soundOn) return;
+    const t = setTimeout(() => setNeedsTap(!audioUnlocked()), 300);
+    return () => clearTimeout(t);
+  }, [soundOn]);
   const finished = useRef(false);
   const hiddenAt = useRef<number | null>(null);
   const remaining = now === null ? total : Math.max(0, endsAt - now);
@@ -204,6 +255,7 @@ function RunningView({
   useEffect(() => {
     if (now === null || remaining > 0 || finished.current) return;
     finished.current = true;
+    if (soundOn) playChime();
     let tries = 0;
     async function claim() {
       const r = await completeFocus(session.id);
@@ -217,7 +269,7 @@ function RunningView({
       }
     }
     void claim();
-  }, [now, remaining, session.id, onWin]);
+  }, [now, remaining, session.id, onWin, soundOn]);
 
   // Leaving the page: allowed for up to 10 seconds (a notification, a slip of the thumb).
   useEffect(() => {
@@ -294,6 +346,18 @@ function RunningView({
       {remaining > 0 ? (
         <>
           <p className="max-w-sm text-sm text-muted">Phone face down, this page open. Leaving it for more than 10 seconds ends the session.</p>
+          {soundOn && needsTap && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                unlockAudio();
+                setNeedsTap(false);
+              }}
+            >
+              🔔 Tap to turn on the end chime
+            </button>
+          )}
           {awayWarning && (
             <p role="alert" className="rounded-lg bg-coin-soft px-3 py-2 text-sm text-ink">
               You left the page for a moment. Stay here to keep your coins.

@@ -92,6 +92,10 @@ _Last updated: 2026-11-22_
   (abandons any running one), `complete_focus(id)` (only after the full time, within 10 minutes of the end; otherwise
   abandoned with no coins; ledger kind `focus`), `fail_focus(id)`. 19 pgTAP tests (`focus.test.sql`).
 - Today's list shows sessions (done / ended early / not finished), minutes focused and focus coins vs the cap.
+- **End chime** (`src/lib/chime.ts`, Web Audio, no sound file): three rising notes played twice at time-up. "🔔 Chime
+  when time is up" switch with a Play button (remembered per browser, on by default). Browsers only allow sound after a
+  tap, so Start unlocks audio; after a refresh mid-session a "Tap to turn on the end chime" button appears. On iPhone
+  the silent switch mutes it; Android also vibrates. Browser-checked by counting the notes played.
 - Checked in a browser at 390px: picker and reward text, countdown, short absence warns, 11-second absence ends the
   session, no hydration warnings.
 
