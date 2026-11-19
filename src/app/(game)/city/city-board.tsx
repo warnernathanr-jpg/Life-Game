@@ -362,7 +362,7 @@ export function CityBoard(props: {
       : mode.kind === "bulldoze"
         ? "Drag over things to demolish them (you get half the price back)."
         : mode.kind === "idle" || mode.kind === "selected"
-          ? "Tap a building to select it. On a phone, swiping scrolls the page; tap ⛶ (full screen) to move around and zoom the map. On a computer: drag to move, Ctrl/⌘ + scroll to zoom, right-drag to rotate."
+          ? "Tap a building to select it. On a phone: drag with one finger to move the map, pinch to zoom, twist two fingers to rotate (swipe above or below the map to scroll the page). On a computer: drag to move, Ctrl/⌘ + scroll to zoom, right-drag to rotate."
           : null;
 
   const selectedType = selected ? typeById.get(selected.type_id) : undefined;
@@ -447,7 +447,7 @@ export function CityBoard(props: {
               className={
                 full
                   ? "fixed inset-0 z-50 h-dvh w-screen overflow-hidden bg-raised"
-                  : "relative h-[58vh] max-h-[720px] min-h-[320px] overflow-hidden rounded-2xl border-4 border-line bg-raised shadow-inner"
+                  : "relative h-[50vh] max-h-[720px] min-h-[300px] overflow-hidden sm:h-[58vh] rounded-2xl border-4 border-line bg-raised shadow-inner"
               }
               role={full ? "dialog" : undefined}
               aria-modal={full || undefined}
@@ -470,7 +470,6 @@ export function CityBoard(props: {
                 onTile={onTile}
                 onStroke={onStroke}
                 onStrokeChange={setStroke}
-                fullscreen={full}
               />
               {strokeInfo && (
                 <div

@@ -32,8 +32,6 @@ export type City3DProps = {
   onTile: (x: number, y: number) => void;
   onStroke: (tiles: Tile[]) => void;
   onStrokeChange: (tiles: Tile[] | null) => void;
-  /** Full screen: no page to scroll, so one finger moves the map. */
-  fullscreen?: boolean;
 };
 
 export type City3DHandle = { zoom: (factor: number) => void; rotate: (radians: number) => void; reset: () => void };
@@ -202,7 +200,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
 
   return (
     <>
-      <CameraRig size={size} handleRef={props.handleRef} panEnabled={input === "point"} painting={input === "stroke"} fullscreen={!!props.fullscreen} />
+      <CameraRig size={size} handleRef={props.handleRef} panEnabled={input === "point"} painting={input === "stroke"} />
       <hemisphereLight args={["#e0f2fe", "#4d7c0f", 1.1]} />
       <directionalLight
         position={[size * 0.4 + 8, 18, size * 0.2 - 4]}
@@ -275,16 +273,13 @@ function CameraRig({
   handleRef,
   panEnabled,
   painting,
-  fullscreen,
 }: {
   size: number;
   handleRef: React.ForwardedRef<City3DHandle>;
   panEnabled: boolean;
   painting: boolean;
-  fullscreen: boolean;
 }) {
   const controls = useRef<MapControlsImpl>(null);
-  const [coarse] = useState(isCoarse);
   const { camera, invalidate } = useThree();
   const center = useMemo(() => new THREE.Vector3(size / 2, 0, size / 2), [size]);
 
@@ -307,8 +302,8 @@ function CameraRig({
   useLayoutEffect(() => {
     const c = controls.current;
     if (!c || typeof window === "undefined") return;
-    applyTouchGestures(c, painting, fullscreen);
-  }, [gl, painting, fullscreen]);
+    applyTouchGestures(c, painting);
+  }, [gl, painting]);
 
   // Frame the whole city on first load and whenever the land grows.
   useLayoutEffect(() => {
@@ -348,8 +343,6 @@ function CameraRig({
       dampingFactor={0.12}
       screenSpacePanning={false}
       enablePan={panEnabled}
-      // Phones outside full screen: the map leaves every swipe to the page (taps still select; ⛶ to move around).
-      enabled={!(coarse && !fullscreen && !painting)}
       minDistance={3}
       maxDistance={size * 2.6 + 10}
       minPolarAngle={0.15}
@@ -373,15 +366,16 @@ function CameraRig({
 }
 
 /**
- * On touch screens two fingers pan and zoom the map. One finger is left to the page (scroll) or to painting;
- * in full screen there's no page to scroll, so one finger moves the map too (unless painting).
+ * Touch screens: one finger drags the map, two fingers pinch to zoom and twist to rotate. While painting, one finger
+ * draws instead and two fingers move and zoom. (The page scrolls when you swipe outside the map.)
  */
-function applyTouchGestures(controls: MapControlsImpl, painting: boolean, fullscreen: boolean) {
+function applyTouchGestures(controls: MapControlsImpl, painting: boolean) {
   if (!window.matchMedia("(pointer: coarse)").matches) return;
   // -1 = ignore one-finger touches. The canvas's touch-action is set in globals.css ([data-map] rules):
   // the controls library resets inline styles.
-  const one = fullscreen && !painting ? THREE.TOUCH.PAN : (-1 as unknown as THREE.TOUCH);
-  controls.touches = { ONE: one, TWO: THREE.TOUCH.DOLLY_PAN };
+  controls.touches = painting
+    ? { ONE: -1 as unknown as THREE.TOUCH, TWO: THREE.TOUCH.DOLLY_PAN }
+    : { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
 }
 
 // ---------------------------------------------------------------------------
@@ -616,7 +610,7 @@ const waterTime = { value: 0 };
 
 /**
  * Stylized water: one smooth surface per pond, deep blue in the middle fading to lighter shallows at the shore
- * (a per-vertex "shallow" value), faint ripples drifting across it and a soft foam line breathing along the shore.
+ * (a per-vertex "shallow" value) and a soft foam line breathing along the shore.
  */
 const WATER_MATERIAL = new THREE.ShaderMaterial({
   uniforms: { uTime: waterTime },
@@ -637,10 +631,6 @@ const WATER_MATERIAL = new THREE.ShaderMaterial({
       vec3 deep = vec3(0.010, 0.095, 0.30); // linear, about #1a5596
       vec3 shallow = vec3(0.04, 0.28, 0.45); // linear, about #3a8fb3
       vec3 col = mix(deep, shallow, smoothstep(0.0, 1.0, vShallow));
-      // Faint ripples: two slow, crossing wave trains, only lightening a little where they meet.
-      float r1 = sin(vXZ.x * 5.0 + vXZ.y * 2.0 + uTime * 1.2);
-      float r2 = sin(vXZ.y * 6.0 - vXZ.x * 1.5 - uTime * 0.9);
-      col += vec3(0.025, 0.04, 0.05) * smoothstep(0.55, 1.0, r1 * r2);
       // Shore foam: a thin light band that slowly moves in and out.
       float edge = vShallow + 0.06 * sin(uTime * 1.4 + vXZ.x * 3.0 + vXZ.y * 2.3);
       float foam = smoothstep(0.95, 1.0, edge);
