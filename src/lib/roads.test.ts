@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { connectedIds, effectiveFacing, facingFor, nextFacing, roadSet, rowJoins, roadShape, roadSides, strokePath, touchesRoad } from "./roads";
+import { connectedIds, effectiveFacing, facingFor, nextFacing, roadSet, rowJoins, roadShape, roadSides, strokePath, touchesRoad, type Lot } from "./roads";
 
 describe("strokePath", () => {
   it("is straight along a row", () => {
@@ -89,5 +89,18 @@ describe("townhome rows", () => {
   it("doesn't join across different facings or other building types", () => {
     const j = rowJoins([th("a", 0, 0), { ...th("x", 1, 0), type_id: "cottage" }, th("c", 0, 2)], street, "house");
     expect(j.size).toBe(0);
+  });
+});
+
+describe("bridges", () => {
+  it("count as road for shapes and connections", () => {
+    const lots: Lot[] = [
+      { id: "r", type_id: "road", x: 0, y: 0, size: 1 },
+      { id: "b", type_id: "bridge", x: 1, y: 0, size: 1 },
+      { id: "h", type_id: "cottage", x: 1, y: 1, size: 1 },
+    ];
+    expect(roadShape(0, 0, roadSet(lots)).e).toBe(true);
+    expect(connectedIds(lots).has("h")).toBe(true);
+    expect(connectedIds(lots).has("b")).toBe(false);
   });
 });

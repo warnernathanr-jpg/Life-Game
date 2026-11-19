@@ -26,6 +26,8 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
 
   // The calendar's month (?month=YYYY-MM, never in the future), defaulting to this month.
   const month = typeof monthParam === "string" && /^\d{4}-\d{2}$/.test(monthParam) && monthParam <= today.slice(0, 7) ? monthParam : today.slice(0, 7);
+  const [mY, mM] = month.split("-").map(Number);
+  const nextMonth = mM === 12 ? `${mY + 1}-01` : `${mY}-${String(mM + 1).padStart(2, "0")}`;
   const [{ data: completions }, { count: allCheckoffs }, { data: focus }, { data: monthDone }] = await Promise.all([
     supabase.from("task_completions").select("task_id, local_day").gte("local_day", addDays(today, -35)),
     supabase.from("task_completions").select("id", { count: "exact", head: true }),
@@ -34,7 +36,7 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
       .from("task_completions")
       .select("local_day, title, area, completed_at")
       .gte("local_day", `${month}-01`)
-      .lte("local_day", `${month}-31`)
+      .lt("local_day", `${nextMonth}-01`)
       .order("completed_at"),
   ]);
 

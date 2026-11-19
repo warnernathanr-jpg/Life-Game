@@ -6,7 +6,7 @@ import { forwardRef, useCallback, useImperativeHandle, useLayoutEffect, useMemo,
 import * as THREE from "three";
 import type { MapControls as MapControlsImpl } from "three-stdlib";
 import { THEME_EVENT } from "@/lib/themes";
-import { effectiveFacing, FACING_ROTATION, key, rowJoins, roadSet, roadShape, ROAD_TYPE, strokePath, type Lot, type Tile } from "@/lib/roads";
+import { BRIDGE_TYPE, effectiveFacing, isRoadType, FACING_ROTATION, key, rowJoins, roadSet, roadShape, ROAD_TYPE, strokePath, type Lot, type Tile } from "@/lib/roads";
 import { BOX, BuildingModel, CROWN, MODEL_HEIGHT, NoRoadMarker, OCTA, WorkerMarker, colorSeed, mat } from "./models";
 
 export type Preview = { tiles: Tile[]; ok: boolean; height?: number } | null;
@@ -32,6 +32,8 @@ export type City3DProps = {
   onTile: (x: number, y: number) => void;
   onStroke: (tiles: Tile[]) => void;
   onStrokeChange: (tiles: Tile[] | null) => void;
+  /** Full screen: no page to scroll, so one finger moves the map. */
+  fullscreen?: boolean;
 };
 
 export type City3DHandle = { zoom: (factor: number) => void; rotate: (radians: number) => void; reset: () => void };
@@ -73,8 +75,11 @@ function ThemeSky() {
 function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle> }) {
   const { size, lots, needsRoad, understaffed, input } = props;
   const roads = useMemo(() => roadSet(lots), [lots]);
-  const buildings = useMemo(() => lots.filter((l) => l.type_id !== ROAD_TYPE && l.type_id !== WATER_TYPE), [lots]);
-  const waterTiles = useMemo(() => lots.filter((l) => l.type_id === WATER_TYPE), [lots]);
+  const buildings = useMemo(() => lots.filter((l) => !isRoadType(l.type_id) && l.type_id !== WATER_TYPE), [lots]);
+  // Bridges stand on water, so the pond keeps flowing underneath them.
+  const waterTiles = useMemo(() => lots.filter((l) => l.type_id === WATER_TYPE || l.type_id === BRIDGE_TYPE), [lots]);
+  const bridgeTiles = useMemo(() => lots.filter((l) => l.type_id === BRIDGE_TYPE), [lots]);
+  const trafficTiles = useMemo(() => lots.filter((l) => isRoadType(l.type_id)), [lots]);
   // Townhomes side by side facing the same way join into a row.
   const joins = useMemo(() => rowJoins(lots, roadSet(lots), "house"), [lots]);
   const roadTiles = useMemo(() => lots.filter((l) => l.type_id === ROAD_TYPE), [lots]);
@@ -148,7 +153,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
 
   return (
     <>
-      <CameraRig size={size} handleRef={props.handleRef} panEnabled={input === "point"} painting={input === "stroke"} />
+      <CameraRig size={size} handleRef={props.handleRef} panEnabled={input === "point"} painting={input === "stroke"} fullscreen={!!props.fullscreen} />
       <hemisphereLight args={["#e0f2fe", "#4d7c0f", 1.1]} />
       <directionalLight
         position={[size * 0.4 + 8, 18, size * 0.2 - 4]}
@@ -174,7 +179,8 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
         <Ground size={size} />
         <Roads tiles={roadTiles} roads={roads} />
         <Water tiles={waterTiles} />
-        <Cars tiles={roadTiles} />
+        <Bridges tiles={bridgeTiles} roads={roads} />
+        <Cars tiles={trafficTiles} />
         <Wilds size={size} occupied={byTile} />
         {buildings.map((b) => (
           <group key={b.id} position={[b.x + b.size / 2, 0, b.y + b.size / 2]} userData={{ lotId: b.id }}>
@@ -197,7 +203,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
           size={1}
           ok={strokeOk}
           demolish={props.strokeColor === "demolish"}
-          skip={props.strokeColor === "build" ? (t) => byTile.get(key(t.x, t.y))?.type_id === (props.paintTypeId ?? ROAD_TYPE) : undefined}
+          skip={props.strokeColor === "build" ? (t) => alreadyPainted(byTile.get(key(t.x, t.y))?.type_id, props.paintTypeId ?? ROAD_TYPE) : undefined}
         />
       )}
       {input === "stroke" && hover && !stroke && <Footprint tiles={[hover]} size={1} ok demolish={props.strokeColor === "demolish"} />}
@@ -220,11 +226,13 @@ function CameraRig({
   handleRef,
   panEnabled,
   painting,
+  fullscreen,
 }: {
   size: number;
   handleRef: React.ForwardedRef<City3DHandle>;
   panEnabled: boolean;
   painting: boolean;
+  fullscreen: boolean;
 }) {
   const controls = useRef<MapControlsImpl>(null);
   const { camera, invalidate } = useThree();
@@ -249,8 +257,8 @@ function CameraRig({
   useLayoutEffect(() => {
     const c = controls.current;
     if (!c || typeof window === "undefined") return;
-    applyTouchGestures(c, gl.domElement, painting);
-  }, [gl, painting]);
+    applyTouchGestures(c, painting, fullscreen);
+  }, [gl, painting, fullscreen]);
 
   // Frame the whole city on first load and whenever the land grows.
   useLayoutEffect(() => {
@@ -312,14 +320,16 @@ function CameraRig({
   );
 }
 
-/** On touch screens: one finger is left to the page (scroll) or to painting; two fingers pan and zoom the map. */
-function applyTouchGestures(controls: MapControlsImpl, canvas: HTMLCanvasElement, painting: boolean) {
+/**
+ * On touch screens two fingers pan and zoom the map. One finger is left to the page (scroll) or to painting;
+ * in full screen there's no page to scroll, so one finger moves the map too (unless painting).
+ */
+function applyTouchGestures(controls: MapControlsImpl, painting: boolean, fullscreen: boolean) {
   if (!window.matchMedia("(pointer: coarse)").matches) return;
-  // -1 = ignore one-finger touches.
-  controls.touches = { ONE: -1 as unknown as THREE.TOUCH, TWO: THREE.TOUCH.DOLLY_PAN };
-  // The canvas's touch-action is set in globals.css ([data-map] rules): the controls library resets inline styles.
-  void canvas;
-  void painting;
+  // -1 = ignore one-finger touches. The canvas's touch-action is set in globals.css ([data-map] rules):
+  // the controls library resets inline styles.
+  const one = fullscreen && !painting ? THREE.TOUCH.PAN : (-1 as unknown as THREE.TOUCH);
+  controls.touches = { ONE: one, TWO: THREE.TOUCH.DOLLY_PAN };
 }
 
 // ---------------------------------------------------------------------------
@@ -498,6 +508,44 @@ function Selection({ lot, color = "#fbbf24" }: { lot?: Lot; color?: string }) {
 }
 
 const WATER_TYPE = "water";
+
+/** Is this tile already what the paint tool would make? (A bridge already is road and already is water.) */
+function alreadyPainted(current: string | undefined, paint: string) {
+  return current === paint || (current === BRIDGE_TYPE && (paint === ROAD_TYPE || paint === WATER_TYPE));
+}
+
+const BRIDGE_DECK = 0.03; // top of a bridge deck: level with the road surface
+const BRIDGE = { deck: mat("#4b5563"), wall: mat("#a8a29e"), wallTop: mat("#d6d3d1"), rail: mat("#e2e8f0"), line: mat("#fde047") };
+
+/** Bridge tiles: a deck level with the road, with railings along the direction the road runs. */
+function Bridges({ tiles, roads }: { tiles: Lot[]; roads: Set<string> }) {
+  return (
+    <>
+      {tiles.map((t) => {
+        const s = roadShape(t.x, t.y, roads);
+        // Runs east-west when there's road to the east or west (or nothing either way), otherwise north-south.
+        const alongX = s.e || s.w || !(s.n || s.s);
+        return (
+          <group key={t.id} position={[t.x + 0.5, 0, t.y + 0.5]} rotation-y={alongX ? 0 : Math.PI / 2} userData={{ lotId: t.id }}>
+            <mesh geometry={BOX} material={BRIDGE.deck} position={[0, BRIDGE_DECK / 2, 0]} scale={[1, BRIDGE_DECK, 0.92]} castShadow receiveShadow />
+            {/* Side walls: a low concrete parapet with a capstone and a metal guardrail on posts. */}
+            {[-0.42, 0.42].map((z) => (
+              <group key={z}>
+                <mesh geometry={BOX} material={BRIDGE.wall} position={[0, BRIDGE_DECK + 0.04, z]} scale={[1, 0.1, 0.07]} castShadow receiveShadow />
+                <mesh geometry={BOX} material={BRIDGE.wallTop} position={[0, BRIDGE_DECK + 0.095, z]} scale={[1, 0.015, 0.09]} />
+                {[-0.375, -0.125, 0.125, 0.375].map((x) => (
+                  <mesh key={x} geometry={BOX} material={BRIDGE.rail} position={[x, BRIDGE_DECK + 0.135, z]} scale={[0.03, 0.07, 0.03]} />
+                ))}
+                <mesh geometry={BOX} material={BRIDGE.rail} position={[0, BRIDGE_DECK + 0.17, z]} scale={[1, 0.022, 0.035]} castShadow />
+              </group>
+            ))}
+            <mesh geometry={BOX} material={BRIDGE.line} position={[0, BRIDGE_DECK + 0.002, 0]} scale={[0.28, 0.004, 0.04]} raycast={() => null} />
+          </group>
+        );
+      })}
+    </>
+  );
+}
 
 /** Hash of a tile position (stable "random" per tile). */
 function tileHash(x: number, y: number, salt = 0): number {

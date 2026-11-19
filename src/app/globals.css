@@ -201,4 +201,5 @@
 @media (pointer: coarse) {
   [data-map="browse"] canvas { touch-action: pan-y !important; }
   [data-map="paint"] canvas { touch-action: none !important; }
+  [data-map="full"] canvas { touch-action: none !important; }
 }

@@ -2,8 +2,8 @@
 
 // Side panels and small pieces of the city screen.
 import { useState, useTransition } from "react";
-import type { BuildingCategory, BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
-import { AREA_BY_ID, CATEGORIES, CATEGORY_BY_ID, formatCoins, pointsToUnlock, sellRefund, type CityStats } from "@/lib/game";
+import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
+import { AREA_BY_ID, BUILD_GROUPS, CATEGORY_BY_ID, buildGroupOf, formatCoins, type BuildGroupId, pointsToUnlock, sellRefund, type CityStats } from "@/lib/game";
 import { renameCity } from "../actions";
 
 type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid">;
@@ -70,9 +70,9 @@ export function Shop({
   activeId?: string;
   onPick: (t: BuildingTypeRow) => void;
 }) {
-  const [tab, setTab] = useState<BuildingCategory | "all">("all");
+  const [tab, setTab] = useState<BuildGroupId | "all">("all");
   // Buildable first, then locked ones (each in catalog order), so what you can build is at the top.
-  const inTab = types.filter((t) => tab === "all" || t.category === tab);
+  const inTab = types.filter((t) => buildGroupOf(t) !== null && (tab === "all" || buildGroupOf(t) === tab));
   const unlocked = inTab.filter((t) => pointsToUnlock(t, progress) === 0);
   const locked = inTab.filter((t) => pointsToUnlock(t, progress) > 0);
   const shown = [...unlocked, ...locked];
@@ -80,7 +80,7 @@ export function Shop({
     <section className="card" aria-labelledby="shop-h">
       <h2 id="shop-h" className="font-semibold">Build</h2>
       <div className="mt-2 flex flex-wrap gap-1" role="tablist" aria-label="Building types">
-        {[{ id: "all" as const, label: "All" }, ...CATEGORIES].map((c) => (
+        {[{ id: "all" as const, label: "All", icon: "" }, ...BUILD_GROUPS].map((c) => (
           <button
             key={c.id}
             type="button"
@@ -89,7 +89,7 @@ export function Shop({
             onClick={() => setTab(c.id)}
             className={`min-h-9 rounded-full px-3 text-sm ${tab === c.id ? "bg-accent text-on-accent" : "bg-raised text-ink hover:bg-line"}`}
           >
-            {c.label}
+            {c.icon && <span aria-hidden>{c.icon} </span>}{c.label}
           </button>
         ))}
       </div>
@@ -225,19 +225,6 @@ export function SelectedPanel({
 }
 
 /** Small health badge next to the city name. */
-export function HealthPill({ stats }: { stats: CityStats }) {
-  const tone = healthTone(stats);
-  return (
-    <a href="#city-stats" className="flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-sm hover:border-accent/60">
-      <span className="font-medium text-muted">City health</span>
-      <span className="h-2 w-16 overflow-hidden rounded-full bg-raised" aria-hidden>
-        <span className={`block h-full rounded-full ${tone.bar}`} style={{ width: `${stats.health}%` }} />
-      </span>
-      <span className={`font-bold ${tone.text}`}>{stats.buildings === 0 ? "—" : `${stats.health}`}</span>
-    </a>
-  );
-}
-
 function healthTone(stats: CityStats) {
   if (stats.buildings === 0) return { bar: "bg-faint", text: "text-muted" };
   if (stats.health >= 60) return { bar: "bg-good", text: "text-good" };
@@ -256,18 +243,19 @@ export function CityStatsPanel({ stats }: { stats: CityStats }) {
     { label: "City score", value: formatCoins(stats.score), icon: "⭐", note: "population × happiness" },
   ];
   return (
-    <section className="card space-y-4" aria-labelledby="city-stats" id="city-stats">
-      <h2 id="city-stats-h" className="font-semibold">City Stats</h2>
+    <section className="card space-y-5 sm:p-6" aria-labelledby="city-stats-h" id="city-stats">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h2 id="city-stats-h" className="text-xl font-bold">City Stats</h2>
+        <span className={`text-sm font-semibold ${tone.text}`}>{stats.healthLabel}</span>
+      </div>
 
-      <div>
+      <div className="rounded-2xl bg-raised p-4">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-sm font-medium">City health</span>
-          <span className={`text-sm font-bold ${tone.text}`}>
-            {stats.buildings === 0 ? stats.healthLabel : `${stats.health} · ${stats.healthLabel}`}
-          </span>
+          <span className="font-semibold">City health</span>
+          <span className={`text-3xl font-black tabular-nums ${tone.text}`}>{stats.buildings === 0 ? "—" : stats.health}</span>
         </div>
         <div
-          className="mt-1.5 h-3 overflow-hidden rounded-full bg-raised"
+          className="mt-2 h-4 overflow-hidden rounded-full bg-surface"
           role="meter"
           aria-valuemin={0}
           aria-valuemax={100}
@@ -277,66 +265,53 @@ export function CityStatsPanel({ stats }: { stats: CityStats }) {
           <div className={`h-full rounded-full ${tone.bar} transition-[width]`} style={{ width: `${stats.health}%` }} />
         </div>
         {stats.buildings > 0 && (
-          <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted">
+          <ul className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm text-muted sm:grid-cols-4">
             {stats.healthParts.map((h) => (
-              <li key={h.key} className="flex justify-between gap-2">
+              <li key={h.key} className="flex justify-between gap-2 sm:flex-col sm:gap-0">
                 <span>{h.label}</span>
-                <span className={`font-semibold tabular-nums ${h.value >= 60 ? "text-good" : h.value >= 40 ? "text-coin" : "text-bad"}`}>{h.value}</span>
+                <span className={`font-bold tabular-nums ${h.value >= 60 ? "text-good" : h.value >= 40 ? "text-coin" : "text-bad"}`}>{h.value}</span>
               </li>
             ))}
           </ul>
         )}
       </div>
 
-      <dl className="grid grid-cols-2 gap-2">
+      <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {numbers.map((n) => (
-          <div key={n.label} className="rounded-lg bg-raised px-3 py-2">
-            <dt className="text-xs text-muted">{n.label}</dt>
-            <dd className="font-bold tabular-nums"><span aria-hidden>{n.icon}</span> {n.value}</dd>
-            <dd className="text-[11px] text-muted">{n.note}</dd>
+          <div key={n.label} className="rounded-2xl bg-raised p-4">
+            <dt className="text-sm text-muted">{n.label}</dt>
+            <dd className="mt-1 text-3xl font-black tabular-nums"><span aria-hidden className="text-2xl">{n.icon}</span> {n.value}</dd>
+            <dd className="mt-0.5 text-xs text-muted">{n.note}</dd>
           </div>
         ))}
       </dl>
 
-      <div>
-        <h3 className="text-sm font-semibold">Why happiness is {stats.happiness}%</h3>
-        <ul className="mt-1.5 space-y-1 text-sm">
-          <li className="flex justify-between gap-3 text-muted"><span>Starting mood</span><span className="tabular-nums">50</span></li>
-          {stats.factors.filter((f) => f.value !== 0).map((f) => (
-            <li key={f.key} className="flex justify-between gap-3">
-              <span>{f.label}</span>
-              <span className={`font-semibold tabular-nums ${f.value > 0 ? "text-good" : "text-bad"}`}>{f.value > 0 ? `+${f.value}` : `−${Math.abs(f.value)}`}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {stats.tips.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold">What to do</h3>
-          <ul className="mt-1.5 space-y-1.5 text-sm">
-            {stats.tips.slice(0, 4).map((t) => (
-              <li key={t} className="flex gap-2"><span aria-hidden>👉</span><span>{t}</span></li>
+      <div className="grid gap-5 md:grid-cols-2">
+        <div className="rounded-2xl bg-raised p-4">
+          <h3 className="font-semibold">Why happiness is {stats.happiness}%</h3>
+          <ul className="mt-2 space-y-1.5">
+            <li className="flex justify-between gap-3 text-muted"><span>Starting mood</span><span className="tabular-nums">50</span></li>
+            {stats.factors.filter((f) => f.value !== 0).map((f) => (
+              <li key={f.key} className="flex justify-between gap-3">
+                <span>{f.label}</span>
+                <span className={`font-bold tabular-nums ${f.value > 0 ? "text-good" : "text-bad"}`}>{f.value > 0 ? `+${f.value}` : `−${Math.abs(f.value)}`}</span>
+              </li>
             ))}
           </ul>
         </div>
-      )}
+        <div className="rounded-2xl bg-raised p-4">
+          <h3 className="font-semibold">What to do</h3>
+          {stats.tips.length > 0 ? (
+            <ul className="mt-2 space-y-2">
+              {stats.tips.slice(0, 5).map((t) => (
+                <li key={t} className="flex gap-2"><span aria-hidden>👉</span><span>{t}</span></li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-muted">Your city is in great shape. Keep building!</p>
+          )}
+        </div>
+      </div>
     </section>
-  );
-}
-
-/** What the two warning markers on the map mean. */
-export function Legend() {
-  return (
-    <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted" aria-label="Map markers">
-      <li className="flex items-center gap-1.5">
-        <span className="flex size-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-black text-white" aria-hidden>!</span>
-        Needs a road
-      </li>
-      <li className="flex items-center gap-1.5">
-        <span className="size-2.5 rotate-45 bg-yellow-400" aria-hidden />
-        Not enough workers
-      </li>
-    </ul>
   );
 }

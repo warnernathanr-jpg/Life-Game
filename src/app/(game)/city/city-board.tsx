@@ -4,10 +4,11 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
 import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, formatCoins, landPrice, lotFree, pointsToUnlock, sellRefund } from "@/lib/game";
-import { connectedIds, key, nextFacing, roadSet, type Facing, type Lot, type Tile } from "@/lib/roads";
+import { BRIDGE_TYPE, connectedIds, key, nextFacing, roadSet, type Facing, type Lot, type Tile } from "@/lib/roads";
 import { buyBuilding, buyLand, buyTiles, moveBuilding, sellBuilding, sellMany, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
-import { CityName, CityStatsPanel, HealthPill, Legend, SelectedPanel, Shop } from "./panels";
+import { BuildOverlay } from "./build-overlay";
+import { CityName, CityStatsPanel, SelectedPanel, Shop } from "./panels";
 
 // three.js only loads on this page, in the browser.
 const City3D = dynamic(() => import("./city-3d"), {
@@ -86,6 +87,38 @@ export function CityBoard(props: {
   const city3d = useRef<City3DHandle>(null);
   const mapBox = useRef<HTMLDivElement>(null);
   const [wheelHint, setWheelHint] = useState(false);
+  // Full screen: the map covers the whole window, with the build menu over it.
+  const [full, setFull] = useState(false);
+  const fullRef = useRef(false);
+  const modeRef = useRef<Mode>(mode);
+  useEffect(() => {
+    fullRef.current = full;
+    modeRef.current = mode;
+  });
+
+  function enterFull() {
+    setFull(true);
+    // Also hide the browser's own bars where allowed (not on iPhone; the overlay works without it).
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  }
+  function exitFull() {
+    setFull(false);
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  }
+  useEffect(() => {
+    if (!full) return;
+    const before = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    // Leaving the browser's full screen (e.g. its Esc) leaves ours too.
+    const onChange = () => {
+      if (!document.fullscreenElement) setFull(false);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => {
+      document.body.style.overflow = before;
+      document.removeEventListener("fullscreenchange", onChange);
+    };
+  }, [full]);
 
   // Mouse wheel over the 3D map scrolls the page like the rest of it; Ctrl/⌘ + wheel (or a trackpad pinch,
   // which browsers send as Ctrl + wheel) zooms the map. Stopping the event before it reaches the canvas leaves
@@ -95,7 +128,7 @@ export function CityBoard(props: {
     if (!el) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) return; // the map's controls zoom
+      if (e.ctrlKey || e.metaKey || fullRef.current) return; // the map's controls zoom (no page to scroll in full screen)
       e.stopPropagation();
       setWheelHint(true);
       clearTimeout(timer);
@@ -116,7 +149,10 @@ export function CityBoard(props: {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setMode({ kind: "idle" });
+      if (e.key !== "Escape") return;
+      // Escape first stops what you're doing, then leaves full screen.
+      if (modeRef.current.kind === "idle" && fullRef.current) exitFull();
+      else setMode({ kind: "idle" });
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -136,14 +172,24 @@ export function CityBoard(props: {
   /** Paint stroke: tiles that would be added (tiles already of that type are skipped), and whether it can be done. */
   function planPaint(tiles: Tile[], typeId: PaintType) {
     const cost1 = typeById.get(typeId)?.cost ?? 0;
-    const fresh = tiles.filter((t) => occupant.get(key(t.x, t.y))?.type_id !== typeId);
-    const blocked = fresh.some((t) => occupant.has(key(t.x, t.y)) || t.x < 0 || t.y < 0 || t.x >= size || t.y >= size);
-    const cost = fresh.length * cost1;
-    return { fresh, blocked, cost, ok: !blocked && cost <= balance && fresh.length <= MAX_STROKE_TILES };
+    const at = (t: Tile) => occupant.get(key(t.x, t.y))?.type_id;
+    // A bridge already is road and already is water.
+    const fresh = tiles.filter((t) => at(t) !== typeId && !(at(t) === BRIDGE_TYPE && (typeId === "road" || typeId === "water")));
+    // Roads drawn over water become bridges.
+    const bridges = typeId === "road" ? fresh.filter((t) => at(t) === "water").length : 0;
+    const blocked = fresh.some(
+      (t) => (occupant.has(key(t.x, t.y)) && !(typeId === "road" && at(t) === "water")) || t.x < 0 || t.y < 0 || t.x >= size || t.y >= size,
+    );
+    const cost = (fresh.length - bridges) * cost1 + bridges * (typeById.get(BRIDGE_TYPE)?.cost ?? 0);
+    return { fresh, bridges, blocked, cost, ok: !blocked && cost <= balance && fresh.length <= MAX_STROKE_TILES };
   }
   function planDemolish(tiles: Tile[]) {
     const ids = [...new Set(tiles.map((t) => occupant.get(key(t.x, t.y))?.id).filter(Boolean) as string[])];
-    const refund = ids.reduce((s, id) => s + sellRefund(lots.find((l) => l.id === id)?.price_paid ?? 0), 0);
+    // Bridges go back to water with nothing back.
+    const refund = ids.reduce((s, id) => {
+      const l = lots.find((x) => x.id === id);
+      return s + (l && l.type_id !== BRIDGE_TYPE ? sellRefund(l.price_paid) : 0);
+    }, 0);
     return { ids, refund };
   }
 
@@ -193,7 +239,8 @@ export function CityBoard(props: {
         const r = await buyTiles(mode.typeId, plan.fresh.map((t) => [t.x, t.y]));
         if (!r.ok) return say(r.error, "bad");
         const verb = mode.typeId === "road" ? "Built" : mode.typeId === "tree" ? "Planted" : "Dug";
-        say(`${verb} ${r.built} ${noun === "trees" ? (r.built === 1 ? "tree" : "trees") : `${noun} tile${r.built === 1 ? "" : "s"}`} for ${formatCoins(r.cost)} coins.`);
+        const bridgeNote = plan.bridges > 0 ? ` (${plan.bridges === r.built ? "all" : plan.bridges} as bridge${plan.bridges === 1 ? "" : "s"})` : "";
+        say(`${verb} ${r.built} ${noun === "trees" ? (r.built === 1 ? "tree" : "trees") : `${noun} tile${r.built === 1 ? "" : "s"}`}${bridgeNote} for ${formatCoins(r.cost)} coins.`);
       });
       return;
     }
@@ -212,8 +259,9 @@ export function CityBoard(props: {
 
   function sell(b: (typeof lots)[number]) {
     const t = typeById.get(b.type_id);
-    const refund = sellRefund(b.price_paid);
-    if (!window.confirm(`Demolish this ${t?.name ?? "building"} for ${formatCoins(refund)} coins back?`)) return;
+    const isBridge = b.type_id === BRIDGE_TYPE;
+    const refund = isBridge ? 0 : sellRefund(b.price_paid);
+    if (!window.confirm(isBridge ? "Take down this bridge? The tile goes back to water." : `Demolish this ${t?.name ?? "building"} for ${formatCoins(refund)} coins back?`)) return;
     start(async () => {
       const r = await sellBuilding(b.id);
       if (!r.ok) return say(r.error, "bad");
@@ -310,7 +358,7 @@ export function CityBoard(props: {
 
   const hint =
     mode.kind === "paint" && paintType
-      ? `Drag across the map to paint ${paintType.name.toLowerCase()} (${paintType.cost} coin${paintType.cost === 1 ? "" : "s"} a tile). Two fingers move the map.`
+      ? `Drag across the map to paint ${paintType.name.toLowerCase()} (${paintType.cost} coin${paintType.cost === 1 ? "" : "s"} a tile).${mode.kind === "paint" && mode.typeId === "road" ? ` Across water it builds a bridge (${typeById.get(BRIDGE_TYPE)?.cost ?? 10} coins a tile).` : ""} Two fingers move the map.`
       : mode.kind === "bulldoze"
         ? "Drag over things to demolish them (you get half the price back)."
         : mode.kind === "idle" || mode.kind === "selected"
@@ -318,13 +366,37 @@ export function CityBoard(props: {
           : null;
 
   const selectedType = selected ? typeById.get(selected.type_id) : undefined;
+  const selectedPanel = selected ? (
+    <SelectedPanel
+      lot={selected}
+      type={selectedType}
+      pending={pending}
+      warning={
+        needsRoad.has(selected.id)
+          ? "No road beside it, so it doesn't count yet. Build a road next to it."
+          : stats.understaffed.has(selected.id)
+            ? `Not enough workers: businesses are ${Math.round(stats.staffing * 100)}% staffed. Build homes so they can hire.`
+            : undefined
+      }
+      canRotate={selectedType?.category !== "landscape" && selectedType?.category !== "road" && nextFacing(selected, roads) !== null}
+      onRotate={() => rotate(selected)}
+      upgrade={upgradeInfo(selected)}
+      onUpgrade={() => upgrade(selected)}
+      canMove={selectedType?.category !== "road"}
+      onMove={() => setMode({ kind: "move", id: selected.id })}
+      onSell={() => sell(selected)}
+      onClose={() => setMode({ kind: "idle" })}
+    />
+  ) : null;
+
+  function pick(t: BuildingTypeRow) {
+    setMessage(null);
+    setMode(isPaint(t.id) ? { kind: "paint", typeId: t.id } : { kind: "place", typeId: t.id });
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <CityName name={props.cityName} />
-        <HealthPill stats={stats} />
-      </div>
+      <CityName name={props.cityName} />
 
       <p aria-live="polite" className={`min-h-5 text-sm ${message?.tone === "bad" ? "text-bad" : "text-good"}`}>
         {message?.text}
@@ -332,27 +404,20 @@ export function CityBoard(props: {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
         <div className="min-w-0 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap gap-1 rounded-xl bg-surface p-1 shadow-sm ring-1 ring-line" role="toolbar" aria-label="Tools">
-              {tools.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  aria-pressed={activeTool === t.id}
-                  onClick={() => {
-                    setMessage(null);
-                    setMode(t.mode);
-                  }}
-                  className={`flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium ${
-                    activeTool === t.id ? "bg-accent text-on-accent" : "text-ink hover:bg-raised"
-                  }`}
-                >
-                  <span aria-hidden>{t.icon}</span> {t.label}
-                </button>
-              ))}
+          {(mode.kind === "paint" || mode.kind === "bulldoze") && (
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-accent-soft px-4 py-2 text-sm text-ink">
+              <span>
+                {mode.kind === "paint" && paintType ? (
+                  <>Painting <strong>{paintType.icon} {paintType.name}</strong>.</>
+                ) : (
+                  <><strong>🚧 Bulldozer</strong> on.</>
+                )}
+              </span>
+              <button type="button" className="btn-secondary min-h-9 px-3 py-1" onClick={() => setMode({ kind: "idle" })}>
+                Done
+              </button>
             </div>
-          </div>
-
+          )}
           {(mode.kind === "place" || mode.kind === "move") && (
             <div className="flex items-center justify-between gap-3 rounded-xl bg-accent-soft px-4 py-2 text-sm text-ink">
               <span>
@@ -378,8 +443,15 @@ export function CityBoard(props: {
 
             <div
               ref={mapBox}
-              data-map={mode.kind === "paint" || mode.kind === "bulldoze" ? "paint" : "browse"}
-              className="relative h-[58vh] max-h-[720px] min-h-[320px] overflow-hidden rounded-2xl border-4 border-line bg-raised shadow-inner"
+              data-map={mode.kind === "paint" || mode.kind === "bulldoze" ? "paint" : full ? "full" : "browse"}
+              className={
+                full
+                  ? "fixed inset-0 z-50 h-dvh w-screen overflow-hidden bg-raised"
+                  : "relative h-[58vh] max-h-[720px] min-h-[320px] overflow-hidden rounded-2xl border-4 border-line bg-raised shadow-inner"
+              }
+              role={full ? "dialog" : undefined}
+              aria-modal={full || undefined}
+              aria-label={full ? `${props.cityName}, full screen` : undefined}
             >
               <City3D
                 ref={city3d}
@@ -398,10 +470,11 @@ export function CityBoard(props: {
                 onTile={onTile}
                 onStroke={onStroke}
                 onStrokeChange={setStroke}
+                fullscreen={full}
               />
               {strokeInfo && (
                 <div
-                  className={`pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-sm font-bold shadow ${
+                  className={`pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-sm font-bold shadow ${full ? "top-16" : "top-3"} ${
                     strokeInfo.bad ? "bg-red-600 text-white" : "bg-surface text-ink"
                   }`}
                 >
@@ -414,9 +487,93 @@ export function CityBoard(props: {
                 </div>
               )}
               {pending && (
-                <div className="pointer-events-none absolute top-3 left-3 rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-ink shadow">Saving…</div>
+                <div className={`pointer-events-none absolute left-3 rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-ink shadow ${full ? "top-16" : "top-3"}`}>Saving…</div>
               )}
-              <div className="absolute right-3 bottom-3 flex flex-col gap-1.5">
+              {full && (
+                <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+                  <div className="min-w-0 rounded-2xl bg-surface/95 px-3 py-1.5 shadow ring-1 ring-line backdrop-blur">
+                    <p className="truncate text-sm font-bold">
+                      {props.cityName} <span className="text-coin">· 🪙 {formatCoins(balance)}</span>
+                    </p>
+                    {message?.text ? (
+                      <p aria-live="polite" className={`text-xs ${message.tone === "bad" ? "text-bad" : "text-good"}`}>{message.text}</p>
+                    ) : (
+                      mode.kind === "place" && placingType ? (
+                        <p className="text-xs text-muted">Placing {placingType.icon} {placingType.name}: tap an empty spot next to a road.</p>
+                      ) : mode.kind === "move" ? (
+                        <p className="text-xs text-muted">Moving: tap where it should go.</p>
+                      ) : mode.kind === "paint" && paintType ? (
+                        <p className="text-xs text-muted">Drag to paint {paintType.name.toLowerCase()}.{mode.typeId === "road" ? " Across water it builds a bridge." : ""}</p>
+                      ) : mode.kind === "bulldoze" ? (
+                        <p className="text-xs text-muted">Drag over things to demolish them.</p>
+                      ) : null
+                    )}
+                  </div>
+                  <div className="flex shrink-0 gap-1.5">
+                    {(mode.kind === "place" || mode.kind === "move") && (
+                      <button
+                        type="button"
+                        className="btn-secondary min-h-10 px-3 py-1 text-sm shadow"
+                        onClick={() => setMode(movingLot ? { kind: "selected", id: movingLot.id } : { kind: "idle" })}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button type="button" onClick={exitFull} className="btn-primary min-h-10 px-3 py-1 text-sm shadow">
+                      ✕ Exit full screen
+                    </button>
+                  </div>
+                </div>
+              )}
+              {full && selected && (
+                <div className="absolute inset-x-0 bottom-0 flex justify-center p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+                  <div className="max-h-[50dvh] w-full max-w-md overflow-y-auto rounded-2xl shadow-2xl">
+                    {selectedPanel}
+                  </div>
+                </div>
+              )}
+              {full && !selected && mode.kind !== "move" && (
+                <BuildOverlay
+                  types={types}
+                  progress={progress}
+                  balance={balance}
+                  activeId={placingType?.id ?? (mode.kind === "paint" ? mode.typeId : undefined)}
+                  tools={[tools[0], tools[tools.length - 1]]}
+                  activeTool={activeTool}
+                  onTool={(id) => {
+                    setMessage(null);
+                    setMode(tools.find((t) => t.id === id)!.mode);
+                  }}
+                  onPick={pick}
+                />
+              )}
+              <div className={`absolute right-3 flex flex-col gap-1.5 ${full ? "top-[max(4.5rem,calc(env(safe-area-inset-top)+4rem))]" : "bottom-3"}`}>
+                <button
+                  type="button"
+                  aria-label={full ? "Exit full screen" : "Full screen"}
+                  title={full ? "Exit full screen" : "Full screen"}
+                  onClick={full ? exitFull : enterFull}
+                  className="flex size-10 items-center justify-center rounded-lg bg-surface/95 text-lg font-bold text-ink shadow ring-1 ring-line hover:bg-raised"
+                >
+                  {full ? "🗗" : "⛶"}
+                </button>
+                {!full && (
+                  <button
+                    type="button"
+                    aria-label="Bulldoze"
+                    title="Bulldoze"
+                    aria-pressed={mode.kind === "bulldoze"}
+                    onClick={() => {
+                      setMessage(null);
+                      setMode(mode.kind === "bulldoze" ? { kind: "idle" } : { kind: "bulldoze" });
+                    }}
+                    className={`flex size-10 items-center justify-center rounded-lg text-lg font-bold shadow ring-1 ring-line ${
+                      mode.kind === "bulldoze" ? "bg-accent text-on-accent" : "bg-surface/95 text-ink hover:bg-raised"
+                    }`}
+                  >
+                    🚧
+                  </button>
+                )}
                 {VIEW_BUTTONS.map((b) => (
                   <button
                     key={b.action}
@@ -431,45 +588,21 @@ export function CityBoard(props: {
                 ))}
               </div>
             </div>
-          <Legend />
+          <CityStatsPanel stats={stats} />
         </div>
 
         <div className="space-y-4">
-          {selected ? (
-            <SelectedPanel
-              lot={selected}
-              type={selectedType}
-              pending={pending}
-              warning={
-                needsRoad.has(selected.id)
-                  ? "No road beside it, so it doesn't count yet. Build a road next to it."
-                  : stats.understaffed.has(selected.id)
-                    ? `Not enough workers: businesses are ${Math.round(stats.staffing * 100)}% staffed. Build homes so they can hire.`
-                    : undefined
-              }
-              canRotate={selectedType?.category !== "landscape" && nextFacing(selected, roads) !== null}
-              onRotate={() => rotate(selected)}
-              upgrade={upgradeInfo(selected)}
-              onUpgrade={() => upgrade(selected)}
-              canMove={selectedType?.category !== "road"}
-              onMove={() => setMode({ kind: "move", id: selected.id })}
-              onSell={() => sell(selected)}
-              onClose={() => setMode({ kind: "idle" })}
-            />
+          {selected && !full ? (
+            selectedPanel
           ) : (
             <Shop
               types={types}
               progress={progress}
               balance={balance}
               activeId={placingType?.id ?? (mode.kind === "paint" ? mode.typeId : undefined)}
-              onPick={(t) => {
-                setMessage(null);
-                setMode(isPaint(t.id) ? { kind: "paint", typeId: t.id } : { kind: "place", typeId: t.id });
-              }}
+              onPick={pick}
             />
           )}
-
-          <CityStatsPanel stats={stats} />
 
           <section className="card" aria-labelledby="land-h">
             <h2 id="land-h" className="font-semibold">Land</h2>

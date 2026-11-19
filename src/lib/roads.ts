@@ -4,6 +4,9 @@ export type Tile = { x: number; y: number };
 export type Lot = { id: string; type_id: string; x: number; y: number; size: number; facing?: Facing | null };
 
 export const ROAD_TYPE = "road";
+export const BRIDGE_TYPE = "bridge";
+/** Roads and bridges both carry traffic and connect buildings. */
+export const isRoadType = (typeId: string) => typeId === ROAD_TYPE || typeId === BRIDGE_TYPE;
 
 export const key = (x: number, y: number) => `${x},${y}`;
 
@@ -42,7 +45,7 @@ export function roadShape(x: number, y: number, roads: Set<string>): RoadShape {
 }
 
 export function roadSet(lots: Pick<Lot, "type_id" | "x" | "y">[]): Set<string> {
-  return new Set(lots.filter((l) => l.type_id === ROAD_TYPE).map((l) => key(l.x, l.y)));
+  return new Set(lots.filter((l) => isRoadType(l.type_id)).map((l) => key(l.x, l.y)));
 }
 
 /** A building touches a road when any tile next to its footprint (not diagonal) is road. */
@@ -63,7 +66,7 @@ export function touchesRoad(lot: Pick<Lot, "x" | "y" | "size">, roads: Set<strin
 /** Ids of buildings (not roads) that touch a road. */
 export function connectedIds(lots: Lot[]): Set<string> {
   const roads = roadSet(lots);
-  return new Set(lots.filter((l) => l.type_id !== ROAD_TYPE && touchesRoad(l, roads)).map((l) => l.id));
+  return new Set(lots.filter((l) => !isRoadType(l.type_id) && touchesRoad(l, roads)).map((l) => l.id));
 }
 
 export type Facing = "south" | "east" | "west" | "north";

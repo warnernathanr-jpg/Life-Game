@@ -29,7 +29,7 @@ async function ShopContent() {
           </p>
         </div>
         {order.map((cat) => {
-          const items = all.filter((t) => t.category === cat);
+          const items = all.filter((t) => t.id !== "bridge" && t.category === cat);
           if (items.length === 0) return null;
           const c = CATEGORY_BY_ID[cat] ?? CATEGORIES[0];
           return (

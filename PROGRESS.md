@@ -221,6 +221,24 @@ _Last updated: 2026-11-25_
   per day, tap a day for its tasks and times. The coin history list is gone.
 - **Flat view removed** (`flat-board.tsx` deleted); the city is 3D only.
 
+### 14. Bridges, full-screen city, bigger City Stats (2026-11-25)
+- **Bridges**: drawing a road across water turns those tiles into bridge tiles (10 coins each; the plain road tiles still 1).
+  Bridges count as road (connections, cars), sit level with the road and have concrete side walls with a guardrail. They
+  can't be moved; demolishing one turns it back into water with nothing back. Migration `20261125000000_bridges.sql`
+  (applied live): `bridge` type, `buy_tiles` (road over water → bridge), `sell_buildings` / `sell_building` (bridge → water),
+  `move_building` (`cant_move`). 12 pgTAP tests (`bridges.test.sql`, 203 total); `isRoadType()` in `src/lib/roads.ts` (1 unit test).
+- **Full screen** (⛶ on the map): the map fills the window (also the browser's own full screen where allowed), with the city
+  name, coins, status and Exit at the top and a bottom **build bar**: Select, Residential 🏠, Commercial 🏪, Industrial 🏭,
+  Services 🏛️, Roads 🛣️, Parks 🌳, Landscape 🌲, Bulldoze. Tapping a group pops up its buildings as cards over the map (price,
+  size, locked points). A selected building shows its panel as a sheet. One finger moves the map; the plain mouse wheel
+  zooms; Escape leaves. `build-overlay.tsx`; groups in `BUILD_GROUPS` / `buildGroupOf()` (`src/lib/game.ts`, Parks split out
+  of Services). The side Build list uses the same groups as tabs.
+- **City layout**: the tool row above the map is gone (Road/Trees/Water are in Build; 🚧 Bulldoze is a map button; a "Done"
+  banner ends painting or bulldozing). The marker key and the health pill at the top are removed. **City Stats** sits right
+  under the map with a larger layout (big health number and bar, four big tiles, happiness reasons and tips side by side).
+- Roads and bridges never offer Rotate.
+- Fix: the Stats history calendar showed nothing (the month query used an impossible date, e.g. Nov 31).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
