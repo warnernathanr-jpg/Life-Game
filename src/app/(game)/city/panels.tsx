@@ -12,7 +12,7 @@ import { COLOR_CHOICES } from "./models";
 type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid">;
 
 /** The city's name as the page heading. Tap it to type a new one (Enter or tapping away saves, Escape cancels). */
-export function CityName({ name }: { name: string }) {
+export function CityName({ name, compact }: { name: string; compact?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [shown, setShown] = useState(name);
   const [error, setError] = useState<string | null>(null);
@@ -54,10 +54,10 @@ export function CityName({ name }: { name: string }) {
               setEditing(false);
             }
           }}
-          className="font-display w-full max-w-md rounded-md bg-transparent px-1 -mx-1 text-2xl font-bold text-ink outline-none ring-2 ring-accent"
+          className={`font-display w-full max-w-md rounded-md bg-transparent px-1 -mx-1 font-bold text-ink outline-none ring-2 ring-accent ${compact ? "text-sm" : "text-2xl"}`}
         />
       ) : (
-        <h1 className="text-2xl font-bold">
+        <h1 className={compact ? "inline text-sm font-bold" : "text-2xl font-bold"}>
           <button
             type="button"
             title="Tap to rename"

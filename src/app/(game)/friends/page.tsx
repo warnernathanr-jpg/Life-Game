@@ -1,0 +1,42 @@
+import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { Suspense } from "react";
+import { requireUser } from "@/lib/auth";
+import { FriendsBoard } from "./friends-board";
+
+export const metadata: Metadata = { title: "Friends · Life City" };
+
+async function FriendsContent() {
+  const { supabase } = await requireUser();
+  const [{ data: profile }, { data: friends }] = await Promise.all([
+    supabase.from("profiles").select("city_code, city_name, display_name").maybeSingle(),
+    supabase.rpc("my_friends"),
+  ]);
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "life-city-five.vercel.app";
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const code = profile?.city_code ?? "";
+  return (
+    <FriendsBoard
+      code={code}
+      cityName={profile?.city_name ?? "My City"}
+      name={profile?.display_name ?? null}
+      inviteUrl={`${proto}://${host}/signup?invite=${code}`}
+      friends={(friends ?? []).map((f) => ({ ...f, population: Number(f.population), buildings: Number(f.buildings) }))}
+    />
+  );
+}
+
+export default function FriendsPage() {
+  return (
+    <div className="mx-auto max-w-2xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Friends</h1>
+        <p className="text-sm text-muted">Share your city code, add friends by theirs, and visit their cities.</p>
+      </div>
+      <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
+        <FriendsContent />
+      </Suspense>
+    </div>
+  );
+}

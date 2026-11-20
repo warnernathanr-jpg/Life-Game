@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Car, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, LocateFixed, Maximize2, Minimize2, MousePointer2, Pause, Play, RotateCcw, RotateCw, X, ZoomIn, ZoomOut } from "lucide-react";
+import { Ban, Car, Eye, EyeOff, UserPlus, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, LocateFixed, Maximize2, Minimize2, MousePointer2, Pause, Play, RotateCcw, RotateCw, X, ZoomIn, ZoomOut } from "lucide-react";
 import dynamic from "next/dynamic";
 import { BuildingIcon, BulldozeIcon, CoinIcon } from "@/components/icons";
 import { cityExposure, computeLayer, LAYERS, type LayerId } from "@/lib/layers";
@@ -80,6 +80,8 @@ export function CityBoard(props: {
   initialPlace?: string;
   /** The full-screen page (/play): only the map, with the build bar over it. */
   standalone?: boolean;
+  /** Visiting a friend's city: look around only (no building, selling or selecting). */
+  visit?: { owner: string | null; inviteUrl: string };
 }) {
   const { size, placed, types, progress, balance } = props;
   const typeById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types]);
@@ -131,6 +133,8 @@ export function CityBoard(props: {
   const [confirm, confirmDialog] = useConfirm();
   // Previews waiting for Confirm: a spot for a building being placed or moved, tiles being painted.
   const [draftSpot, setDraftSpot] = useState<Tile | null>(null);
+  /** Scenic view: only the city, no menus or grid lines. */
+  const [scenic, setScenic] = useState(false);
   const [draftTiles, setDraftTiles] = useState<Tile[]>([]);
   const [draftRot, setDraftRot] = useState(false);
   const modeKey =
@@ -199,7 +203,23 @@ export function CityBoard(props: {
     hardNavigate("/play");
   }
   function exitFull() {
-    hardNavigate("/city");
+    hardNavigate(props.visit ? "/friends" : "/city");
+  }
+  async function invite() {
+    if (!props.visit) return;
+    const url = props.visit.inviteUrl;
+    const text = "I'm building a city by getting things done in Life City. Come build yours and add me as a friend!";
+    try {
+      if (navigator.share) return await navigator.share({ title: "Life City", text, url });
+    } catch {
+      return; // share sheet closed
+    }
+    try {
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      say("Invite link copied. Paste it to a friend.");
+    } catch {
+      say(url);
+    }
   }
 
 
@@ -275,6 +295,7 @@ export function CityBoard(props: {
   // Building is two steps: tap (or drag) shows a preview, then Confirm builds it. Nothing is bought by accident
   // (e.g. while zooming with two fingers).
   function onTile(x: number, y: number) {
+    if (props.visit) return; // just looking
     if (mode.kind === "paint") return onStroke([{ x, y }]);
     if (mode.kind === "control") return void putControl(x, y, mode.control);
     if (mode.kind === "place" || mode.kind === "move") {
@@ -848,6 +869,7 @@ export function CityBoard(props: {
               role={full ? "dialog" : undefined}
               aria-modal={full || undefined}
               aria-label={full ? `${props.cityName}, full screen` : undefined}
+              data-scenic={scenic || undefined}
             >
               <City3D
                 ref={city3d}
@@ -878,6 +900,7 @@ export function CityBoard(props: {
                 overlay={full ? layerCells : null}
                 sim={sim}
                 minutes={12 * 60}
+                showGrid={!scenic}
               />
               {strokeInfo && (
                 <div
@@ -890,6 +913,18 @@ export function CityBoard(props: {
               )}
               {pending && (
                 <div className={`pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-ink shadow ${full ? "top-28" : "top-12"}`}>Saving…</div>
+              )}
+              {scenic && (
+                <button
+                  type="button"
+                  data-keep
+                  onClick={() => setScenic(false)}
+                  aria-label="Show the menus again"
+                  title="Show the menus again"
+                  className="absolute right-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] flex size-10 items-center justify-center rounded-full bg-black/25 text-white/90 backdrop-blur hover:bg-black/40"
+                >
+                  <EyeOff className="size-5" aria-hidden />
+                </button>
               )}
               {citizens.length > 0 && !full && clockPill("absolute left-2 top-2")}
               {draftBar && (
@@ -947,9 +982,17 @@ export function CityBoard(props: {
                 <div className="absolute inset-x-0 top-0 flex flex-col gap-1.5 p-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 rounded-2xl bg-surface/95 px-3 py-1.5 shadow ring-1 ring-line backdrop-blur">
-                    <p className="truncate text-sm font-bold">
-                      {props.cityName} <span className="text-coin">· <CoinIcon className="size-3.5" /> {formatCoins(balance)}</span>
-                    </p>
+                    {props.visit ? (
+                      <p className="truncate text-sm font-bold">
+                        <span className="font-normal text-muted">{props.visit.owner ? `${props.visit.owner}'s city · ` : "Visiting · "}</span>
+                        {props.cityName}
+                      </p>
+                    ) : (
+                      <div className="flex min-w-0 items-center gap-1 text-sm font-bold">
+                        <span className="min-w-0 truncate"><CityName name={props.cityName} compact /></span>
+                        <span className="shrink-0 text-coin">· <CoinIcon className="size-3.5" /> {formatCoins(balance)}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex shrink-0 gap-1.5">
                     {(mode.kind === "place" || mode.kind === "move") && (
@@ -961,6 +1004,15 @@ export function CityBoard(props: {
                         Cancel
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => setScenic(true)}
+                      aria-label="Scenic view (hide the menus and grid)"
+                      title="Scenic view"
+                      className="min-h-10 rounded-xl bg-surface/95 px-3 py-1 text-sm font-semibold text-ink shadow ring-1 ring-line"
+                    >
+                      <Eye className="size-4" aria-hidden /> <span className="hidden sm:inline">View</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
@@ -983,8 +1035,13 @@ export function CityBoard(props: {
                     >
                       <ChartColumn className="size-4" aria-hidden /> Stats
                     </button>
+                    {props.visit && (
+                      <button type="button" onClick={invite} className="min-h-10 rounded-xl bg-coin px-3 py-1 text-sm font-semibold text-on-coin shadow">
+                        <UserPlus className="size-4" aria-hidden /> <span className="hidden sm:inline">Invite friends</span>
+                      </button>
+                    )}
                     <button type="button" onClick={exitFull} className="btn-primary min-h-10 px-3 py-1 text-sm shadow">
-                      <X className="size-4" aria-hidden /> Exit
+                      <X className="size-4" aria-hidden /> {props.visit ? "Back" : "Exit"}
                     </button>
                   </div>
                 </div>
@@ -1014,7 +1071,7 @@ export function CityBoard(props: {
                   </div>
                 </div>
               )}
-              {full && !selected && mode.kind !== "move" && (
+              {full && !selected && mode.kind !== "move" && !props.visit && (
                 <BuildOverlay
                   types={menuTypes}
                   landmarkState={landmarkState}
@@ -1060,6 +1117,15 @@ export function CityBoard(props: {
                     <BulldozeIcon className="size-5" />
                   </button>
                 )}
+                <button
+                  type="button"
+                  aria-label="Scenic view (hide the menus and grid)"
+                  title="Scenic view"
+                  onClick={() => setScenic(true)}
+                  className="flex size-10 items-center justify-center rounded-lg bg-surface/95 text-ink shadow ring-1 ring-line hover:bg-raised"
+                >
+                  <Eye className="size-5" aria-hidden />
+                </button>
                 {VIEW_BUTTONS.map((b) => (
                   <button
                     key={b.action}
@@ -1127,7 +1193,7 @@ export function CityBoard(props: {
               {full && statsOpen && (
                 <div className="absolute top-[max(4.5rem,calc(env(safe-area-inset-top)+4rem))] right-2 bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))] z-10 w-[min(30rem,calc(100%-1rem))] overflow-y-auto rounded-2xl shadow-2xl">
 <CityStatsPanel stats={stats} onClose={() => setStatsOpen(false)} />
-                  <div className="mt-3">
+                  <div className={props.visit ? "hidden" : "mt-3"}>
                     <MilestonesPanel
                       population={stats.population}
                       claimed={props.claimedMilestones ?? []}

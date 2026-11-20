@@ -483,6 +483,37 @@ export async function deleteGoal(goalId: string): Promise<ActionResult> {
 // Settings
 // ---------------------------------------------------------------------------
 
+/** Your name, shown with your city to friends. */
+export async function setDisplayName(name: string): Promise<ActionResult> {
+  const clean = name.trim().replace(/\s+/g, " ").slice(0, 40);
+  const { supabase, userId } = await requireUser();
+  const { error } = await supabase.from("profiles").update({ display_name: clean || null }).eq("id", userId);
+  if (error) return { ok: false, error: "Couldn't save your name." };
+  refresh();
+  return { ok: true };
+}
+
+/** Add a friend's city by its code. */
+export async function addFriend(code: string): Promise<ActionResult<{ cityName: string }>> {
+  const clean = code.trim().toUpperCase();
+  if (!/^[A-Z0-9]{6}$/.test(clean)) return { ok: false, error: "City codes are 6 letters and numbers." };
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("add_friend", { p_code: clean }).single();
+  if (error || !data) return { ok: false, error: gameError(error) };
+  revalidatePath("/friends");
+  return { ok: true, cityName: data.city_name };
+}
+
+/** Stop following a friend's city. */
+export async function removeFriend(friendId: string): Promise<ActionResult> {
+  if (!uuid.safeParse(friendId).success) return { ok: false, error: gameError(null) };
+  const { supabase, userId } = await requireUser();
+  const { error } = await supabase.from("friendships").delete().eq("user_id", userId).eq("friend_id", friendId);
+  if (error) return { ok: false, error: "Couldn't remove that friend." };
+  revalidatePath("/friends");
+  return { ok: true };
+}
+
 export type PasswordState = { error?: string; done?: number };
 
 export async function changePassword(prev: PasswordState, formData: FormData): Promise<PasswordState> {

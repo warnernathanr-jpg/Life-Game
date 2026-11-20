@@ -552,6 +552,27 @@ _Last updated: 2026-11-27_
   tile if needed so the turned footprint still covers part of the old one and fits (`turnInPlace()` in `city-board.tsx`, via
   `move_building` with `rotated`); free. Before, turning meant Move → Turn → Move here.
 
+### 40. Milestones and landmarks, friends, scenic view, zoo animals (2026-11-28)
+- **Land** costs 300 × 1.35ⁿ (was 1.6ⁿ): all 11 expansions about 22,400 coins instead of 87,460 (`land_price()`, `landPrice()`).
+- **Population milestones** (50 / 100 / 250 / 500 / 1,000 / 2,500 people, `CITY_MILESTONES` in `game.ts`): a **City milestones** card
+  under City Stats (and in full screen's Stats) with progress and **Claim** for a one-time bonus (100 / 200 / 400 / 750 / 1,500 /
+  3,000; once ever) and a **landmark that can't be bought**: Welcome Arch, Clock Tower, Fountain Plaza, Founders' Statue, Observation
+  Tower, Crystal Spire (3D models, icons). In Landmarks they show "Reach N people", then "Free", then "Already in your city"; placed with
+  `place_landmark()` (free, one each, needs the population now). The server counts homes beside a road (`private.city_population`).
+- **Friends** (header link, `/friends`): your 6-character **city code** (copy), **Share invite link** (`/signup?invite=CODE`: the code is
+  remembered on sign-up and the inviter's city is added to the new player's friends, `src/components/invite.tsx`), add a friend by code,
+  friends list (name, people, buildings, size) with **Visit** and remove. **Visit** (`/visit/<id>`): their city in full screen, view only
+  (no building, selling or selecting), "<Name>'s city · <City>" at the top, **Invite friends** (share sheet or copy) and Back.
+  **Settings → Your name** (`profiles.display_name`) is shown to friends.
+- **Scenic view** (eye button on the map and "View" in full screen): hides every menu and the grid lines; a small button brings them back.
+- City name can be renamed in **full screen** too (tap it in the top bar).
+- **Zoo animals** (`zoo-animals.tsx`): giraffes and zebras on the savanna, penguins around the pond, bears in the forest and goats on the
+  rocks wander their enclosures (walk to a random spot, pause, repeat).
+- Migration `20261128000000_milestones_friends.sql` (applied live): `building_types.milestone_population` + 6 landmarks,
+  `city_milestones`, `claim_city_milestone()`, `place_landmark()`, `my_city_population()`, `profiles.city_code`, `friendships` (read and
+  remove own), `add_friend()`, `my_friends()`, `friend_city()` (only for cities you've added). 18 pgTAP tests (314 total).
+- Owner's account (after another Start over): 30×30 land, 200,500 coins, 1,000 points per area.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

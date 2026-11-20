@@ -6,8 +6,9 @@ import { SettingsForms } from "./settings-forms";
 export const metadata: Metadata = { title: "Settings · Life City" };
 
 async function SettingsContent() {
-  const { email } = await requireUser();
-  return <SettingsForms email={email} />;
+  const { email, supabase } = await requireUser();
+  const { data: profile } = await supabase.from("profiles").select("display_name").maybeSingle();
+  return <SettingsForms email={email} name={profile?.display_name ?? ""} />;
 }
 
 export default function SettingsPage() {

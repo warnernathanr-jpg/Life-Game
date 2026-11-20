@@ -214,3 +214,8 @@ h1, h2, h3, .font-display {
   font-family: var(--font-bricolage), var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
   letter-spacing: -0.01em;
 }
+
+/* Scenic view on the city map: everything over the 3D view is hidden except the button that brings it back. */
+[data-scenic] > :not(:first-child):not([data-keep]) {
+  display: none !important;
+}

@@ -10,6 +10,7 @@ import { layerColor, type LayerCell } from "@/lib/layers";
 import { Traffic, type SimProps } from "./traffic";
 import { LotDressing } from "./lot-dressing";
 import { Airplanes } from "./airplanes";
+import { ZooAnimals } from "./zoo-animals";
 import { palFor } from "./models-catalog";
 import { DayNight, GRID_MAT, StreetLights } from "./day-night";
 import { RoadControls } from "./road-controls";
@@ -50,6 +51,8 @@ export type City3DProps = {
   overlay?: LayerCell[] | null;
   /** Citizens travelling around the city (cars and walkers), with pause and tap-to-inspect. */
   sim?: SimProps;
+  /** Tile grid lines (off in scenic view). */
+  showGrid?: boolean;
   /** Stop signs and traffic lights by tile key. */
   controls?: Map<string, RoadControlKind>;
   /** City clock (minutes since midnight) for daylight and night lights. */
@@ -301,7 +304,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
         onPointerLeave={() => setHover(null)}
         onClick={onClick}
       >
-        <Ground size={size} />
+        <Ground size={size} showGrid={props.showGrid ?? true} />
         <Roads tiles={roadTiles.dirt} roads={roads} variant="dirt" />
         <Roads tiles={roadTiles.two} roads={roads} variant="two" />
         <Roads tiles={roadTiles.four} roads={roads} variant="four" />
@@ -322,6 +325,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
                 <group rotation-y={FACING_ROTATION[facing]}>
                   <BuildingModel typeId={b.type_id} seed={b.color_seed ?? colorSeed(b.id)} join={joins.get(b.id)} />
                   <LotDressing typeId={b.type_id} seed={colorSeed(b.id)} lw={sideways ? b.h : b.w} ld={sideways ? b.w : b.h} />
+                  {b.type_id === "zoo" && <ZooAnimals seed={colorSeed(b.id)} />}
                   {b.type_id === "airport" && <Airplanes seed={colorSeed(b.id)} accent={palFor(b.color_seed ?? colorSeed(b.id)).accent} />}
                 </group>
               );
@@ -538,7 +542,7 @@ function CameraRig({
 // Ground, roads and overlays
 // ---------------------------------------------------------------------------
 
-function Ground({ size }: { size: number }) {
+function Ground({ size, showGrid = true }: { size: number; showGrid?: boolean }) {
   const lines = useMemo(() => {
     const pts: number[] = [];
     for (let i = 0; i <= size; i++) {
@@ -562,7 +566,7 @@ function Ground({ size }: { size: number }) {
         <meshStandardMaterial color="#9ccc65" />
       </mesh>
       {/* Grid lines never take taps (a line's hit area is a whole tile wide, so it would block cars and buildings). */}
-      <lineSegments geometry={lines} material={GRID_MAT} raycast={() => null} />
+      {showGrid && <lineSegments geometry={lines} material={GRID_MAT} raycast={() => null} />}
       {/* A low hedge marks the edge of your land */}
       {[
         [size / 2, -edge / 2, size + edge, edge],

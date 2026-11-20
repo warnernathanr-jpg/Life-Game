@@ -5,9 +5,12 @@ import { useActionState, useEffect, useRef, useState, useTransition } from "reac
 import { useConfirm } from "@/components/confirm";
 import { ThemeSettings } from "@/components/theme-picker";
 import { signOut } from "../../(auth)/actions";
-import { changePassword, resetProgress, type PasswordState } from "../actions";
+import { changePassword, resetProgress, setDisplayName, type PasswordState } from "../actions";
 
-export function SettingsForms({ email }: { email: string }) {
+export function SettingsForms({ email, name }: { email: string; name: string }) {
+  const [nameValue, setNameValue] = useState(name);
+  const [nameMsg, setNameMsg] = useState<string | null>(null);
+  const [savingName, startName] = useTransition();
   const [pwState, pwAction, pwPending] = useActionState<PasswordState, FormData>(changePassword, {});
   const pwForm = useRef<HTMLFormElement>(null);
   useEffect(() => {
@@ -27,6 +30,24 @@ export function SettingsForms({ email }: { email: string }) {
           <UserRound className="size-4" aria-hidden /> Account
         </h2>
         <p className="mt-1 text-sm text-muted">Signed in as <span className="font-medium text-ink">{email}</span></p>
+        <form
+          className="mt-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            startName(async () => {
+              const r = await setDisplayName(nameValue);
+              setNameMsg(r.ok ? "Saved." : r.error);
+            });
+          }}
+        >
+          <label htmlFor="display-name" className="text-sm font-medium">Your name</label>
+          <p className="text-xs text-muted">Friends see it with your city name when they visit.</p>
+          <div className="mt-1 flex gap-2">
+            <input id="display-name" value={nameValue} onChange={(e) => setNameValue(e.target.value)} maxLength={40} placeholder="e.g. Nacho" className="input" />
+            <button type="submit" className="btn-secondary shrink-0" disabled={savingName}>Save</button>
+          </div>
+          {nameMsg && <p role="status" className="mt-1 text-sm text-good">{nameMsg}</p>}
+        </form>
         <form action={signOut} className="mt-3">
           <button type="submit" className="btn-secondary">
             <LogOut className="size-4" aria-hidden /> Sign out
