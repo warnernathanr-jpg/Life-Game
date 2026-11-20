@@ -8,9 +8,10 @@ export const metadata: Metadata = { title: "Friends · Life City" };
 
 async function FriendsContent() {
   const { supabase } = await requireUser();
-  const [{ data: profile }, { data: friends }] = await Promise.all([
+  const [{ data: profile }, { data: friends }, { data: requests }] = await Promise.all([
     supabase.from("profiles").select("city_code, city_name, display_name").maybeSingle(),
     supabase.rpc("my_friends"),
+    supabase.rpc("my_friend_requests"),
   ]);
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "life-city-five.vercel.app";
@@ -23,6 +24,7 @@ async function FriendsContent() {
       name={profile?.display_name ?? null}
       inviteUrl={`${proto}://${host}/signup?invite=${code}`}
       friends={(friends ?? []).map((f) => ({ ...f, population: Number(f.population), buildings: Number(f.buildings) }))}
+      requests={(requests ?? []).map((r) => ({ ...r, population: Number(r.population) }))}
     />
   );
 }
@@ -32,7 +34,7 @@ export default function FriendsPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Friends</h1>
-        <p className="text-sm text-muted">Share your city code, add friends by theirs, and visit their cities.</p>
+        <p className="text-sm text-muted">Share your city code, add friends by theirs, and visit each other&apos;s cities once they accept.</p>
       </div>
       <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
         <FriendsContent />

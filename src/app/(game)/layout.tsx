@@ -21,10 +21,9 @@ export default function GameLayout({ children }: LayoutProps<"/">) {
             <Suspense fallback={<span className="h-9 w-20 rounded-full bg-white/10" />}>
               <CoinBadge />
             </Suspense>
-            <Link href="/friends" aria-label="Friends" className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-white/80 hover:bg-white/10">
-              <Users className="size-4" aria-hidden />
-              <span className="hidden sm:inline">Friends</span>
-            </Link>
+            <Suspense fallback={<FriendsLink count={0} />}>
+              <FriendsBadge />
+            </Suspense>
             <Link href="/settings" aria-label="Settings" className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-white/80 hover:bg-white/10">
               <Settings className="size-4" aria-hidden />
               <span className="hidden sm:inline">Settings</span>
@@ -64,4 +63,29 @@ async function Rewards() {
   const { supabase } = await requireUser();
   const { data } = await supabase.from("user_rewards").select("reward");
   return <RewardPrompts claimed={(data ?? []).map((r) => r.reward)} />;
+}
+
+/** Friends link, with a red count of friend requests waiting for you. */
+function FriendsLink({ count }: { count: number }) {
+  return (
+    <Link
+      href="/friends"
+      aria-label={count > 0 ? `Friends, ${count} friend request${count === 1 ? "" : "s"}` : "Friends"}
+      className="relative flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-white/80 hover:bg-white/10"
+    >
+      <Users className="size-4" aria-hidden />
+      <span className="hidden sm:inline">Friends</span>
+      {count > 0 && (
+        <span aria-hidden className="absolute -top-1 left-4 flex min-w-4.5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] leading-[18px] font-bold text-white ring-2 ring-header sm:static sm:ring-0">
+          {count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+async function FriendsBadge() {
+  const { supabase } = await requireUser();
+  const { data } = await supabase.rpc("my_friend_requests");
+  return <FriendsLink count={(data ?? []).filter((r) => r.direction === "in").length} />;
 }

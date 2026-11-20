@@ -504,14 +504,34 @@ export async function setDisplayName(name: string): Promise<ActionResult> {
 }
 
 /** Add a friend's city by its code. */
-export async function addFriend(code: string): Promise<ActionResult<{ cityName: string }>> {
+export async function addFriend(code: string): Promise<ActionResult<{ cityName: string; status: "friends" | "requested" }>> {
   const clean = code.trim().toUpperCase();
   if (!/^[A-Z0-9]{6}$/.test(clean)) return { ok: false, error: "City codes are 6 letters and numbers." };
   const { supabase } = await requireUser();
   const { data, error } = await supabase.rpc("add_friend", { p_code: clean }).single();
   if (error || !data) return { ok: false, error: gameError(error) };
   revalidatePath("/friends");
-  return { ok: true, cityName: data.city_name };
+  return { ok: true, cityName: data.city_name, status: data.status };
+}
+
+/** Accept a friend request: you become friends both ways. */
+export async function acceptFriendRequest(fromId: string): Promise<ActionResult> {
+  if (!uuid.safeParse(fromId).success) return { ok: false, error: gameError(null) };
+  const { supabase } = await requireUser();
+  const { error } = await supabase.rpc("accept_friend_request", { p_from: fromId });
+  if (error) return { ok: false, error: "That request isn't there any more." };
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Decline a request to you, or take back one you sent. */
+export async function dropFriendRequest(otherId: string): Promise<ActionResult> {
+  if (!uuid.safeParse(otherId).success) return { ok: false, error: gameError(null) };
+  const { supabase } = await requireUser();
+  const { error } = await supabase.rpc("drop_friend_request", { p_other: otherId });
+  if (error) return { ok: false, error: gameError(error) };
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 /** Stop following a friend's city. */

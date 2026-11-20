@@ -24,7 +24,7 @@ export function InviteSaver() {
   return <p className="mb-3 rounded-lg bg-accent-soft px-3 py-2 text-sm text-ink">A friend invited you. Once you sign up, their city is added to your friends.</p>;
 }
 
-/** In the signed-in app: add the inviter's city as a friend, once. */
+/** In the signed-in app: send the inviter a friend request, once. */
 export function InviteRedeemer() {
   useEffect(() => {
     let code: string | null = null;

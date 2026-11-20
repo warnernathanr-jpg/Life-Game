@@ -241,7 +241,10 @@ export type Database = {
       claim_city_milestone: { Args: { p_population: number }; Returns: { coins: number; balance: number }[] };
       place_landmark: { Args: { p_type_id: string; p_x: number; p_y: number; p_rotated?: boolean }; Returns: { building_id: string }[] };
       my_city_population: { Args: Record<string, never>; Returns: number };
-      add_friend: { Args: { p_code: string }; Returns: { friend_id: string; city_name: string }[] };
+      add_friend: { Args: { p_code: string }; Returns: { friend_id: string; city_name: string; status: "friends" | "requested" }[] };
+      accept_friend_request: { Args: { p_from: string }; Returns: undefined };
+      drop_friend_request: { Args: { p_other: string }; Returns: undefined };
+      my_friend_requests: { Args: Record<string, never>; Returns: { other_id: string; direction: "in" | "out"; display_name: string | null; city_name: string; city_size: number; population: number; created_at: string }[] };
       my_friends: { Args: Record<string, never>; Returns: { friend_id: string; city_name: string; city_code: string; city_size: number; population: number; buildings: number; display_name: string | null }[] };
       friend_city: { Args: { p_friend: string }; Returns: unknown };
       set_building_color: { Args: { p_building_id: string; p_seed: number | null }; Returns: undefined };

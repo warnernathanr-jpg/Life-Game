@@ -617,6 +617,16 @@ _Last updated: 2026-11-28_
 - Props: café/restaurant planters only, warehouse crates and bay line clear of the doors, parking garage "P" sign on a post;
   Clock Tower faces on all four sides; Fountain Plaza with running water (`fountain-water.tsx`).
 
+### 42. Friend requests, names that fit (2026-11-28)
+- **Friend requests**: adding someone by code (or signing up through their invite link) sends them a request instead of adding them
+  straight away. They see a red count on **Friends** in the header and a **Friend requests** card with Accept / Decline; accepting
+  makes you friends both ways (both can visit). The sender sees "Request sent" with Cancel. Adding someone who already asked you
+  accepts their request. Friendships from before stay. Migration `20261128040000_friend_requests.sql` (applied live):
+  `friend_requests` (read own, no direct writes), `add_friend()` now returns `status` (friends / requested),
+  `accept_friend_request()`, `drop_friend_request()` (decline or cancel), `my_friend_requests()`. 11 pgTAP tests.
+- **Names no longer cut off**: friend and city names wrap on the Friends page, and the visit screen shows "<Name>'s city" and the
+  city name on two lines (Layers / Stats are icons on phones while visiting, to make room).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

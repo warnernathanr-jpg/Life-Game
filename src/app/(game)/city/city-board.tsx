@@ -961,10 +961,10 @@ export function CityBoard(props: {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 rounded-2xl bg-surface/95 px-3 py-1.5 shadow ring-1 ring-line backdrop-blur">
                     {props.visit ? (
-                      <p className="truncate text-sm font-bold">
-                        <span className="font-normal text-muted">{props.visit.owner ? `${props.visit.owner}'s city · ` : "Visiting · "}</span>
-                        {props.cityName}
-                      </p>
+                      <div className="min-w-0">
+                        <p className="text-xs break-words text-muted">{props.visit.owner ? `${props.visit.owner}'s city` : "Visiting"}</p>
+                        <p className="text-sm leading-tight font-bold break-words">{props.cityName}</p>
+                      </div>
                     ) : (
                       <div className="flex min-w-0 items-center gap-1 text-sm font-bold">
                         <span className="min-w-0 truncate"><CityName name={props.cityName} compact /></span>
@@ -998,9 +998,10 @@ export function CityBoard(props: {
                         setStatsOpen(false);
                       }}
                       aria-pressed={layersOpen || !!layer}
+                      aria-label="Layers"
                       className={`min-h-10 rounded-xl px-3 py-1 text-sm font-semibold shadow ${layersOpen || layer ? "bg-accent text-on-accent" : "bg-surface/95 text-ink ring-1 ring-line"}`}
                     >
-                      <Layers className="size-4" aria-hidden /> Layers
+                      <Layers className="size-4" aria-hidden /> <span className={props.visit ? "hidden sm:inline" : undefined}>Layers</span>
                     </button>
                     <button
                       type="button"
@@ -1009,9 +1010,10 @@ export function CityBoard(props: {
                         setLayersOpen(false);
                       }}
                       aria-pressed={statsOpen}
+                      aria-label="Stats"
                       className={`min-h-10 rounded-xl px-3 py-1 text-sm font-semibold shadow ${statsOpen ? "bg-accent text-on-accent" : "bg-surface/95 text-ink ring-1 ring-line"}`}
                     >
-                      <ChartColumn className="size-4" aria-hidden /> Stats
+                      <ChartColumn className="size-4" aria-hidden /> <span className={props.visit ? "hidden sm:inline" : undefined}>Stats</span>
                     </button>
                     {props.visit && (
                       <button type="button" onClick={invite} className="min-h-10 rounded-xl bg-coin px-3 py-1 text-sm font-semibold text-on-coin shadow">
