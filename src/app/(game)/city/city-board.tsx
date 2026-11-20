@@ -1,10 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
 import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, sellRefund } from "@/lib/game";
-import { BRIDGE_TYPE, connectedIds, isRoadType, key, nextFacing, roadSet, type Facing, type Lot, type Tile } from "@/lib/roads";
+import { BRIDGE_TYPE, connectedIds, isRoadType, key, nextFacing, roadSet, type Lot, type Tile } from "@/lib/roads";
 import { buyBuilding, buyLand, buyTiles, moveBuilding, sellBuilding, sellMany, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
 import { useConfirm } from "@/components/confirm";
@@ -49,7 +50,6 @@ const VIEW_BUTTONS = [
   { action: "right", label: "Rotate right", icon: "⟳" },
   { action: "reset", label: "Reset view", icon: "⌂" },
 ] as const;
-const FACING_WORD: Record<Facing, string> = { south: "south", east: "east", west: "west", north: "north" };
 
 export function CityBoard(props: {
   cityName: string;
@@ -61,6 +61,8 @@ export function CityBoard(props: {
   balance: number;
   /** Building picked in the Shop (?place=…), placed right away if it's unlocked. */
   initialPlace?: string;
+  /** The full-screen page (/play): only the map, with the build bar over it. */
+  standalone?: boolean;
 }) {
   const { size, placed, types, progress, balance } = props;
   const typeById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types]);
@@ -136,10 +138,12 @@ export function CityBoard(props: {
   );
   const city3d = useRef<City3DHandle>(null);
   const mapBox = useRef<HTMLDivElement>(null);
-  const [wheelHint, setWheelHint] = useState(false);
-  // Full screen: the map covers the whole window, with the build menu over it.
-  const [full, setFull] = useState(false);
-  const fullRef = useRef(false);
+  // City Stats as a panel over the map in full screen.
+  const [statsOpen, setStatsOpen] = useState(false);
+  // Full screen is its own page (/play) showing only the map, so it opens the same way every time.
+  const router = useRouter();
+  const full = !!props.standalone;
+  const fullRef = useRef(full);
   const modeRef = useRef<Mode>(mode);
   useEffect(() => {
     fullRef.current = full;
@@ -147,49 +151,12 @@ export function CityBoard(props: {
   });
 
   function enterFull() {
-    setFull(true);
-    // Also hide the browser's own bars where allowed (not on iPhone; the overlay works without it).
-    document.documentElement.requestFullscreen?.().catch(() => {});
+    router.push("/play");
   }
   function exitFull() {
-    setFull(false);
-    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    router.push("/city");
   }
-  useEffect(() => {
-    if (!full) return;
-    const before = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    // Leaving the browser's full screen (e.g. its Esc) leaves ours too.
-    const onChange = () => {
-      if (!document.fullscreenElement) setFull(false);
-    };
-    document.addEventListener("fullscreenchange", onChange);
-    return () => {
-      document.body.style.overflow = before;
-      document.removeEventListener("fullscreenchange", onChange);
-    };
-  }, [full]);
 
-  // Mouse wheel over the 3D map scrolls the page like the rest of it; Ctrl/⌘ + wheel (or a trackpad pinch,
-  // which browsers send as Ctrl + wheel) zooms the map. Stopping the event before it reaches the canvas leaves
-  // the browser's normal scrolling in place.
-  useEffect(() => {
-    const el = mapBox.current;
-    if (!el) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey || fullRef.current) return; // the map's controls zoom (no page to scroll in full screen)
-      e.stopPropagation();
-      setWheelHint(true);
-      clearTimeout(timer);
-      timer = setTimeout(() => setWheelHint(false), 1400);
-    };
-    el.addEventListener("wheel", onWheel, { capture: true });
-    return () => {
-      el.removeEventListener("wheel", onWheel, { capture: true });
-      clearTimeout(timer);
-    };
-  }, []);
 
   const placingType = mode.kind === "place" ? typeById.get(mode.typeId) : undefined;
   const paintType = mode.kind === "paint" ? typeById.get(mode.typeId) : undefined;
@@ -203,12 +170,12 @@ export function CityBoard(props: {
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
       // Escape first stops what you're doing, then leaves full screen.
-      if (modeRef.current.kind === "idle" && fullRef.current) exitFull();
+      if (modeRef.current.kind === "idle" && fullRef.current) router.push("/city");
       else setMode({ kind: "idle" });
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if ((mode.kind === "selected" || mode.kind === "move") && !lots.some((b) => b.id === mode.id)) {
@@ -237,8 +204,18 @@ export function CityBoard(props: {
       return here === undefined || here === "tree" || (road && (here === "water" || isRoadType(here)));
     };
     const blocked = fresh.some((t) => !free(t) || t.x < 0 || t.y < 0 || t.x >= size || t.y >= size);
+    // Roads can't run side by side: no 2x2 block of road tiles may include a new tile (the database checks too).
+    let sideBySide = false;
+    if (road && fresh.length > 0) {
+      const all = new Set([...roads, ...fresh.map((t) => key(t.x, t.y))]);
+      sideBySide = fresh.some((t) =>
+        [[0, 0], [-1, 0], [0, -1], [-1, -1]].some(([dx, dy]) =>
+          [[0, 0], [1, 0], [0, 1], [1, 1]].every(([ex, ey]) => all.has(key(t.x + dx + ex, t.y + dy + ey))),
+        ),
+      );
+    }
     const cost = (fresh.length - bridges) * cost1 + bridges * (typeById.get(BRIDGE_TYPE)?.cost ?? 0);
-    return { fresh, bridges, swaps, trees, blocked, cost, ok: !blocked && cost <= balance && fresh.length <= MAX_STROKE_TILES };
+    return { fresh, bridges, swaps, trees, blocked, sideBySide, cost, ok: !blocked && !sideBySide && cost <= balance && fresh.length <= MAX_STROKE_TILES };
   }
   function planDemolish(tiles: Tile[]) {
     const ids = [...new Set(tiles.map((t) => occupant.get(key(t.x, t.y))?.id).filter(Boolean) as string[])];
@@ -301,6 +278,7 @@ export function CityBoard(props: {
     const plan = planPaint(draftTiles, typeId);
     if (plan.fresh.length === 0) return setDraftTiles([]);
     if (plan.blocked) return say(`${paintType.name} can't go on top of buildings or past the edge of your land.`, "bad");
+    if (plan.sideBySide) return say("Roads can't run side by side. Leave a tile between them, or join them at a crossing.", "bad");
     if (plan.fresh.length > MAX_STROKE_TILES) return say(`Paint at most ${MAX_STROKE_TILES} tiles at a time.`, "bad");
     if (plan.cost > balance) return say(`That costs ${formatCoins(plan.cost)} coins. You have ${formatCoins(balance)}.`, "bad");
     setDraftTiles([]);
@@ -373,7 +351,6 @@ export function CityBoard(props: {
     start(async () => {
       const r = await setFacing(b.id, next);
       if (!r.ok) return say(r.error, "bad");
-      say(`Now facing the ${FACING_WORD[next]} road.`);
     });
   }
 
@@ -464,7 +441,7 @@ export function CityBoard(props: {
       : mode.kind === "bulldoze"
         ? "Drag over things to demolish them (you get half the price back)."
         : mode.kind === "idle" || mode.kind === "selected"
-          ? "Tap a building to select it. On a phone: drag with one finger to move the map, pinch to zoom, twist two fingers to rotate (swipe above or below the map to scroll the page). On a computer: drag to move, Ctrl/⌘ + scroll to zoom, right-drag to rotate."
+          ? "Tap a building to select it. On a phone: drag with one finger to move the map, pinch to zoom, twist two fingers to rotate (swipe above or below the map to scroll the page). On a computer: drag to move, scroll to zoom, right-drag to rotate."
           : null;
 
   const selectedType = selected ? typeById.get(selected.type_id) : undefined;
@@ -488,6 +465,8 @@ export function CityBoard(props: {
               ? "That's all there already."
               : draftPlan.blocked
                 ? "Part of it is on a building or past your land."
+                : draftPlan.sideBySide
+                  ? "Roads can't run side by side. Leave a tile between them."
                 : draftPlan.fresh.length > MAX_STROKE_TILES
                   ? `At most ${MAX_STROKE_TILES} tiles at a time.`
                   : draftPlan.cost > balance
@@ -651,6 +630,7 @@ export function CityBoard(props: {
                 onStroke={onStroke}
                 onStrokeChange={setStroke}
                 ghostAt={draftSpot}
+                onGhostMove={setDraftSpot}
                 previewTiles={draftTiles}
                 previewOk={draftPlan ? draftPlan.ok : true}
                 sim={sim}
@@ -662,11 +642,6 @@ export function CityBoard(props: {
                   }`}
                 >
                   {strokeInfo.text}
-                </div>
-              )}
-              {wheelHint && (
-                <div className="pointer-events-none absolute inset-x-0 top-1/2 mx-auto w-fit -translate-y-1/2 rounded-full bg-black/70 px-4 py-2 text-sm font-medium text-white shadow">
-                  Hold Ctrl (⌘ on Mac) and scroll to zoom the map
                 </div>
               )}
               {pending && (
@@ -768,8 +743,16 @@ export function CityBoard(props: {
                         Cancel
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => setStatsOpen((o) => !o)}
+                      aria-pressed={statsOpen}
+                      className={`min-h-10 rounded-xl px-3 py-1 text-sm font-semibold shadow ${statsOpen ? "bg-accent text-on-accent" : "bg-surface/95 text-ink ring-1 ring-line"}`}
+                    >
+                      📊 Stats
+                    </button>
                     <button type="button" onClick={exitFull} className="btn-primary min-h-10 px-3 py-1 text-sm shadow">
-                      ✕ Exit full screen
+                      ✕ Exit
                     </button>
                   </div>
                 </div>
@@ -796,7 +779,9 @@ export function CityBoard(props: {
                   onPick={pick}
                 />
               )}
-              <div className={`absolute right-3 flex flex-col gap-1.5 ${full ? "top-[max(4.5rem,calc(env(safe-area-inset-top)+4rem))]" : "bottom-3"}`}>
+              {/* Map buttons (normal view only: in full screen, drag and scroll / pinch move the map). */}
+              {!full && (
+              <div className="absolute right-3 bottom-3 flex flex-col gap-1.5">
                 <button
                   type="button"
                   aria-label={full ? "Exit full screen" : "Full screen"}
@@ -836,6 +821,20 @@ export function CityBoard(props: {
                   </button>
                 ))}
               </div>
+              )}
+              {full && statsOpen && (
+                <div className="absolute top-[max(4.5rem,calc(env(safe-area-inset-top)+4rem))] right-2 bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))] z-10 w-[min(30rem,calc(100%-1rem))] overflow-y-auto rounded-2xl shadow-2xl">
+                  <button
+                    type="button"
+                    onClick={() => setStatsOpen(false)}
+                    aria-label="Close City Stats"
+                    className="absolute top-3 right-3 z-10 flex size-9 items-center justify-center rounded-lg bg-raised text-muted hover:bg-line"
+                  >
+                    ×
+                  </button>
+                  <CityStatsPanel stats={stats} />
+                </div>
+              )}
             </div>
           <CityStatsPanel stats={stats} />
         </div>

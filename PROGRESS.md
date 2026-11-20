@@ -319,6 +319,21 @@ _Last updated: 2026-11-25_
 - Migration `20261125000200_catalog.sql` (applied live). 12 pgTAP tests (`catalog.test.sql`, 229 total; upgrade tests follow
   the longer ladder); unit tests 47.
 
+### 20. Map controls, full-screen page, road polish, drag to place (2026-11-26)
+- **Shop page removed** (`/shop` redirects to `/city`; the build menu has everything). Bottom tabs: City, Tasks, Focus, Stats.
+- **Full screen is its own page** (`/play`, outside the game layout: only the map, fixed to the window), so it opens the same way
+  every time on phones; ⛶ goes there, ✕ Exit back to `/city`. City data loading is shared (`city/load.tsx`).
+- In full screen: **📊 Stats** opens City Stats over the map; the zoom/rotate buttons are gone (drag, scroll, pinch instead).
+- **Computer**: click and drag moves the map, the **mouse wheel zooms** (no more Ctrl + wheel), right-drag rotates.
+- **Drag to place**: while placing or moving, press on the preview and drag it tile by tile (the map doesn't pan meanwhile;
+  a second finger cancels); a tap on the preview doesn't move it.
+- **Roads**: 2-lane and 4-lane share the same asphalt and curbs (the darker 4-lane looked like a block); dirt is a light gravel;
+  curbs/sidewalks are wider and **people walk on the sidewalk**. **Roads can't run side by side** (no 2×2 block of road tiles;
+  crossings and corners are fine; existing ones stay): `buy_tiles` raises `roads_side_by_side`, the preview bar explains it.
+- **Airport is 4×4** (none were built at 3×3).
+- The "Now facing the … road" message after Rotate is gone.
+- Migration `20261125000300_no_side_by_side_roads.sql` (applied live). 5 pgTAP tests (`road_spacing.test.sql`, 234 total).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

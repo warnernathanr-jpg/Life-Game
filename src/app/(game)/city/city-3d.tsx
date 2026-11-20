@@ -35,6 +35,8 @@ export type City3DProps = {
   onStrokeChange: (tiles: Tile[] | null) => void;
   /** A building preview held at this tile (waiting for Confirm) instead of following the pointer. */
   ghostAt?: Tile | null;
+  /** Called while the held preview is dragged to another spot (top-left tile). */
+  onGhostMove?: (t: Tile) => void;
   /** Painted tiles waiting for Confirm (shown highlighted). */
   previewTiles?: Tile[];
   previewOk?: boolean;
@@ -53,6 +55,9 @@ const isCoarse = () => typeof window !== "undefined" && window.matchMedia("(poin
  * so a phone's scrolling never competes with the 3D view.
  */
 const motion = { on: true };
+
+/** True while a building preview is being dragged (the map must not pan meanwhile). */
+const gesture = { ghostDrag: false };
 
 function MotionGate() {
   const { gl, invalidate } = useThree();
@@ -154,6 +159,21 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
   const [stroke, setStroke] = useState<{ start: Tile; end: Tile; pointer: number } | null>(null);
   // Only one finger draws: a second finger (pinch/zoom) cancels the stroke, and nothing is drawn until all fingers lift.
   const multiTouch = useRef(false);
+  // Dragging the held preview: grab it anywhere on its footprint and it follows the finger / mouse, tile by tile.
+  const ghostDrag = useRef<{ pointer: number; ox: number; oy: number; moved: boolean } | null>(null);
+  const getScene = useThree((st) => st.get);
+  const setControlsEnabled = useCallback(
+    (on: boolean) => {
+      const c = getScene().controls as unknown as { enabled: boolean } | null;
+      if (c) c.enabled = on;
+    },
+    [getScene],
+  );
+  const endGhostDrag = useCallback(() => {
+    ghostDrag.current = null;
+    gesture.ghostDrag = false;
+    setControlsEnabled(true);
+  }, [setControlsEnabled]);
   const gl = useThree((st) => st.gl);
   const onStrokeChangeRef = useRef(props.onStrokeChange);
   useLayoutEffect(() => {
@@ -167,6 +187,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
           multiTouch.current = true;
           setStroke(null);
           onStrokeChangeRef.current(null);
+          if (ghostDrag.current) endGhostDrag();
         }
       } else if (e.touches.length === 0) {
         multiTouch.current = false;
@@ -180,7 +201,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
       el.removeEventListener("touchend", onTouch);
       el.removeEventListener("touchcancel", onTouch);
     };
-  }, [gl]);
+  }, [gl, endGhostDrag]);
   const strokeTiles = useMemo(() => (stroke ? strokePath(stroke.start, stroke.end) : null), [stroke]);
 
   const tileFrom = useCallback(
@@ -198,6 +219,15 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
     e.stopPropagation();
     const t = tileFrom(e);
     if (t && (t.x !== hover?.x || t.y !== hover?.y)) setHover(t);
+    const g = ghostDrag.current;
+    if (g && e.pointerId === g.pointer && t && props.ghostAt) {
+      const next = { x: t.x - g.ox, y: t.y - g.oy };
+      if (next.x !== props.ghostAt.x || next.y !== props.ghostAt.y) {
+        g.moved = true;
+        props.onGhostMove?.(next);
+      }
+      return;
+    }
     if (stroke && e.pointerId === stroke.pointer && t && (t.x !== stroke.end.x || t.y !== stroke.end.y)) {
       const next = { ...stroke, end: t };
       setStroke(next);
@@ -207,6 +237,17 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
 
   function onDown(e: ThreeEvent<PointerEvent>) {
     e.stopPropagation();
+    if (input === "point" && e.button === 0 && props.ghostAt && props.ghostDims && !multiTouch.current) {
+      const t = tileFrom(e);
+      const a = props.ghostAt;
+      if (t && t.x >= a.x && t.x < a.x + props.ghostDims.w && t.y >= a.y && t.y < a.y + props.ghostDims.h) {
+        ghostDrag.current = { pointer: e.pointerId, ox: t.x - a.x, oy: t.y - a.y, moved: false };
+        gesture.ghostDrag = true;
+        setControlsEnabled(false);
+        (e.target as Element | null)?.setPointerCapture?.(e.pointerId);
+      }
+      return;
+    }
     if (input !== "stroke" || e.button !== 0 || stroke || multiTouch.current) return;
     const t = tileFrom(e);
     if (!t) return;
@@ -215,8 +256,15 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
     props.onStrokeChange([t]);
   }
 
+  // A tap on the held preview itself doesn't move it.
+  const tappedGhost = useRef(false);
   function onUp(e: ThreeEvent<PointerEvent>) {
     e.stopPropagation();
+    if (ghostDrag.current && e.pointerId === ghostDrag.current.pointer) {
+      tappedGhost.current = true;
+      endGhostDrag();
+      return;
+    }
     if (!stroke || e.pointerId !== stroke.pointer || multiTouch.current) return;
     const tiles = strokePath(stroke.start, stroke.end);
     setStroke(null);
@@ -227,6 +275,10 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
   function onClick(e: ThreeEvent<MouseEvent>) {
     e.stopPropagation();
     if (input !== "point" || e.delta > 6) return; // a drag that moved the camera, not a tap
+    if (tappedGhost.current) {
+      tappedGhost.current = false;
+      return;
+    }
     // Prefer the building actually hit (tall buildings hide the ground behind them).
     const lotId = e.intersections.map((i) => lotIdOf(i.object)).find(Boolean);
     const lot = lotId ? lots.find((l) => l.id === lotId) : null;
@@ -397,7 +449,7 @@ function CameraRig({
       last = e.touches.length === 1 && paintingRef.current ? null : read(e);
     };
     const onMove = (e: TouchEvent) => {
-      if (e.touches.length === 1 && paintingRef.current) return; // drawing a road/trees/water stroke
+      if (e.touches.length === 1 && (paintingRef.current || gesture.ghostDrag)) return; // drawing, or dragging a preview
       const now = read(e);
       if (!last || last.n !== now.n) {
         last = now;
@@ -535,12 +587,12 @@ function Ground({ size }: { size: number }) {
 
 const ROAD_PARTS = {
   asphalt: mat("#4b5563"),
-  asphaltDark: mat("#374151"),
+  asphaltDark: mat("#4b5563"), // same asphalt as 2-lane roads, so the two join cleanly
   curb: mat("#d1d5db"),
   line: mat("#facc15"),
   white: mat("#f1f5f9"),
-  dirt: mat("#a07a52"),
-  rut: mat("#7a5a3a"),
+  dirt: mat("#9a8f7d"), // packed gravel, close to the asphalt's tone so roads of different kinds blend
+  rut: mat("#857a69"),
 };
 
 type RoadVariant = "dirt" | "two" | "four";
@@ -559,11 +611,11 @@ function Roads({ tiles, roads, variant }: { tiles: Lot[]; roads: Set<string>; va
     const ruts: THREE.Matrix4[] = [];
     const m = (x: number, y: number, z: number, sx: number, sy: number, sz: number) =>
       new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(sx, sy, sz));
-    const C = 0.12; // curb width
+    const C = 0.14; // curb / sidewalk width
     for (const t of tiles) {
       const cx = t.x + 0.5;
       const cz = t.y + 0.5;
-      surface.push(m(cx, variant === "dirt" ? 0.01 : 0.015, cz, 1, variant === "dirt" ? 0.02 : 0.03, 1));
+      surface.push(m(cx, 0.015, cz, 1, 0.03, 1));
       const s = roadShape(t.x, t.y, roads);
       const arms = [s.n && [0, -1], s.s && [0, 1], s.w && [-1, 0], s.e && [1, 0]].filter(Boolean) as number[][];
       // A strip from the centre toward an arm, offset sideways by `off` (perpendicular to the arm).
@@ -574,7 +626,7 @@ function Roads({ tiles, roads, variant }: { tiles: Lot[]; roads: Set<string>; va
       if (variant === "dirt") {
         // Two wheel ruts along each arm (a lone tile gets a short pair).
         const list = arms.length ? arms : [[1, 0], [-1, 0]];
-        for (const [ax, az] of list) for (const off of [-0.15, 0.15]) strip(ruts, ax, az, off, 0.5, 0.06, 0.022);
+        for (const [ax, az] of list) for (const off of [-0.15, 0.15]) strip(ruts, ax, az, off, 0.5, 0.06, 0.032);
         continue;
       }
       // Curbs on sides without a neighboring road; corner posts always (junctions read cleanly).

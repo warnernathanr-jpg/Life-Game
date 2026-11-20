@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/today", destination: "/tasks", permanent: false },
       { source: "/coins", destination: "/stats", permanent: false },
+      // The Shop page was folded into the city's build menu.
+      { source: "/shop", destination: "/city", permanent: false },
     ];
   },
   cacheComponents: true,

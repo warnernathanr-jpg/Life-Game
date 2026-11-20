@@ -9,6 +9,8 @@ const MESSAGES: Record<string, string> = {
   unknown_building: "That building doesn't exist.",
   locked: "That building is still locked. Finish more tasks in its life area.",
   lot_taken: "That spot is taken or outside your land.",
+  roads_side_by_side: "Roads can't run side by side. Leave a tile between them, or join them at a crossing.",
+  cant_move: "That can't be moved.",
   not_enough_coins: "Not enough coins yet. Finish some tasks!",
   building_not_found: "That building is gone.",
   max_size: "Your city is already as big as it can get.",

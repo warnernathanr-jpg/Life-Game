@@ -112,7 +112,7 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
     const dx = b.x - a.x;
     const dz = b.y - a.y;
     // Keep right: cars in their lane, people on the sidewalk by the curb.
-    const side = trip.mode === "car" ? 0.2 : 0.38;
+    const side = trip.mode === "car" ? 0.2 : 0.43; // walkers on the sidewalk by the curb
     out.set(a.x + 0.5 + dx * f - dz * side, 0, a.y + 0.5 + dz * f + dx * side);
     return Math.atan2(dx, dz);
   };
@@ -201,7 +201,7 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
       if (!g) continue;
       const heading = placeOnPath(s.trip, t, v);
       g.visible = true;
-      g.position.set(v.x, isCar ? 0.03 : 0.03 + Math.abs(Math.sin(t * 9 + c.seed)) * 0.012, v.z);
+      g.position.set(v.x, isCar ? 0.03 : 0.065 + Math.abs(Math.sin(t * 9 + c.seed)) * 0.012, v.z); // walkers stand on the sidewalk
       g.rotation.y = heading;
       const list = isCar ? owners.car : owners.walk;
       if (list[slot] !== c.id) {

@@ -22,10 +22,10 @@ select results_eq($$ select built from public.buy_tiles('avenue', '[[1,0]]') $$,
 select results_eq($$ select built from public.buy_tiles('tree', '[[0,1],[1,1],[2,1],[0,2],[1,2],[5,5]]') $$, $$ values (6) $$, 'six trees');
 select lives_ok($$ select * from public.buy_building('cottage', 0, 1) $$, 'a house can go on a tree tile');
 select is((select count(*)::int from public.placed_buildings where type_id = 'tree' and x = 0 and y = 1), 0, 'the tree under the house is gone');
-select results_eq($$ select built, cost from public.buy_tiles('road', '[[1,1],[2,1]]') $$, $$ values (2, 10::bigint) $$, 'a road over trees: 5 each');
-select is((select count(*)::int from public.placed_buildings where type_id = 'tree' and y = 1), 0, 'trees under the road are gone');
+select results_eq($$ select built, cost from public.buy_tiles('road', '[[1,2],[2,2]]') $$, $$ values (2, 10::bigint) $$, 'a road over trees: 5 each');
+select is((select count(*)::int from public.placed_buildings where type_id = 'tree' and y = 2 and x = 1), 0, 'the tree under the road is gone');
 select lives_ok($$ select public.move_building((select id from public.placed_buildings where type_id = 'cottage'), 0, 2) $$, 'moving onto a tree works');
-select is((select count(*)::int from public.placed_buildings where type_id = 'tree'), 2, 'only the untouched trees are left (1,2 and 5,5)');
+select is((select count(*)::int from public.placed_buildings where type_id = 'tree'), 3, 'only the untouched trees are left (1,1, 2,1 and 5,5)');
 
 select * from finish();
 rollback;

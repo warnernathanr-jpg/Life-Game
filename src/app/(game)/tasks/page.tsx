@@ -70,7 +70,7 @@ async function TasksPageContent() {
             <span aria-hidden>🪙</span> {formatCoins(earnedToday)}
           </p>
           <p className="mt-2 text-xs text-muted">Easy 10 · Medium 25 · Hard 50 · Epic 100. No daily limit.</p>
-          <Link href="/shop" className="btn-secondary mt-3 w-full">🛒 Spend in the shop</Link>
+          <Link href="/city" className="btn-secondary mt-3 w-full">🏙️ Build in your city</Link>
         </section>
 
         <section className="card" aria-labelledby="unlocks">

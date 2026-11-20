@@ -248,7 +248,7 @@ export function SelectedPanel({
           {type.id === "bridge" ? "Take down (back to water)" : `Demolish (+${formatCoins(sellRefund(lot.price_paid))})`}
         </button>
       </div>
-      <button type="button" className="link mt-3 text-sm" onClick={onClose}>Back to the shop</button>
+      <button type="button" className="link mt-3 text-sm" onClick={onClose}>Back to building</button>
     </section>
   );
 }

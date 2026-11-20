@@ -7,7 +7,6 @@ export const NAV = [
   { href: "/city", label: "City", icon: "🏙️" },
   { href: "/tasks", label: "Tasks", icon: "✅" },
   { href: "/focus", label: "Focus", icon: "⏱️" },
-  { href: "/shop", label: "Shop", icon: "🛒" },
   { href: "/stats", label: "Stats", icon: "📊" },
 ];
 

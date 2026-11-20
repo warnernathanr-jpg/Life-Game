@@ -510,8 +510,9 @@ const MODELS: Record<string, Maker> = {
       <B p={[0.8, 0.3, 0.36]} s={[0.12, 0.12, 0.02]} c="#2563eb" />
     </>
   ),
+  // Drawn for 3x3 and stretched to its 4x4 lot.
   airport: (p) => (
-    <>
+    <group scale={[4 / 3, 1, 4 / 3]}>
       <B p={[0, 0, 0]} s={[2.94, 0.02, 2.94]} c="#86efac" />
       <B p={[0, 0.02, -0.75]} s={[2.9, 0.01, 0.55]} c="#374151" />
       {Array.from({ length: 8 }, (_, i) => (
@@ -529,7 +530,7 @@ const MODELS: Record<string, Maker> = {
         <B p={[0, 0.12, -0.3]} s={[0.28, 0.02, 0.1]} c="#f8fafc" />
         <B p={[0, 0.16, -0.32]} s={[0.02, 0.14, 0.1]} c={p.accent} />
       </group>
-    </>
+    </group>
   ),
 
   // ---------------- Landmarks ----------------
