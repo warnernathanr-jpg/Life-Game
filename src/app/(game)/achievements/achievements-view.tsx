@@ -56,9 +56,10 @@ export function AchievementsView({ earned, timeline, tz }: { earned: EarnedBadge
           <p className="text-sm text-muted">{count} of {ACHIEVEMENTS.length} earned</p>
         </div>
         {toCollect.coins > 0 && (
-          <div className="mt-2">
-            <CollectButton coins={toCollect.coins} badges={toCollect.badges} />
-          </div>
+          <p className="mt-2 rounded-lg bg-coin/15 px-3 py-2 text-sm">
+            <span className="font-semibold text-coin">{formatCoins(toCollect.coins)} coins</span> waiting on {toCollect.badges} badge
+            {toCollect.badges === 1 ? "" : "s"}. Tap Collect on each one.
+          </p>
         )}
         <div className="mt-2 h-1.5 rounded-full bg-raised" aria-hidden>
           <div className="h-full rounded-full bg-coin" style={{ width: `${(count / ACHIEVEMENTS.length) * 100}%` }} />
@@ -78,10 +79,14 @@ export function AchievementsView({ earned, timeline, tz }: { earned: EarnedBadge
                     </span>
                     <p className={`mt-2 text-sm font-semibold break-words ${got ? "" : "text-muted"}`}>{a.title}</p>
                     <p className="text-xs break-words text-muted">{a.description}</p>
-                    <p className={`mt-1 flex items-center gap-1 text-[11px] font-semibold ${got && !got.claimed_at ? "text-coin" : "text-muted"}`}>
-                      <Coins className="size-3" aria-hidden />
-                      {got ? (got.claimed_at ? `${formatCoins(a.coins)} collected` : `${formatCoins(a.coins)} to collect`) : `${formatCoins(a.coins)} coins`}
-                    </p>
+                    {got && !got.claimed_at ? (
+                      <CollectButton id={a.id} coins={a.coins} />
+                    ) : (
+                      <p className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-muted">
+                        <Coins className="size-3" aria-hidden />
+                        {got ? `${formatCoins(a.coins)} collected` : `${formatCoins(a.coins)} coins`}
+                      </p>
+                    )}
                     {got && <p className="text-[11px] text-coin">Earned {date(got.achieved_at)}</p>}
                     <span className="sr-only">{got ? "Earned" : "Not earned yet"}</span>
                   </li>

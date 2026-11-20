@@ -878,6 +878,11 @@ _Last updated: 2026-11-28_
 - Migration `20261128130000_achievement_rewards.sql` (applied live). 8 pgTAP tests (`achievement_rewards.test.sql`, 373 total).
 - Times of day (Morning / Afternoon / Night) are labels only: any of them can be checked off at any time that day.
 
+- **One badge at a time** (2026-11-28): achievement coins can't be collected all at once any more. Each earned badge on the
+  Achievements page has its own **Collect N** button (`claim_achievement(id)`, which replaces `claim_achievements()`; migration
+  `20261128140000_claim_one_achievement.sql`, applied live; refuses a badge already collected, not earned, or someone else's). The
+  Stats card says "N coins waiting on M badges" with **Collect them** linking to Achievements. 9 pgTAP tests (374 total).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

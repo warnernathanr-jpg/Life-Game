@@ -265,7 +265,7 @@ export type Database = {
       sync_achievements: { Args: Record<string, never>; Returns: number };
       mark_achievements_seen: { Args: Record<string, never>; Returns: undefined };
       my_achievement_coins: { Args: Record<string, never>; Returns: { badges: number; coins: number }[] };
-      claim_achievements: { Args: Record<string, never>; Returns: { coins: number; balance: number }[] };
+      claim_achievement: { Args: { p_id: string }; Returns: { coins: number; balance: number }[] };
       my_timeline: { Args: Record<string, never>; Returns: { at: string; kind: string; title: string; detail: string | null }[] };
       shift_city: { Args: { p_dx: number; p_dy: number }; Returns: undefined };
       my_progress: { Args: Record<string, never>; Returns: ProgressRow[] };

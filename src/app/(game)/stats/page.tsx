@@ -3,7 +3,6 @@ import { Award, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ACHIEVEMENTS, coinsToCollect } from "@/lib/achievements";
-import { CollectButton } from "../achievements/collect-button";
 import { requireUser } from "@/lib/auth";
 import { formatCoins } from "@/lib/game";
 import { addDays, isHabit, rateWords, summarizeHabit } from "@/lib/habits";
@@ -105,8 +104,13 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
       </Link>
       {toCollect.coins > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-          <p className="text-sm">You have coins waiting from your badges.</p>
-          <CollectButton coins={toCollect.coins} badges={toCollect.badges} />
+          <p className="text-sm">
+            <span className="font-semibold text-coin">{formatCoins(toCollect.coins)} coins</span> waiting on {toCollect.badges} badge
+            {toCollect.badges === 1 ? "" : "s"}.
+          </p>
+          <Link href="/achievements" className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-coin px-3 py-1 text-sm font-bold text-on-coin">
+            Collect them
+          </Link>
         </div>
       )}
       </div>

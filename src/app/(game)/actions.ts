@@ -1,6 +1,7 @@
 "use server";
 
 import { isIconName } from "@/lib/task-icons";
+import { ACHIEVEMENT_BY_ID } from "@/lib/achievements";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
@@ -359,10 +360,11 @@ export async function claimReward(reward: "home_screen" | "notifications" | "tut
   return { ok: true, coins: data.coins };
 }
 
-/** Collect the coins of every earned badge not collected yet. */
-export async function claimAchievements(): Promise<ActionResult<{ coins: number }>> {
+/** Collect one earned badge's coins (each badge is collected on its own). */
+export async function claimAchievement(id: string): Promise<ActionResult<{ coins: number }>> {
+  if (!ACHIEVEMENT_BY_ID.has(id)) return { ok: false, error: gameError(null) };
   const { supabase } = await requireUser();
-  const { data, error } = await supabase.rpc("claim_achievements").single();
+  const { data, error } = await supabase.rpc("claim_achievement", { p_id: id }).single();
   if (error || !data) return { ok: false, error: gameError(error) };
   refresh();
   return { ok: true, coins: data.coins };

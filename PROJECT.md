@@ -27,7 +27,7 @@
 
 - **Coins are integers** and only change through the Postgres functions (`complete_task`, `undo_task`,
   `buy_building`, `sell_building`, `buy_roads`, `buy_tiles`, `sell_buildings`, `buy_land`, `upgrade_building`,
-  `complete_focus`, `claim_reward`, `claim_achievements`). Every change is a row in the append-only `coin_ledger`; the balance
+  `complete_focus`, `claim_reward`, `claim_achievement`). Every change is a row in the append-only `coin_ledger`; the balance
   is the sum. Users can't insert, update or delete the ledger, completions or placed buildings directly.
 - **Game rules live in the database** (rewards, daily cap, unlocks, lot overlap, land prices). `src/lib/game.ts`
   mirrors the numbers for display only; keep both in sync and covered by tests.
