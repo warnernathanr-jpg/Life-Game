@@ -813,19 +813,11 @@ const MODELS: Record<string, Maker> = {
   ),
   amusement_park: (p) => (
     <>
-      {/* 4x4 amusement park: a paved plaza with flower beds, an arched entrance on the road side, the Ferris wheel, a roller
+      {/* 4x4 amusement park: a paved plaza, an arched entrance on the road side, the Ferris wheel, a roller
           coaster on white supports, a carousel and a snack stand. */}
       <B p={[0, 0, 0]} s={[3.94, 0.02, 3.94]} c="#86efac" />
       <B p={[-0.2, 0.02, 0.5]} s={[3.2, 0.012, 2.6]} c="#e7dcc8" />
       <B p={[0, 0.02, 1.55]} s={[0.7, 0.012, 0.9]} c="#e7dcc8" />
-      {[[-1.75, 1.7], [1.75, 1.7]].map(([x, z], i) => (
-        <group key={i} position={[x, 0.02, z]}>
-          <B p={[0, 0, 0]} s={[0.36, 0.05, 0.36]} c="#78350f" />
-          {[[-0.09, -0.09], [0.09, -0.09], [-0.09, 0.09], [0.09, 0.09], [0, 0]].map(([fx, fz], j) => (
-            <B key={j} p={[fx, 0.05, fz]} s={[0.07, 0.06, 0.07]} c={["#f472b6", "#facc15", "#f87171", "#c084fc", "#fb923c"][j]} />
-          ))}
-        </group>
-      ))}
       <ParkGate c={p.roof} accent={p.accent} />
       {/* Ferris wheel (back left). */}
       <group position={[-1.1, 0, -1.1]}>
