@@ -9,6 +9,7 @@ import { InviteRedeemer } from "@/components/invite";
 import { GettingStarted } from "@/components/getting-started";
 import { tutorialActive } from "@/lib/tutorial";
 import { todoToday } from "@/lib/tasks";
+import { coinsToCollect } from "@/lib/achievements";
 
 export default function GameLayout({ children }: LayoutProps<"/">) {
   return (
@@ -61,10 +62,13 @@ const tasksDue = cache(async () => {
   const rows = data ?? [];
   return rows.length ? todoToday(rows, rows[0].today).length : 0;
 });
+// Badges with coins to collect, split by where they're shown: the City page or the Achievements page (Stats).
 const achievementCoins = cache(async () => {
   const { supabase } = await requireUser();
-  const { data } = await supabase.rpc("my_achievement_coins").maybeSingle();
-  return data ?? { badges: 0, coins: 0 };
+  await supabase.rpc("sync_achievements");
+  const { data } = await supabase.from("achievements").select("id, claimed_at");
+  const rows = data ?? [];
+  return { city: coinsToCollect(rows, "city"), page: coinsToCollect(rows, "page") };
 });
 
 function Count({ n, tone, label }: { n: number; tone: "red" | "gold"; label: string }) {
@@ -87,8 +91,8 @@ async function TasksDue() {
   return <Count n={n} tone="red" label={`${n} task${n === 1 ? "" : "s"} to do today`} />;
 }
 
-async function CoinsToCollect() {
-  const { badges, coins } = await achievementCoins();
+async function CoinsToCollect({ where }: { where: "city" | "page" }) {
+  const { badges, coins } = (await achievementCoins())[where];
   return <Count n={badges} tone="gold" label={`${formatCoins(coins)} coins to collect from achievements`} />;
 }
 
@@ -101,7 +105,12 @@ function navBadges() {
     ),
     "/stats": (
       <Suspense fallback={null}>
-        <CoinsToCollect />
+        <CoinsToCollect where="page" />
+      </Suspense>
+    ),
+    "/city": (
+      <Suspense fallback={null}>
+        <CoinsToCollect where="city" />
       </Suspense>
     ),
   };

@@ -924,6 +924,16 @@ _Last updated: 2026-11-28_
   **Build here** only works when it's green. (Before, a tap jumped the preview to the nearest free spot and dragging skipped spots
   that didn't fit.)
 
+### 66. City achievements on the City page, no doubled rewards (2026-11-28)
+- **Removed doubles**: "Growing town" (100 people) and "Big city" (1,000 people) duplicated the City page's population milestones,
+  and "Settled in" the Getting started reward; they're gone with any saved copies (migration `20261128180000_no_double_badges.sql`,
+  applied live: `achievement_reward()` / `achievement_times()` without them).
+- **City achievements** (Groundbreaker, Master builder, Room to grow, Good neighbor, Spread the word) moved from the Achievements
+  page to a **City achievements** card at the bottom of the City page (`city/city-achievements.tsx`, same badges with Collect
+  buttons, `BadgeGrid` shared from `achievements-view.tsx`). The **City** tab gets a gold count of city badges with coins to
+  collect; the **Stats** tab count and the Stats / Achievements pages only cover the other badges (`coinsToCollect(rows,
+  "city" | "page")`, `CITY_GROUP`).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

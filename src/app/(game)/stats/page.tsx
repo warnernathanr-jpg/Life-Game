@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Award, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
-import { ACHIEVEMENTS, coinsToCollect } from "@/lib/achievements";
+import { ACHIEVEMENTS, CITY_GROUP, coinsToCollect } from "@/lib/achievements";
 import { requireUser } from "@/lib/auth";
 import { formatCoins } from "@/lib/game";
 import { addDays, isHabit, rateWords, summarizeHabit } from "@/lib/habits";
@@ -30,8 +30,9 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
   const nextMonth = mM === 12 ? `${mY + 1}-01` : `${mY}-${String(mM + 1).padStart(2, "0")}`;
   await supabase.rpc("sync_achievements"); // save any badge earned since the last visit
   const { data: badges } = await supabase.from("achievements").select("id, seen, claimed_at");
-  const toCollect = coinsToCollect(badges ?? []);
-  const badgeCount = (badges ?? []).filter((b) => ACHIEVEMENTS.some((a) => a.id === b.id)).length;
+  const toCollect = coinsToCollect(badges ?? [], "page");
+  const pageBadges = ACHIEVEMENTS.filter((a) => a.group !== CITY_GROUP);
+  const badgeCount = (badges ?? []).filter((b) => ACHIEVEMENTS.some((a) => a.id === b.id && a.group !== CITY_GROUP)).length;
   const newBadges = (badges ?? []).filter((b) => !b.seen).length;
   const [{ data: completions }, { count: allCheckoffs }, { data: focus }, { data: monthDone }] = await Promise.all([
     supabase.from("task_completions").select("task_id, local_day").or(NOT_GRANT).gte("local_day", addDays(today, -35)),
@@ -97,7 +98,7 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
             {newBadges > 0 && <span className="ml-2 rounded-full bg-coin px-2 py-0.5 text-xs font-bold text-on-coin">{newBadges} new</span>}
           </span>
           <span className="block text-sm text-muted">
-            {badgeCount} of {ACHIEVEMENTS.length} badges earned · each badge pays coins · see your timeline
+            {badgeCount} of {pageBadges.length} badges earned · each badge pays coins · see your timeline
           </span>
         </span>
         <ChevronRight className="size-5 shrink-0 text-muted" aria-hidden />

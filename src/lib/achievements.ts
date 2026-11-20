@@ -2,6 +2,9 @@
 
 export type AchievementGroup = "Tasks & habits" | "Goals & focus" | "Your city";
 
+/** "Your city" badges are shown on the City page; the others on the Achievements page. */
+export const CITY_GROUP: AchievementGroup = "Your city";
+
 export type Achievement = {
   id: string;
   title: string;
@@ -26,21 +29,25 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "goals_5", title: "Dream big", description: "Reach 5 goals.", group: "Goals & focus", icon: "trophy", coins: 300 },
   { id: "focus_first", title: "In the zone", description: "Finish a focus session.", group: "Goals & focus", icon: "timer", coins: 25 },
   { id: "focus_10h", title: "Deep focus", description: "Focus for 10 hours in total.", group: "Goals & focus", icon: "hourglass", coins: 200 },
-  { id: "getting_started", title: "Settled in", description: "Finish Getting started.", group: "Your city", icon: "sprout", coins: 25 },
   { id: "build_first", title: "Groundbreaker", description: "Put up your first building.", group: "Your city", icon: "hammer", coins: 25 },
   { id: "build_50", title: "Master builder", description: "Have 50 buildings in your city.", group: "Your city", icon: "building-2", coins: 200 },
-  { id: "people_100", title: "Growing town", description: "Reach 100 people.", group: "Your city", icon: "users", coins: 100 },
-  { id: "people_1000", title: "Big city", description: "Reach 1,000 people.", group: "Your city", icon: "landmark", coins: 400 },
   { id: "land_first", title: "Room to grow", description: "Buy more land.", group: "Your city", icon: "land-plot", coins: 50 },
   { id: "invite_shared", title: "Spread the word", description: "Share your invite link with a friend.", group: "Your city", icon: "share-2", coins: 50 },
   { id: "first_friend", title: "Good neighbor", description: "Become friends with another city.", group: "Your city", icon: "handshake", coins: 100 },
 ];
 
 export const ACHIEVEMENT_BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
-export const ACHIEVEMENT_GROUPS: AchievementGroup[] = ["Tasks & habits", "Goals & focus", "Your city"];
+export const ACHIEVEMENT_GROUPS: AchievementGroup[] = ["Tasks & habits", "Goals & focus"];
 
 /** Coins waiting to be collected from earned badges (not collected yet). */
-export function coinsToCollect(earned: { id: string; claimed_at: string | null }[]): { badges: number; coins: number } {
-  const open = earned.filter((e) => !e.claimed_at && (ACHIEVEMENT_BY_ID.get(e.id)?.coins ?? 0) > 0);
+export function coinsToCollect(
+  earned: { id: string; claimed_at: string | null }[],
+  where: "city" | "page" | "all" = "all",
+): { badges: number; coins: number } {
+  const inPlace = (id: string) => {
+    const g = ACHIEVEMENT_BY_ID.get(id)?.group;
+    return where === "all" || (where === "city" ? g === CITY_GROUP : g !== CITY_GROUP);
+  };
+  const open = earned.filter((e) => !e.claimed_at && inPlace(e.id) && (ACHIEVEMENT_BY_ID.get(e.id)?.coins ?? 0) > 0);
   return { badges: open.length, coins: open.reduce((sum, e) => sum + (ACHIEVEMENT_BY_ID.get(e.id)?.coins ?? 0), 0) };
 }
