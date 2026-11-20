@@ -944,6 +944,11 @@ _Last updated: 2026-11-28_
   school's door sat at the same depth as the wall (flickering) with a window over it; the door stands proud of the wall and the
   lower window row leaves the middle free.
 
+- **Moving rides; taller fire trucks** (2026-11-28): the amusement park's Ferris wheel turns slowly (0.22 rad/s) with its cabins
+  hanging upright, and every 25 seconds the coaster train leaves the station, runs the whole track in 9 s (slow start and end) and
+  parks again; parks are out of step with each other (`park-rides.tsx`, `coasterCurve()` shared with the track in
+  `models-catalog.tsx`; both pause with the city). Fire trucks are as tall as buses (0.21).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

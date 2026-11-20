@@ -17,6 +17,7 @@ import { LotDressing } from "./lot-dressing";
 import { Airplanes } from "./airplanes";
 import { ZooAnimals } from "./zoo-animals";
 import { FountainWater } from "./fountain-water";
+import { ParkRides } from "./park-rides";
 import { palFor } from "./models-catalog";
 import { DayNight, GRID_MAT, StreetLights } from "./day-night";
 import { RoadControls } from "./road-controls";
@@ -375,6 +376,11 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
                   <LotDressing typeId={b.type_id} seed={colorSeed(b.id)} lw={sideways ? b.h : b.w} ld={sideways ? b.w : b.h} />
                   {b.type_id === "zoo" && <ZooAnimals seed={colorSeed(b.id)} />}
                   {b.type_id === "fountain" && <FountainWater moving={isMoving} />}
+                  {b.type_id === "amusement_park" &&
+                    (() => {
+                      const pal = palFor(b.color_seed ?? colorSeed(b.id));
+                      return <ParkRides moving={isMoving} seed={colorSeed(b.id)} colors={[pal.accent, pal.awning, pal.roof, "#facc15"]} />;
+                    })()}
                   {b.type_id === "airport" && <Airplanes seed={colorSeed(b.id)} accent={palFor(b.color_seed ?? colorSeed(b.id)).accent} />}
                 </group>
               );

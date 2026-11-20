@@ -43,26 +43,26 @@ function ParkGate({ c, accent }: { c: string; accent: string }) {
   );
 }
 
-/** A roller coaster: one continuous red track over two hills on white supports, with a small three-car train. */
+/** The coaster track's shape (the train in park-rides.tsx follows the same curve). */
+export function coasterCurve(): THREE.CatmullRomCurve3 {
+  return new THREE.CatmullRomCurve3(
+    [
+      [0.35, 0.28, 0.35], [0.9, 0.3, 0.55], [1.55, 0.4, 0.35], [1.75, 0.95, -0.25], [1.55, 1.15, -0.85],
+      [1.05, 0.45, -1.5], [0.55, 0.75, -1.65], [0.25, 0.95, -1.15], [0.45, 0.45, -0.55], [0.25, 0.32, -0.05],
+    ].map(([x, y, z]) => new THREE.Vector3(x, y, z)),
+    true,
+    "catmullrom",
+    0.5,
+  );
+}
+
+/** A roller coaster track: one continuous red tube over two hills on white supports, with a station. */
 function Coaster() {
-  const { tube, posts, train } = useMemo(() => {
-    const curve = new THREE.CatmullRomCurve3(
-      [
-        [0.35, 0.28, 0.35], [0.9, 0.3, 0.55], [1.55, 0.4, 0.35], [1.75, 0.95, -0.25], [1.55, 1.15, -0.85],
-        [1.05, 0.45, -1.5], [0.55, 0.75, -1.65], [0.25, 0.95, -1.15], [0.45, 0.45, -0.55], [0.25, 0.32, -0.05],
-      ].map(([x, y, z]) => new THREE.Vector3(x, y, z)),
-      true,
-      "catmullrom",
-      0.5,
-    );
+  const { tube, posts } = useMemo(() => {
+    const curve = coasterCurve();
     const tube = new THREE.TubeGeometry(curve, 160, 0.028, 6, true);
     const posts = Array.from({ length: 26 }, (_, i) => curve.getPointAt(i / 26));
-    const train = [0.04, 0.075, 0.11].map((t) => {
-      const at = curve.getPointAt(t);
-      const ahead = curve.getTangentAt(t);
-      return { at, yaw: Math.atan2(ahead.x, ahead.z), pitch: -Math.asin(Math.max(-1, Math.min(1, ahead.y))) };
-    });
-    return { tube, posts, train };
+    return { tube, posts };
   }, []);
   return (
     <group>
@@ -74,14 +74,6 @@ function Coaster() {
           <boxGeometry />
           <meshStandardMaterial color="#f1f5f9" />
         </mesh>
-      ))}
-      {train.map((car, i) => (
-        <group key={i} position={[car.at.x, car.at.y + 0.05, car.at.z]} rotation={[car.pitch, car.yaw, 0]} rotation-order="YXZ">
-          <mesh castShadow scale={[0.1, 0.06, 0.13]}>
-            <boxGeometry />
-            <meshStandardMaterial color={["#facc15", "#2563eb", "#facc15"][i]} />
-          </mesh>
-        </group>
       ))}
       {/* Station platform where the ride starts. */}
       <B p={[0.75, 0.02, 0.62]} s={[0.6, 0.18, 0.22]} c="#f8fafc" />
@@ -824,27 +816,7 @@ const MODELS: Record<string, Maker> = {
       <B p={[-0.2, 0.02, 0.5]} s={[3.2, 0.012, 2.6]} c="#e7dcc8" />
       <B p={[0, 0.02, 1.55]} s={[0.7, 0.012, 0.9]} c="#e7dcc8" />
       <ParkGate c={p.roof} accent={p.accent} />
-      {/* Ferris wheel (back left). */}
-      <group position={[-1.1, 0, -1.1]}>
-        <B p={[-0.12, 0.02, 0]} s={[0.04, 1.0, 0.04]} c="#94a3b8" />
-        <B p={[0.12, 0.02, 0]} s={[0.04, 1.0, 0.04]} c="#94a3b8" />
-        <mesh position={[0, 1.0, 0]} rotation-y={Math.PI / 2} castShadow>
-          <torusGeometry args={[0.65, 0.025, 6, 32]} />
-          <meshStandardMaterial color={p.accent} />
-        </mesh>
-        {Array.from({ length: 8 }, (_, i) => {
-          const a = (i / 8) * Math.PI * 2;
-          return (
-            <group key={i}>
-              <mesh position={[0, 1.0 + Math.sin(a) * 0.32, Math.cos(a) * 0.32]} rotation-x={-a} scale={[0.015, 0.015, 0.65]}>
-                <boxGeometry />
-                <meshStandardMaterial color="#cbd5e1" />
-              </mesh>
-              <B p={[0, 1.0 + Math.sin(a) * 0.65 - 0.08, Math.cos(a) * 0.65]} s={[0.12, 0.1, 0.1]} c={[p.awning, p.roof, "#facc15", p.accent][i % 4]} />
-            </group>
-          );
-        })}
-      </group>
+      {/* The Ferris wheel and the coaster train move (park-rides.tsx). */}
       <Coaster />
       <Carousel roof={p.roof} trim={p.awning} />
       <SnackStand position={[0.95, 0.02, 1.25]} stripe={p.accent} />

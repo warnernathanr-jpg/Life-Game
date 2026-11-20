@@ -338,14 +338,16 @@ export function Emergencies({
         </group>
       </group>
 
-      {/* Fire truck: long red body, white cab roof, a ladder and a red/white light bar */}
+      {/* Fire truck (as tall as a bus): long red body, windshield, white roof over the cab, a ladder on top, a white stripe and
+          a red/white light bar */}
       <group ref={truck} visible={false}>
-        <mesh geometry={BOX} material={TRUCK_RED} position={[0, 0.06, 0]} scale={[0.17, 0.1, 0.4]} castShadow />
-        <mesh geometry={BOX} material={GLASS} position={[0, 0.1, 0.15]} scale={[0.15, 0.05, 0.08]} />
-        <mesh geometry={BOX} material={POLICE_WHITE} position={[0, 0.115, 0.15]} scale={[0.16, 0.012, 0.09]} />
-        <mesh geometry={BOX} material={CHROME} position={[0, 0.125, -0.06]} scale={[0.07, 0.02, 0.28]} />
-        <mesh geometry={BOX} material={POLICE_WHITE} position={[0, 0.06, 0]} scale={[0.172, 0.015, 0.4]} />
-        {lightBar(0, RED_LIGHT, WHITE_LIGHT, 0.13, 0.15)}
+        <mesh geometry={BOX} material={TRUCK_RED} position={[0, 0.115, 0]} scale={[0.17, 0.21, 0.42]} castShadow />
+        <mesh geometry={BOX} material={GLASS} position={[0, 0.17, 0.17]} scale={[0.15, 0.07, 0.09]} />
+        <mesh geometry={BOX} material={GLASS} position={[0, 0.17, 0.211]} scale={[0.14, 0.07, 0.005]} />
+        <mesh geometry={BOX} material={POLICE_WHITE} position={[0, 0.225, 0.15]} scale={[0.172, 0.012, 0.12]} />
+        <mesh geometry={BOX} material={CHROME} position={[0, 0.235, -0.06]} scale={[0.07, 0.02, 0.3]} />
+        <mesh geometry={BOX} material={POLICE_WHITE} position={[0, 0.08, 0]} scale={[0.174, 0.02, 0.42]} />
+        {lightBar(0, RED_LIGHT, WHITE_LIGHT, 0.235, 0.15)}
       </group>
 
       {/* Police car: black and white with a red/blue light bar */}
