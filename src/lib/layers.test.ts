@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cityExposure, computeLayer, layerColor } from "./layers";
+import { cityExposure, transportFactor, computeLayer, layerColor } from "./layers";
 import type { Lot } from "./roads";
 import { citizensFrom, placesFrom } from "./sim";
 
@@ -74,5 +74,11 @@ describe("map layers", () => {
     const far = [...road, L("h", "cottage", 11, 4), L("f", "factory", 0, 0, 2, 2)];
     expect(cityExposure(near, types, extras(near)).pollution).toBeGreaterThan(0.5);
     expect(cityExposure(far, types, extras(far)).pollution).toBe(0);
+  });
+
+  it("transport buildings lighten traffic; none makes it busier", () => {
+    expect(transportFactor([])).toBeCloseTo(1.4);
+    expect(transportFactor([{ type_id: "bus_station" }, { type_id: "parking" }])).toBeCloseTo(1.06);
+    expect(transportFactor(Array.from({ length: 9 }, () => ({ type_id: "bus_station" })).concat([{ type_id: "airport" }, { type_id: "parking" }, { type_id: "parking" }]))).toBe(0.55);
   });
 });

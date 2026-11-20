@@ -45,6 +45,19 @@ function windows(n: number, width: number, y: number, z: number, size = 0.1, col
   });
 }
 
+/** A row of windows on a side wall (facing ±x): n windows spread over `length` along z, centred on zc. */
+function sideWindows(n: number, length: number, y: number, x: number, zc = 0, size = 0.1, color = WIN): ReactNode[] {
+  return Array.from({ length: n }, (_, i) => {
+    const z = zc + (n === 1 ? 0 : -length / 2 + (length * i) / (n - 1));
+    return <B key={`s${x}-${y}-${i}`} p={[x, y, z]} s={[0.02, size, size]} c={color} />;
+  });
+}
+
+/** Windows on the front and back walls, skipping the middle (for a door). */
+function windowsAround(n: number, width: number, y: number, z: number, size = 0.1, color = WIN, gap = 0.2): ReactNode[] {
+  return windows(n, width, y, z, size, color).filter((_, i) => Math.abs(n === 1 ? 0 : -width / 2 + (width * i) / (n - 1)) > gap);
+}
+
 /** A flat sign above a door. */
 function sign(y: number, z: number, w: number, c: string) {
   return <B p={[0, y, z]} s={[w, 0.08, 0.03]} c={c} />;
@@ -224,7 +237,14 @@ const MODELS: Record<string, Maker> = {
       <B p={[0, 0, 0]} s={[1.9, 0.02, 1.9]} c={CONCRETE} />
       <B p={[0, 0, -0.15]} s={[1.5, 0.3, 1.3]} c={p.trim} />
       <B p={[0, 0.3, -0.25]} s={[1.2, 1.9, 0.9]} c={p.wall} />
-      {Array.from({ length: 7 }, (_, row) => windows(5, 0.9, 0.45 + row * 0.24, 0.201, 0.1, p.glass))}
+      {Array.from({ length: 7 }, (_, row) => (
+        <group key={row}>
+          {windows(5, 0.9, 0.45 + row * 0.24, 0.201, 0.1, p.glass)}
+          {windows(5, 0.9, 0.45 + row * 0.24, -0.701, 0.1, p.glass)}
+          {sideWindows(3, 0.6, 0.45 + row * 0.24, 0.601, -0.25, 0.1, p.glass)}
+          {sideWindows(3, 0.6, 0.45 + row * 0.24, -0.601, -0.25, 0.1, p.glass)}
+        </group>
+      ))}
       <B p={[0, 2.2, -0.25]} s={[1.26, 0.06, 0.96]} c={p.roof} />
       <B p={[0, 1.9, 0.21]} s={[0.6, 0.14, 0.03]} c={p.accent} />
       <B p={[0, 0, 0.51]} s={[0.24, 0.24, 0.02]} c={WIN} />
@@ -396,7 +416,37 @@ const MODELS: Record<string, Maker> = {
       <Roof p={[1.0, 0.6, 0.3]} s={[0.7, 0.26, 1.5]} c={p.roof} />
       <B p={[0, 0.8, -0.9]} s={[0.4, 0.8, 0.4]} c="#e7d3b8" />
       <Roof p={[0, 1.6, -0.9]} s={[0.5, 0.45, 0.5]} c={p.roof} />
-      {windows(9, 2.0, 0.35, -0.499, 0.11)}
+      {/* Main hall: two rows of windows front and back, a door with steps in the middle of the front. */}
+      {[0.18, 0.52].map((y) => (
+        <group key={y}>
+          {windowsAround(9, 2.0, y, -0.499, 0.11, WIN, 0.2)}
+          {windows(9, 2.0, y, -1.301, 0.11)}
+          {sideWindows(3, 0.5, y, 1.201, -0.9, 0.11)}
+          {sideWindows(3, 0.5, y, -1.201, -0.9, 0.11)}
+        </group>
+      ))}
+      <B p={[0, 0, -0.49]} s={[0.3, 0.42, 0.02]} c={p.door} />
+      <B p={[0, 0.42, -0.485]} s={[0.38, 0.05, 0.04]} c={p.trim} />
+      <B p={[0, 0.02, -0.42]} s={[0.5, 0.04, 0.14]} c={CONCRETE} />
+      {/* Tower windows */}
+      {windows(1, 0, 1.15, -0.699, 0.12)}
+      {/* Wings: windows on the courtyard side, the outer side and the front, a door at each wing's front. */}
+      {[0.16, 0.42].map((y) => (
+        <group key={y}>
+          {sideWindows(4, 1.1, y, 0.699, 0.35, 0.1)}
+          {sideWindows(4, 1.1, y, -0.699, 0.35, 0.1)}
+          {sideWindows(4, 1.1, y, 1.301, 0.35, 0.1)}
+          {sideWindows(4, 1.1, y, -1.301, 0.35, 0.1)}
+          {[-1.0, 1.0].map((x) => (
+            <group key={x} position={[x, 0, 0]}>
+              {y > 0.3 ? windows(2, 0.3, y, 1.001, 0.1) : null}
+            </group>
+          ))}
+        </group>
+      ))}
+      {[-1.0, 1.0].map((x) => (
+        <B key={x} p={[x, 0, 1.0]} s={[0.16, 0.28, 0.02]} c={p.door} />
+      ))}
       <Tree p={[-0.4, 0, 0.7]} s={1.1} crown="#16a34a" />
       <Tree p={[0.4, 0, 0.9]} s={1.0} crown="#22c55e" />
     </>

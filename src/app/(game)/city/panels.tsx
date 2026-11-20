@@ -482,7 +482,7 @@ export function CityStatsPanel({ stats, onClose }: { stats: CityStats; onClose?:
         <div className="rounded-2xl bg-raised p-4">
           <h3 className="font-semibold">Why happiness is {stats.happiness}%</h3>
           <ul className="mt-2 space-y-1.5">
-            <li className="flex justify-between gap-3 text-muted"><span>Starting mood</span><span className="tabular-nums">50</span></li>
+            <li className="flex justify-between gap-3 text-muted"><span>Starting mood</span><span className="tabular-nums">40</span></li>
             {stats.factors.filter((f) => f.value !== 0).map((f) => (
               <li key={f.key} className="flex justify-between gap-3">
                 <span>{f.label}</span>

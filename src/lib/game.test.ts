@@ -64,14 +64,14 @@ describe("milestones", () => {
 describe("cityStats", () => {
   it("empty city", () => {
     const s = cityStats([], types);
-    expect(s).toMatchObject({ population: 0, jobs: 0, happiness: 50, score: 0, healthLabel: "Empty land" });
+    expect(s).toMatchObject({ population: 0, jobs: 0, happiness: 40, score: 0, healthLabel: "Empty land" });
     expect(s.tips[0]).toMatch(/Start with/);
   });
   it("adds population, jobs and happiness from road-connected buildings", () => {
     const s = cityStats([...street, at("cottage", 0, 1), at("cottage", 1, 1), at("shop", 2, 1), at("park", 3, 1)], types);
     expect(s).toMatchObject({ population: 8, jobs: 4, employed: 4, unemployed: 4, roads: 10, buildings: 4, unconnected: 0 });
-    // 50 + park 5 + shop 1 − unemployment (4 of 8 → 10) = 46
-    expect(s.happiness).toBe(46);
+    // 40 + services 13 (park 5 for 8 people: 30 × (1 − e^(−5/8.4))) + shop 1 − unemployment (4 of 8 → 10) = 44
+    expect(s.happiness).toBe(44);
     expect(s.factors.find((f) => f.key === "unemployment")?.tip).toMatch(/4 residents can't find work/);
   });
   it("buildings away from a road don't count", () => {

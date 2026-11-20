@@ -208,7 +208,7 @@ export const NATURE_CAP = 10;
  * City stats from the placed buildings (display only; nothing here changes coins).
  * Only buildings that touch a road count. Landscape tiles (trees, water) never need a road.
  * - Population = homes' residents; jobs = shops, industry and services. Staffing = population / jobs (max 1).
- * - Happiness = 50 plus the factors below, clamped to 0–100.
+ * - Happiness = 40 plus the factors below, clamped to 0–100.
  * - Health = average of happiness, employment balance, road connections and service coverage.
  */
 export function cityStats(
@@ -216,7 +216,7 @@ export function cityStats(
   types: BuildingTypeRow[],
   progress: ProgressRow | null = null,
   /** What residents live with (from layers.ts cityExposure): pollution at their homes and traffic jams, 0 … 1. */
-  exposure?: { pollution: number; traffic: number },
+  exposure?: { pollution: number; traffic: number; safety?: number; transport?: number },
 ): CityStats {
   const byId = new Map(types.map((t) => [t.id, t]));
   const lots = placed.map((b) => ({ ...b, ...footprint(byId.get(b.type_id), b.rotated) }));
@@ -277,14 +277,15 @@ export function cityStats(
   add({
     key: "services",
     label: "Parks & services",
-    value: servicePoints,
+    // Diminishing returns: a bigger city needs more parks and services for the same lift (up to +30).
+    value: Math.round(30 * (1 - Math.exp(-servicePoints / (6 + population * 0.3)))),
     tip: servicePoints === 0 && population > 0 ? "Build a park, school or clinic. Services make residents happier." : undefined,
   });
   if (shopsHappy !== 0) add({ key: "shops", label: "Shops & cafés", value: shopsHappy });
   if (homesHappy !== 0) add({ key: "homes", label: "Housing", value: homesHappy });
   if (exposure) {
     // Pollution and noise where people actually live (spreads from industry, gas stations and the airport).
-    const p = -Math.round(exposure.pollution * 20);
+    const p = -Math.round(exposure.pollution * 25);
     if (p !== 0) {
       add({
         key: "pollution",
@@ -293,14 +294,30 @@ export function cityStats(
         tip: p <= -4 ? "Homes are close to factories or other noisy places. Move industry away, or put parks and trees between." : undefined,
       });
     }
-    const jam = -Math.round(exposure.traffic * 12);
+    const jam = -Math.round(exposure.traffic * 20);
     if (jam !== 0) {
       add({
         key: "traffic",
         label: "Traffic jams",
         value: jam,
-        tip: jam <= -3 ? "Roads are jammed. Upgrade busy roads to 2- or 4-lane, and add more routes so traffic spreads out." : undefined,
+        tip:
+          jam <= -3
+            ? (exposure.transport ?? 1) > 1
+              ? "Roads are jammed and everyone drives. Build a bus station or parking garage, put stop signs or traffic lights on busy crossings, and upgrade busy roads."
+              : "Roads are jammed. Put stop signs or traffic lights on busy crossings, upgrade busy roads to 2- or 4-lane, and add more routes."
+            : undefined,
       });
+    }
+    if (population >= 10 && exposure.safety !== undefined) {
+      const unsafe = -Math.round(Math.max(0, exposure.safety - 0.2) * 16);
+      if (unsafe !== 0) {
+        add({
+          key: "safety",
+          label: "Fire & crime risk",
+          value: unsafe,
+          tip: unsafe <= -3 ? "Homes are far from a fire station or police station. Build them near your neighborhoods." : undefined,
+        });
+      }
     }
   } else if (pollution !== 0) {
     add({
@@ -359,7 +376,7 @@ export function cityStats(
     });
   }
 
-  const happiness = Math.max(0, Math.min(100, 50 + factors.reduce((sum, f) => sum + f.value, 0)));
+  const happiness = Math.max(0, Math.min(100, 40 + factors.reduce((sum, f) => sum + f.value, 0)));
   factors.sort((x, y) => Math.abs(y.value) - Math.abs(x.value));
 
   const employmentHealth = population + jobs === 0 ? 100 : Math.round((Math.min(population, jobs) / Math.max(population, jobs)) * 100);

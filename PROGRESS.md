@@ -771,6 +771,21 @@ _Last updated: 2026-11-28_
   burglar at …"), cleared after 9 seconds. `pointAt()` is exported from `traffic.tsx` for the vehicles.
 - The build menu and building cards show the size of 1x1 buildings too (not of roads, landscaping or road controls).
 
+### 57. Happiness is harder; transport and road controls ease traffic; hotel and university windows (2026-11-28)
+- **Happiness** starts at 40 (was 50). Parks & services have diminishing returns that grow with the city (up to +30:
+  `30 × (1 − e^(−points / (6 + 0.3 × population)))`). Pollution near homes up to −25 (was −20), traffic jams up to −20 (was −12).
+  New **Fire & crime risk** (towns of 10+ people): homes far from a fire station or police station, up to about −13
+  (`cityExposure().safety`, from the Fire hazard and Crime layers).
+- **Transport** (`transportFactor()` in `layers.ts`): traffic is 1.4× busier with no transport buildings; each bus station (−0.22,
+  up to 3), parking garage (−0.12, up to 3), gas station (−0.06, up to 2) and the airport (−0.15) brings it down, to 0.55× at best.
+  The traffic-jam tip says to build them when there are none.
+- **Stop signs and traffic lights** count for more: a crossing carries 0.4× a plain road with no control, 1.2× with a stop sign and
+  2.4× with a light (was 0.5 / 0.75 / 1.5); roads within 2 tiles of one carry 1.3× / 1.6× more; and every control calms the city's
+  jam score by 5% (up to 40%).
+- **Hotel**: windows on all four sides of the tower. **University**: two rows of windows on the main hall (front, back, sides),
+  a front door with a lintel and steps, a tower window, windows on both sides and fronts of the wings and a door on each wing.
+- 1 more unit test (`transportFactor`); the happiness test follows the new numbers.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

@@ -25,7 +25,18 @@ type TypeInfo = Pick<BuildingTypeRow, "id" | "category" | "population" | "jobs">
 
 const ROAD_CAPACITY: Record<string, number> = { dirt_road: 3, road: 8, bridge: 8, avenue: 20 };
 /** How much traffic a crossing lets through, compared with a plain stretch of the same road. */
-export const CROSSING_FACTOR: Record<"none" | "stop" | "light", number> = { none: 0.5, stop: 0.75, light: 1.5 };
+export const CROSSING_FACTOR: Record<"none" | "stop" | "light", number> = { none: 0.4, stop: 1.2, light: 2.4 };
+/** Roads within 2 tiles of a stop sign / traffic light carry this much more (traffic is kept moving). */
+const CALMED: Record<"stop" | "light", number> = { stop: 1.3, light: 1.6 };
+
+/**
+ * How busy the roads are because of how people get around: 1.4 with no transport buildings (everyone drives); bus
+ * stations, parking garages, gas stations and an airport bring it down (to 0.55 at best).
+ */
+export function transportFactor(lots: Pick<Lot, "type_id">[]): number {
+  const n = (id: string) => lots.filter((l) => l.type_id === id).length;
+  return Math.max(0.55, 1.4 - 0.22 * Math.min(3, n("bus_station")) - 0.12 * Math.min(3, n("parking")) - 0.06 * Math.min(2, n("gas_station")) - 0.15 * Math.min(1, n("airport")));
+}
 const POLLUTERS: Record<string, number> = {
   factory: 1, distribution: 0.8, workshop: 0.6, small_factory: 0.5, warehouse: 0.4, gas_station: 0.35, airport: 1,
 };
@@ -145,6 +156,8 @@ export function computeLayer(
         if (!path) continue;
         for (const t of path) counts.set(key(t.x, t.y), (counts.get(key(t.x, t.y)) ?? 0) + 2); // there and back
       }
+      const busy = transportFactor(lots);
+      const controlled = [...(extras.controls ?? [])].map(([k, kind]) => ({ ...(([x, y]) => ({ x, y }))(k.split(",").map(Number)), kind }));
       // Crossings are bottlenecks: without a stop sign or light cars squeeze through one at a time; a stop sign helps a
       // little, a traffic light lets a whole direction go at once. A jammed crossing backs up onto the roads next to it.
       const roadTiles = lots.filter((l) => isRoadType(l.type_id));
@@ -154,8 +167,13 @@ export function computeLayer(
         let n = 0;
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (roads.has(key(l.x + dx, l.y + dy))) n++;
         const control = extras.controls?.get(k);
-        const factor = n >= 3 ? CROSSING_FACTOR[control ?? "none"] : 1;
-        value.set(k, (counts.get(k) ?? 0) / ((ROAD_CAPACITY[l.type_id] ?? 8) * factor) / 2);
+        let factor = n >= 3 ? CROSSING_FACTOR[control ?? "none"] : 1;
+        if (n < 3 || control) {
+          let calm = 1;
+          for (const c of controlled) if (Math.abs(c.x - l.x) + Math.abs(c.y - l.y) <= 2) calm = Math.max(calm, CALMED[c.kind]);
+          factor *= calm;
+        }
+        value.set(k, ((counts.get(k) ?? 0) * busy) / ((ROAD_CAPACITY[l.type_id] ?? 8) * factor) / 2);
       }
       const spilled = new Map(value);
       for (const l of roadTiles) {
@@ -190,7 +208,7 @@ export function cityExposure(
   lots: Lot[],
   types: TypeInfo[],
   extras: { size: number; places: Place[]; citizens: Citizen[]; connected: Set<string>; controls?: Map<string, "stop" | "light"> },
-): { pollution: number; traffic: number } {
+): { pollution: number; traffic: number; safety: number; transport: number } {
   const typeOf = new Map(types.map((t) => [t.id, t]));
   const pollutionAt = new Map(computeLayer("pollution", lots, types, extras).map((c) => [key(c.x, c.y), c.v]));
   let weight = 0;
@@ -203,10 +221,27 @@ export function cityExposure(
     pollution += (sum / (l.w * l.h)) * pop;
     weight += pop;
   }
+  // Fire and crime risk at homes (weighted by residents): no fire station or police nearby makes people uneasy.
+  const risk = (layer: "fire" | "crime") => {
+    const at = new Map(computeLayer(layer, lots, types, extras).map((c) => [key(c.x, c.y), c.v]));
+    let sum = 0;
+    let w = 0;
+    for (const l of lots) {
+      const pop = typeOf.get(l.type_id)?.population ?? 0;
+      if (pop <= 0 || !extras.connected.has(l.id)) continue;
+      sum += (at.get(key(l.x, l.y)) ?? 0) * pop;
+      w += pop;
+    }
+    return w > 0 ? sum / w : 0;
+  };
   const roads = computeLayer("traffic", lots, types, extras).map((c) => c.v).filter((v) => v > 0);
   const busy = roads.reduce((s, v) => s + v, 0);
+  // Stop signs and lights keep traffic flowing city-wide (a little for each, up to 40% calmer).
+  const calm = Math.max(0.6, 1 - 0.05 * (extras.controls?.size ?? 0));
   return {
     pollution: weight > 0 ? clamp(pollution / weight) : 0,
-    traffic: busy > 0 ? clamp(roads.reduce((s, v) => s + v * v, 0) / busy) : 0,
+    traffic: busy > 0 ? clamp((roads.reduce((s, v) => s + v * v, 0) / busy) * calm) : 0,
+    safety: clamp((risk("fire") + risk("crime")) / 2),
+    transport: transportFactor(lots),
   };
 }
