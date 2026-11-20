@@ -470,7 +470,7 @@ function CameraRig({
         const len = THREE.MathUtils.clamp(offset.length() * (last.dist / now.dist), c.minDistance, c.maxDistance);
         const sph = new THREE.Spherical().setFromVector3(offset);
         sph.radius = len;
-        sph.theta -= now.angle - last.angle;
+        sph.theta += now.angle - last.angle; // same direction as the fingers turn
         sph.phi = THREE.MathUtils.clamp(sph.phi - (now.y - last.y) * 0.006, c.minPolarAngle, c.maxPolarAngle);
         camera.position.copy(c.target).add(new THREE.Vector3().setFromSpherical(sph));
         camera.lookAt(c.target);
