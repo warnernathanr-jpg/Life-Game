@@ -46,11 +46,15 @@ export function CalendarBar({ view, date, today }: { view: CalendarView; date: s
           <ChevronRight className="size-5" aria-hidden />
         </Link>
       </div>
-      {!showingToday && (
-        <Link href={href(view, today, today)} className="btn-secondary min-h-9 px-3 py-1 text-sm">
-          Today
-        </Link>
-      )}
+      {/* Always takes its space (hidden while today is shown) so nothing shifts when flipping days. */}
+      <Link
+        href={href(view, today, today)}
+        aria-hidden={showingToday || undefined}
+        tabIndex={showingToday ? -1 : undefined}
+        className={`btn-secondary min-h-9 px-3 py-1 text-sm ${showingToday ? "invisible" : ""}`}
+      >
+        Today
+      </Link>
     </nav>
   );
 }
@@ -72,7 +76,9 @@ function TaskLine({ task, day, today, done, compact }: { task: MyTaskRow; day: s
       >
         {isDone ? <Check className={compact ? "size-3" : "size-4"} strokeWidth={3} aria-hidden /> : null}
       </span>
-      {!compact && (
+      {compact ? (
+        <ItemIcon icon={task.icon} area={task.area} className="size-3.5 shrink-0 text-accent-text" aria-hidden />
+      ) : (
         <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-raised text-accent-text">
           <ItemIcon icon={task.icon} area={task.area} className="size-4" />
         </span>
@@ -124,6 +130,8 @@ export function DayView({ tasks, date, today, done }: { tasks: MyTaskRow[]; date
   const note = date > today ? "Planned for this day. You can check tasks off on the day itself." : "What was on this day.";
   return (
     <div className="space-y-4">
+      {/* Same spacer as today's list (where check-off messages appear), so the cards line up when flipping days. */}
+      <p className="min-h-5 text-sm" aria-hidden />
       <section className="card p-0 sm:p-0" aria-labelledby="day-h">
         <h2 id="day-h" className="px-4 pt-4 font-semibold sm:px-5">{viewTitle("day", date)}</h2>
         <p className="px-4 text-xs text-muted sm:px-5">{note}</p>

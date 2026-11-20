@@ -66,9 +66,11 @@ async function TasksPageContent({ searchParams }: { searchParams: PageProps<"/ta
           <h1 className="text-2xl font-bold">
             {profile?.display_name ? `Hi, ${profile.display_name}` : "Today"}
           </h1>
-          <p className="text-sm text-muted">
+          <p className="truncate text-sm text-muted">
             {calendarOn
-              ? "Tap a day to see it on its own. Check tasks off on today's list."
+              ? view === "day"
+                ? "Check tasks off on today's list."
+                : "Tap a day to see it on its own."
               : todo.length === 0 && active.length > 0
               ? "Everything's done. Go build something!"
               : `${todo.length} to do · ${doneList.length} done`}

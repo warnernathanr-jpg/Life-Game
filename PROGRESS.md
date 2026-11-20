@@ -459,6 +459,15 @@ _Last updated: 2026-11-27_
 - Date fields (goal "Reach it by", task due date) can't spill out of their cards on iPhone Safari (global `.input[type=date]`
   rule; not testable here: no WebKit in the sandbox).
 
+### 33. Lot details, steadier Tasks calendar, icons (2026-11-27)
+- **Lot details** in 3D (`lot-dressing.tsx`, drawn in each building's own frame so the front faces its road, seeded by id):
+  houses get a driveway to the road (often with a parked car), bushes and a flower bed; townhouses and apartments a front
+  path and low planting; industry a concrete pad with yellow bay lines and bollards; small shops a paved forecourt with a
+  bench, planter and a lamp post / bike rack / sign / bin; big shops (which already have parking) lamp posts and planters.
+- **Tasks calendar**: flipping Today → Tomorrow no longer shifts the page (the Today button keeps its space, the subtitle stays
+  one line, and other days have the same status row as today's list). The **week view** shows each task's icon.
+- **Basketball Court** has its own basketball icon (Lucide's volleyball looked wrong).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

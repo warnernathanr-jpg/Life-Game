@@ -51,7 +51,6 @@ import {
   Truck,
   Users,
   UtensilsCrossed,
-  Volleyball,
   Warehouse,
   Waves,
   Flower2,
@@ -119,6 +118,14 @@ export const FourLaneRoadIcon = createLucideIcon("four-lane-road", [
   ["path", { d: "M6.25 3.5v3M6.25 10.5v3M6.25 17.5v3", key: "dl" }],
   ["path", { d: "M17.75 3.5v3M17.75 10.5v3M17.75 17.5v3", key: "dr" }],
 ]);
+/** Basketball: a ball with the classic seams (a cross plus two curves), so it doesn't read as a volleyball. */
+export const BasketballIcon = createLucideIcon("basketball", [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "ball" }],
+  ["path", { d: "M12 2v20", key: "v" }],
+  ["path", { d: "M2 12h20", key: "h" }],
+  ["path", { d: "M5 4.9c3.4 3.3 3.4 10.9 0 14.2", key: "l" }],
+  ["path", { d: "M19 4.9c-3.4 3.3-3.4 10.9 0 14.2", key: "r" }],
+]);
 /** Bridge: a road deck over water. */
 export const BridgeRoadIcon = createLucideIcon("bridge-road", [
   ["path", { d: "M2 10h20", key: "deck" }],
@@ -180,7 +187,7 @@ const BUILDING: Record<string, LucideIcon> = {
   library: BookOpen,
   // Recreation
   park: Trees,
-  court: Volleyball,
+  court: BasketballIcon,
   garden: Flower2,
   central_park: Trees,
   community: Users,

@@ -9,6 +9,7 @@ import { THEME_EVENT } from "@/lib/themes";
 import { AVENUE_TYPE, BRIDGE_TYPE, DIRT_ROAD_TYPE, effectiveFacing, isRoadType, FACING_ROTATION, key, rowJoins, roadSet, roadShape, ROAD_TYPE, strokePath, type Lot, type Tile } from "@/lib/roads";
 import { layerColor, type LayerCell } from "@/lib/layers";
 import { Traffic, type SimProps } from "./traffic";
+import { LotDressing } from "./lot-dressing";
 import { BOX, BuildingModel, CROWN, MODEL_HEIGHT, NoRoadMarker, OCTA, WorkerMarker, colorSeed, mat } from "./models";
 
 export type Preview = { tiles: Tile[]; ok: boolean; height?: number } | null;
@@ -334,9 +335,16 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
         {buildings.map((b) => (
           <group key={b.id} position={[b.x + b.w / 2, 0, b.y + b.h / 2]} userData={{ lotId: b.id }}>
             {/* Turn the model so its front (doors, awnings) faces the road. */}
-            <group rotation-y={FACING_ROTATION[effectiveFacing(b, roads)]}>
-              <BuildingModel typeId={b.type_id} seed={colorSeed(b.id)} join={joins.get(b.id)} />
-            </group>
+            {(() => {
+              const facing = effectiveFacing(b, roads);
+              const sideways = facing === "east" || facing === "west";
+              return (
+                <group rotation-y={FACING_ROTATION[facing]}>
+                  <BuildingModel typeId={b.type_id} seed={colorSeed(b.id)} join={joins.get(b.id)} />
+                  <LotDressing typeId={b.type_id} seed={colorSeed(b.id)} lw={sideways ? b.h : b.w} ld={sideways ? b.w : b.h} />
+                </group>
+              );
+            })()}
             {needsRoad.has(b.id) && <NoRoadMarker y={MODEL_HEIGHT[b.type_id] ?? 1} />}
             {understaffed.has(b.id) && <WorkerMarker y={MODEL_HEIGHT[b.type_id] ?? 1} />}
           </group>
