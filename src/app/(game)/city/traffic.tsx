@@ -61,6 +61,11 @@ const SPEED = { car: 2.2, walk: 0.6 };
 /** Game clock shared across remounts (so changing the city doesn't send everyone back to 7:15). */
 const clock = { t: START };
 
+/** Jump the game clock (minutes since the start of day 1), e.g. for previews of the city at night. */
+export function setGameClock(minutes: number) {
+  clock.t = minutes;
+}
+
 /** Game minutes still to go on a trip (for "arrives about"). */
 function minutesLeft(trip: Trip) {
   return (Math.max(0, trip.path.length - trip.u) / SPEED[trip.mode]) * SIM_MINUTES_PER_SECOND;

@@ -763,6 +763,7 @@ export function CityBoard(props: {
                 previewOk={draftPlan ? draftPlan.ok : true}
                 overlay={full ? layerCells : null}
                 sim={sim}
+                minutes={simClock}
               />
               {strokeInfo && (
                 <div

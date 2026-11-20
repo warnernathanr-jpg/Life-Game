@@ -475,6 +475,17 @@ _Last updated: 2026-11-27_
 - Migration `20261127010000_building_colors.sql` (applied live). 6 pgTAP tests (`building_colors.test.sql`, 273 total).
 - Renaming citizens was dropped at the owner's request.
 
+### 35. Day and night, street lights (2026-11-27)
+- The 3D city follows the city clock (`day-night.tsx`): the sun crosses from east to west, light turns golden around 6:40 AM
+  and 6:40 PM, dims to a blue night after 7:30 PM and comes back from 5:30 AM; the sky fades from the theme's sky to a night
+  sky. After dark, house and shop **windows glow** (emissive window materials), glass towers glow softly, shop lamps light
+  up and the tile grid fades.
+- **Street lights** on 2-lane and 4-lane roads (every other tile of straight stretches and corners, alternating sides, not in
+  junctions, not on dirt roads or bridges), with soft pools of light on the road at night. No real night lights are
+  added (cheap on phones).
+- The selected-building panel lists Colors → road options → Upgrade → who lives / works here → buttons.
+- `setGameClock()` in `traffic.tsx` jumps the clock (used to preview night).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

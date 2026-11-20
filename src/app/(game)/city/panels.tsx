@@ -244,30 +244,6 @@ export function SelectedPanel({
       )}
       <p className="mt-2 text-sm text-ink">{type.description}</p>
       <div className="mt-2"><Effects t={type} /></div>
-      {people && (
-        <div className="mt-4">
-          <h3 className="text-sm font-semibold">
-            {people.title} {people.list.length > 0 && <span className="font-normal text-muted">· {people.list.length}</span>}
-          </h3>
-          {people.list.length === 0 ? (
-            <p className="mt-1 text-xs text-muted">{people.empty}</p>
-          ) : (
-            <ul className="mt-1.5 max-h-48 divide-y divide-line overflow-y-auto rounded-xl border border-line">
-              {people.list.map((p) => (
-                <li key={p.id}>
-                  <button type="button" onClick={() => onPerson?.(p.id)} className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-raised">
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium">{p.name}, {p.age}</span>
-                      <span className="block truncate text-xs text-muted">{p.line}</span>
-                    </span>
-                    <span className="shrink-0 text-xs text-accent-text">Find →</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
       {colors && (
         <div className="mt-4">
           <h3 className="text-sm font-semibold">Colors</h3>
@@ -337,6 +313,30 @@ export function SelectedPanel({
             <ArrowUp className="size-4" aria-hidden /> Upgrade · <CoinIcon className="size-4" /> {formatCoins(upgrade.cost)}
           </button>
           {upgrade.blocked && <p className="mt-1.5 text-xs text-muted">{upgrade.blocked}</p>}
+        </div>
+      )}
+      {people && (
+        <div className="mt-4">
+          <h3 className="text-sm font-semibold">
+            {people.title} {people.list.length > 0 && <span className="font-normal text-muted">· {people.list.length}</span>}
+          </h3>
+          {people.list.length === 0 ? (
+            <p className="mt-1 text-xs text-muted">{people.empty}</p>
+          ) : (
+            <ul className="mt-1.5 max-h-48 divide-y divide-line overflow-y-auto rounded-xl border border-line">
+              {people.list.map((p) => (
+                <li key={p.id}>
+                  <button type="button" onClick={() => onPerson?.(p.id)} className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-raised">
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{p.name}, {p.age}</span>
+                      <span className="block truncate text-xs text-muted">{p.line}</span>
+                    </span>
+                    <span className="shrink-0 text-xs text-accent-text">Find →</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
       <div className="mt-4 grid grid-cols-2 gap-2">

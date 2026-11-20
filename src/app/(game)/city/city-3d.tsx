@@ -5,11 +5,11 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber"
 import { forwardRef, useCallback, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { MapControls as MapControlsImpl } from "three-stdlib";
-import { THEME_EVENT } from "@/lib/themes";
 import { AVENUE_TYPE, BRIDGE_TYPE, DIRT_ROAD_TYPE, effectiveFacing, isRoadType, FACING_ROTATION, key, rowJoins, roadSet, roadShape, ROAD_TYPE, strokePath, type Lot, type Tile } from "@/lib/roads";
 import { layerColor, type LayerCell } from "@/lib/layers";
 import { Traffic, type SimProps } from "./traffic";
 import { LotDressing } from "./lot-dressing";
+import { DayNight, GRID_MAT, StreetLights } from "./day-night";
 import { BOX, BuildingModel, CROWN, MODEL_HEIGHT, NoRoadMarker, OCTA, WorkerMarker, colorSeed, mat } from "./models";
 
 export type Preview = { tiles: Tile[]; ok: boolean; height?: number } | null;
@@ -46,6 +46,8 @@ export type City3DProps = {
   overlay?: LayerCell[] | null;
   /** Citizens travelling around the city (cars and walkers), with pause and tap-to-inspect. */
   sim?: SimProps;
+  /** City clock (minutes since midnight) for daylight and night lights. */
+  minutes?: number;
 };
 
 export type City3DHandle = { zoom: (factor: number) => void; rotate: (radians: number) => void; reset: () => void };
@@ -112,29 +114,12 @@ const City3D = forwardRef<City3DHandle, City3DProps>(function City3D(props, ref)
       gl={{ antialias: true }}
       aria-label="3D city map"
     >
-      <ThemeSky />
       <MotionGate />
       <Scene {...props} handleRef={ref} />
     </Canvas>
   );
 });
 export default City3D;
-
-/** Sky color from the current theme (--t-sky); updates when the theme changes. */
-function ThemeSky() {
-  const { gl, invalidate } = useThree();
-  useLayoutEffect(() => {
-    function apply() {
-      const sky = getComputedStyle(document.documentElement).getPropertyValue("--t-sky").trim() || "#1b2a55";
-      gl.setClearColor(sky);
-      invalidate();
-    }
-    apply();
-    window.addEventListener(THEME_EVENT, apply);
-    return () => window.removeEventListener(THEME_EVENT, apply);
-  }, [gl, invalidate]);
-  return null;
-}
 
 function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle> }) {
   const { size, lots, needsRoad, understaffed, input } = props;
@@ -301,20 +286,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
   return (
     <>
       <CameraRig size={size} handleRef={props.handleRef} panEnabled={input === "point"} painting={input === "stroke"} />
-      <hemisphereLight args={["#e0f2fe", "#4d7c0f", 1.1]} />
-      <directionalLight
-        position={[size * 0.4 + 8, 18, size * 0.2 - 4]}
-        intensity={1.6}
-        castShadow
-        shadow-mapSize={isCoarse() ? [1024, 1024] : [2048, 2048]}
-        shadow-camera-left={-size}
-        shadow-camera-right={size}
-        shadow-camera-top={size}
-        shadow-camera-bottom={-size}
-        shadow-camera-far={80}
-        shadow-bias={-0.0005}
-        target-position={[size / 2, 0, size / 2]}
-      />
+      <DayNight minutes={props.minutes ?? 12 * 60} size={size} />
 
       <group
         onPointerMove={onMove}
@@ -329,6 +301,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
         <Roads tiles={roadTiles.four} roads={roads} variant="four" />
         <Water tiles={waterTiles} />
         <Bridges tiles={bridgeTiles} roads={roads} />
+        <StreetLights lots={lots} roads={roads} minutes={props.minutes ?? 12 * 60} />
         {props.sim && <Traffic sim={props.sim} roads={roads} />}
         {props.overlay && <LayerOverlay cells={props.overlay} byTile={byTile} />}
         <Wilds size={size} occupied={byTile} />
@@ -581,9 +554,7 @@ function Ground({ size }: { size: number }) {
         <meshStandardMaterial color="#9ccc65" />
       </mesh>
       {/* Grid lines never take taps (a line's hit area is a whole tile wide, so it would block cars and buildings). */}
-      <lineSegments geometry={lines} raycast={() => null}>
-        <lineBasicMaterial color="#7cb342" transparent opacity={0.55} />
-      </lineSegments>
+      <lineSegments geometry={lines} material={GRID_MAT} raycast={() => null} />
       {/* A low hedge marks the edge of your land */}
       {[
         [size / 2, -edge / 2, size + edge, edge],
