@@ -195,6 +195,7 @@ export function SelectedPanel({
   onClose,
   people,
   onPerson,
+  roadChange,
 }: {
   lot: Placed & { w: number; h: number };
   type?: BuildingTypeRow;
@@ -212,6 +213,11 @@ export function SelectedPanel({
   /** Residents, staff or students of this building (from the city simulation). */
   people?: { title: string; empty: string; list: { id: string; name: string; age: number; line: string }[] };
   onPerson?: (id: string) => void;
+  /** For a road tile: the other road kinds it can become, for this tile or its whole street. */
+  roadChange?: {
+    street: number;
+    options: { to: BuildingTypeRow; up: boolean; tileCost: number; streetCost: number; onTile: () => void; onStreet: () => void }[];
+  };
 }) {
   if (!type) return null;
   return (
@@ -256,6 +262,30 @@ export function SelectedPanel({
               ))}
             </ul>
           )}
+        </div>
+      )}
+      {roadChange && roadChange.options.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {roadChange.options.map((o) => (
+            <div key={o.to.id} className="rounded-xl border border-line bg-raised p-3">
+              <p className="text-sm font-semibold">
+                {o.up ? "Upgrade to" : "Change to"} <BuildingIcon id={o.to.id} /> {o.to.name}
+              </p>
+              <div className={`mt-2 grid gap-2 ${roadChange.street > 1 ? "grid-cols-2" : ""}`}>
+                <button type="button" className={`${o.up ? "btn-primary" : "btn-secondary"} flex-col gap-0 py-1.5 leading-tight`} disabled={pending} onClick={o.onTile}>
+                  <span>This tile</span>
+                  <span className="text-xs font-semibold"><CoinIcon className="size-3.5" /> {formatCoins(o.tileCost)}</span>
+                </button>
+                {roadChange.street > 1 && (
+                  <button type="button" className={`${o.up ? "btn-primary" : "btn-secondary"} flex-col gap-0 py-1.5 leading-tight`} disabled={pending} onClick={o.onStreet}>
+                    <span>Whole street ({roadChange.street})</span>
+                    <span className="text-xs font-semibold"><CoinIcon className="size-3.5" /> {formatCoins(o.streetCost)}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+          <p className="text-xs text-muted">You pay the new road&apos;s price per tile.</p>
         </div>
       )}
       {upgrade && (

@@ -3,7 +3,7 @@
 // Full-screen city: a bottom bar of tools and building groups; tapping a group opens a pop-up of its buildings
 // over the map.
 import { useState, type ReactNode } from "react";
-import { Lock } from "lucide-react";
+import { LandPlot, Lock } from "lucide-react";
 import { BuildingIcon, CoinIcon, GroupIcon } from "@/components/icons";
 import type { BuildingTypeRow, ProgressRow } from "@/lib/database.types";
 import { AREA_BY_ID, BUILD_GROUPS, buildGroupOf, formatCoins, pointsToUnlock, sizeText, type BuildGroupId } from "@/lib/game";
@@ -19,6 +19,7 @@ export function BuildOverlay({
   activeTool,
   onTool,
   onPick,
+  land,
 }: {
   types: BuildingTypeRow[];
   progress: ProgressRow | null;
@@ -29,6 +30,8 @@ export function BuildOverlay({
   activeTool: string | null;
   onTool: (id: string) => void;
   onPick: (t: BuildingTypeRow) => void;
+  /** Buy more land (hidden once the city is as big as it gets). */
+  land?: { price: number; onBuy: () => void };
 }) {
   const [open, setOpen] = useState<BuildGroupId | null>(null);
   const group = BUILD_GROUPS.find((g) => g.id === open);
@@ -137,6 +140,17 @@ export function BuildOverlay({
             }}
           />
         ))}
+        {land && (
+          <BarButton
+            icon={<LandPlot className="size-5" aria-hidden />}
+            label={`Land · ${formatCoins(land.price)}`}
+            active={false}
+            onClick={() => {
+              setOpen(null);
+              land.onBuy();
+            }}
+          />
+        )}
       </div>
     </div>
   );

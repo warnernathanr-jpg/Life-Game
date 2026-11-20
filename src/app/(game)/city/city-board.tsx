@@ -7,7 +7,7 @@ import { cityExposure, computeLayer, LAYERS, type LayerId } from "@/lib/layers";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
 import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, sellRefund } from "@/lib/game";
-import { BRIDGE_TYPE, connectedIds, isRoadType, key, nextFacing, roadSet, type Lot, type Tile } from "@/lib/roads";
+import { BRIDGE_TYPE, ROAD_TIERS, connectedIds, isRoadType, key, nextFacing, roadSet, streetOf, type Lot, type Tile } from "@/lib/roads";
 import { buyBuilding, buyLand, buyTiles, moveBuilding, sellBuilding, sellMany, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
 import { useConfirm } from "@/components/confirm";
@@ -454,8 +454,45 @@ export function CityBoard(props: {
     });
   }
 
+  /** Swap road tiles to another kind of road (paying the new kind's price per tile). */
+  async function changeRoad(tiles: Tile[], to: BuildingTypeRow) {
+    const cost = tiles.length * to.cost;
+    if (cost > balance) return say(`That costs ${formatCoins(cost)} coins. You have ${formatCoins(balance)}.`, "bad");
+    const ok = await confirm({
+      title: `Change ${tiles.length === 1 ? "this tile" : `${tiles.length} tiles`} to ${to.name}?`,
+      message: `It costs ${formatCoins(cost)} coins.`,
+      confirmLabel: "Change road",
+    });
+    if (!ok) return;
+    start(async () => {
+      const r = await buyTiles(to.id, tiles.map((t) => [t.x, t.y]));
+      if (!r.ok) return say(r.error, "bad");
+      say(`Changed ${r.built} tile${r.built === 1 ? "" : "s"} to ${to.name} for ${formatCoins(r.cost)} coins.`);
+      setMode({ kind: "idle" });
+    });
+  }
+  function roadChangeFor(lot: Lot) {
+    const tier = (ROAD_TIERS as readonly string[]).indexOf(lot.type_id);
+    if (tier < 0) return undefined;
+    const street = streetOf(lot, (x, y) => occupant.get(key(x, y))?.type_id);
+    const here = [{ x: lot.x, y: lot.y }];
+    const options = ROAD_TIERS.map((id, i) => ({ t: typeById.get(id), i }))
+      .filter((o): o is { t: BuildingTypeRow; i: number } => !!o.t && o.i !== tier)
+      .map(({ t, i }) => ({
+        to: t,
+        up: i > tier,
+        tileCost: t.cost,
+        streetCost: t.cost * street.length,
+        onTile: () => void changeRoad(here, t),
+        onStreet: () => void changeRoad(street, t),
+      }))
+      .sort((a, b) => Number(b.up) - Number(a.up));
+    return { street: street.length, options };
+  }
+
   async function expand() {
     const price = landPrice(props.landPurchases);
+    if (balance < price) return say(`More land costs ${formatCoins(price)} coins. You have ${formatCoins(balance)}.`, "bad");
     const ok = await confirm({
       title: `Buy more land for ${formatCoins(price)} coins?`,
       message: `Your city grows to ${size + 2}×${size + 2}.`,
@@ -605,8 +642,25 @@ export function CityBoard(props: {
         setCitizenId(id);
       }}
       onClose={() => setMode({ kind: "idle" })}
+      roadChange={roadChangeFor(selected)}
     />
   ) : null;
+
+  const clockPill = (className: string) => (
+    <div className={`flex items-center gap-1 rounded-full bg-surface/95 py-1 pr-1 pl-3 text-sm font-semibold text-ink shadow ring-1 ring-line ${className}`}>
+      <DayIcon t={simClock} />
+      <span className="tabular-nums" aria-label={`City time ${clockText(simClock)}`}>{clockText(simClock)}</span>
+      <button
+        type="button"
+        onClick={() => setPaused((p) => !p)}
+        aria-label={paused ? "Resume the city" : "Pause the city"}
+        title={paused ? "Resume" : "Pause (then tap a car or a person)"}
+        className={`ml-1 flex size-8 items-center justify-center rounded-full ${paused ? "bg-accent text-on-accent" : "bg-raised hover:bg-line"}`}
+      >
+        {paused ? <Play className="size-4" aria-hidden /> : <Pause className="size-4" aria-hidden />}
+      </button>
+    </div>
+  );
 
   function pick(t: BuildingTypeRow) {
     setMessage(null);
@@ -710,21 +764,7 @@ export function CityBoard(props: {
               {pending && (
                 <div className={`pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-ink shadow ${full ? "top-28" : "top-12"}`}>Saving…</div>
               )}
-              {citizens.length > 0 && (
-                <div className={`absolute left-2 flex items-center gap-1 rounded-full bg-surface/95 py-1 pr-1 pl-3 text-sm font-semibold text-ink shadow ring-1 ring-line ${full ? "top-[max(4.5rem,calc(env(safe-area-inset-top)+4rem))]" : "top-2"}`}>
-                  <DayIcon t={simClock} />
-                  <span className="tabular-nums" aria-label={`City time ${clockText(simClock)}`}>{clockText(simClock)}</span>
-                  <button
-                    type="button"
-                    onClick={() => setPaused((p) => !p)}
-                    aria-label={paused ? "Resume the city" : "Pause the city"}
-                    title={paused ? "Resume" : "Pause (then tap a car or a person)"}
-                    className={`ml-1 flex size-8 items-center justify-center rounded-full ${paused ? "bg-accent text-on-accent" : "bg-raised hover:bg-line"}`}
-                  >
-                    {paused ? <Play className="size-4" aria-hidden /> : <Pause className="size-4" aria-hidden />}
-                  </button>
-                </div>
-              )}
+              {citizens.length > 0 && !full && clockPill("absolute left-2 top-2")}
               {draftBar && (
                 <div
                   className={`absolute left-1/2 z-10 flex w-[min(26rem,calc(100%-1rem))] -translate-x-1/2 items-center gap-2 rounded-2xl bg-surface/95 p-2 pl-3 text-ink shadow-xl ring-1 ring-line backdrop-blur ${
@@ -777,24 +817,12 @@ export function CityBoard(props: {
                 </div>
               )}
               {full && (
-                <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+                <div className="absolute inset-x-0 top-0 flex flex-col gap-1.5 p-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+                <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 rounded-2xl bg-surface/95 px-3 py-1.5 shadow ring-1 ring-line backdrop-blur">
                     <p className="truncate text-sm font-bold">
                       {props.cityName} <span className="text-coin">· <CoinIcon className="size-3.5" /> {formatCoins(balance)}</span>
                     </p>
-                    {message?.text ? (
-                      <p aria-live="polite" className={`text-xs ${message.tone === "bad" ? "text-bad" : "text-good"}`}>{message.text}</p>
-                    ) : (
-                      mode.kind === "place" && placingType ? (
-                        <p className="text-xs text-muted">Placing {placingType.name}: tap a spot, then Build here.</p>
-                      ) : mode.kind === "move" ? (
-                        <p className="text-xs text-muted">Moving: tap where it should go, then Move here.</p>
-                      ) : mode.kind === "paint" && paintType ? (
-                        <p className="text-xs text-muted">Drag to draw {paintType.name.toLowerCase()}, then Build.{isRoadType(mode.typeId) ? " Across water it builds a bridge." : ""}</p>
-                      ) : mode.kind === "bulldoze" ? (
-                        <p className="text-xs text-muted">Drag over things to demolish them.</p>
-                      ) : null
-                    )}
                   </div>
                   <div className="flex shrink-0 gap-1.5">
                     {(mode.kind === "place" || mode.kind === "move") && (
@@ -833,6 +861,24 @@ export function CityBoard(props: {
                     </button>
                   </div>
                 </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {citizens.length > 0 && clockPill("shrink-0 whitespace-nowrap")}
+                    {/* Only problems and how-to lines here; routine updates ("Built a House…") aren't shown in full screen. */}
+                    {message?.text && message.tone === "bad" ? (
+                      <p aria-live="polite" className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-bad shadow ring-1 ring-line">{message.text}</p>
+                    ) : (
+                      mode.kind === "place" && placingType ? (
+                        <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">Placing {placingType.name}: tap a spot, then Build here.</p>
+                      ) : mode.kind === "move" ? (
+                        <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">Moving: tap where it should go, then Move here.</p>
+                      ) : mode.kind === "paint" && paintType ? (
+                        <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">Drag to draw {paintType.name.toLowerCase()}, then Build.{isRoadType(mode.typeId) ? " Across water it builds a bridge." : ""}</p>
+                      ) : mode.kind === "bulldoze" ? (
+                        <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">Drag over things to demolish them.</p>
+                      ) : null
+                    )}
+                </div>
+                </div>
               )}
               {full && selected && (
                 <div className="absolute inset-x-0 bottom-0 flex justify-center p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
@@ -854,6 +900,7 @@ export function CityBoard(props: {
                     setMode(tools.find((t) => t.id === id)!.mode);
                   }}
                   onPick={pick}
+                  land={size < MAX_CITY_SIZE ? { price: landPrice(props.landPurchases), onBuy: expand } : undefined}
                 />
               )}
               {/* Map buttons (normal view only: in full screen, drag and scroll / pinch move the map). */}

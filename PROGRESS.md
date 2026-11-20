@@ -447,6 +447,18 @@ _Last updated: 2026-11-27_
   **+ Add another step** (Enter in the last filled step adds one too; up to 30). Replaces the one-per-line text box.
   `addGoal` reads `step_title` / `step_difficulty` pairs. Browser-checked at 390px.
 
+### 32. Buy land in full screen, upgrade roads by tapping, tidier full-screen top bar (2026-11-27)
+- **Land** button at the end of the full-screen build bar (after Bulldoze) with the price; asks to confirm (says how many
+  coins are missing if short). Hidden at the largest size.
+- **Tap a road** to change it: "Upgrade to 4-Lane Road" / "Change to Dirt Road" for **this tile** or the **whole street** (the
+  straight run of that road kind through it, `streetOf()` in `roads.ts`, 1 unit test), paying the new kind's price per tile,
+  with a confirm. Uses `buy_tiles` (which already replaced road kinds).
+- **Full-screen top bar**: city name and coins with Layers / Stats / Exit on the first row; the clock and pause sit right under
+  the name, with the how-to line (placing, moving, drawing, bulldozing) beside it. Routine updates ("Built a House…") no
+  longer show there; problems still do.
+- Date fields (goal "Reach it by", task due date) can't spill out of their cards on iPhone Safari (global `.input[type=date]`
+  rule; not testable here: no WebKit in the sandbox).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

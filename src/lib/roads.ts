@@ -151,3 +151,22 @@ export function rowJoins(lots: Lot[], roads: Set<string>, typeId: string): Map<s
   }
   return out;
 }
+
+/** Road kinds in order, for upgrading a road by tapping it. */
+export const ROAD_TIERS = [DIRT_ROAD_TYPE, ROAD_TYPE, AVENUE_TYPE] as const;
+
+/**
+ * The street a road tile is on: the straight run of tiles of the same kind through it (the longer of its row and its
+ * column; bridges and other road kinds end it).
+ */
+export function streetOf(start: Tile, typeAt: (x: number, y: number) => string | undefined): Tile[] {
+  const kind = typeAt(start.x, start.y);
+  const run = (dx: number, dy: number) => {
+    const out: Tile[] = [];
+    for (let i = 1; typeAt(start.x + dx * i, start.y + dy * i) === kind; i++) out.push({ x: start.x + dx * i, y: start.y + dy * i });
+    return out;
+  };
+  const row = [...run(-1, 0).reverse(), start, ...run(1, 0)];
+  const col = [...run(0, -1).reverse(), start, ...run(0, 1)];
+  return col.length > row.length ? col : row;
+}

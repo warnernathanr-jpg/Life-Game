@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { connectedIds, effectiveFacing, facingFor, nextFacing, roadSet, rowJoins, roadShape, roadSides, strokePath, touchesRoad, type Lot } from "./roads";
+import { connectedIds, effectiveFacing, facingFor, nextFacing, roadSet, rowJoins, roadShape, roadSides, streetOf, strokePath, touchesRoad, type Lot } from "./roads";
 
 describe("strokePath", () => {
   it("is straight along a row", () => {
@@ -102,5 +102,15 @@ describe("bridges", () => {
     expect(roadShape(0, 0, roadSet(lots)).e).toBe(true);
     expect(connectedIds(lots).has("h")).toBe(true);
     expect(connectedIds(lots).has("b")).toBe(false);
+  });
+});
+
+describe("streetOf", () => {
+  it("follows the longer straight run of the same road kind", () => {
+    const m = new Map([["0,0", "road"], ["1,0", "road"], ["2,0", "road"], ["3,0", "dirt_road"], ["1,1", "road"]]);
+    const at = (x: number, y: number) => m.get(`${x},${y}`);
+    expect(streetOf({ x: 1, y: 0 }, at)).toEqual([{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }]);
+    expect(streetOf({ x: 1, y: 1 }, at)).toEqual([{ x: 1, y: 0 }, { x: 1, y: 1 }]);
+    expect(streetOf({ x: 3, y: 0 }, at)).toEqual([{ x: 3, y: 0 }]);
   });
 });
