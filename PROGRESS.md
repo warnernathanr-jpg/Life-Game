@@ -860,6 +860,10 @@ _Last updated: 2026-11-28_
 - The fire / break-in line beside the pause button wraps instead of being cut off (the pill becomes a rounded box).
 - Stop signs lost the white bar across the octagon.
 
+- **Goods warning from the first shop** (2026-11-28): the crate marker, panel warning and "Shops short of goods" no longer wait for
+  8 shop jobs; any goods-selling shop without enough industry gets them. The penalty grows with the town's shopping:
+  `15 × (1 − goods/shop jobs) × min(1, shop jobs/12)` (a lone Convenience Store with no industry: −5; 12+ shop jobs: up to −15).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

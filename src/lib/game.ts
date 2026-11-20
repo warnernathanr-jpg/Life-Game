@@ -405,12 +405,13 @@ export function cityStats(
   // Goods: industry makes the products shops sell. Too little industry leaves shelves empty; too much has nobody to sell to.
   const goods = industryJobs * GOODS_PER_INDUSTRY_JOB;
   const goodsSupply = shopJobs > 0 ? Math.min(1, goods / shopJobs) : 1;
-  const noGoods = new Set(shopJobs >= 8 && goods < shopJobs ? goodsShops : []);
-  if (shopJobs >= 8 && goods < shopJobs) {
+  const noGoods = new Set(shopJobs > 0 && goods < shopJobs ? goodsShops : []);
+  if (shopJobs > 0 && goods < shopJobs) {
     add({
       key: "goods_short",
       label: "Shops short of goods",
-      value: -Math.round(15 * (1 - goods / shopJobs)),
+      // Grows with how much shopping the town has: a lone corner shop costs a little, 12+ shop jobs the full 15.
+      value: -Math.max(1, Math.round(15 * (1 - goods / shopJobs) * Math.min(1, shopJobs / 12))),
       tip: `Shops only get ${Math.round((goods / shopJobs) * 100)}% of the goods they need. Build industry (workshops, factories, warehouses) to supply them.`,
     });
   } else if (goods >= 15 && goods > shopJobs * 2) {

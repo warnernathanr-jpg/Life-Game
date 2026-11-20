@@ -75,8 +75,10 @@ describe("cityStats", () => {
   it("adds population, jobs and happiness from road-connected buildings", () => {
     const s = cityStats([...street, at("cottage", 0, 1), at("cottage", 1, 1), at("shop", 2, 1), at("park", 3, 1)], types);
     expect(s).toMatchObject({ population: 8, jobs: 4, employed: 4, unemployed: 4, roads: 10, buildings: 4, unconnected: 0 });
-    // 40 + services 13 (park 5 for 8 people: 30 × (1 − e^(−5/8.4))) + shop 1 − unemployment (4 of 8 → 10) = 44
-    expect(s.happiness).toBe(44);
+    // 40 + services 13 (park 5 for 8 people: 30 × (1 − e^(−5/8.4))) + shop 1 − unemployment (4 of 8 → 10)
+    // − shop short of goods (no industry, 4 shop jobs: 15 × 4/12 = 5) = 39
+    expect(s.happiness).toBe(39);
+    expect(s.noGoods.size).toBe(1);
     expect(s.factors.find((f) => f.key === "unemployment")?.tip).toMatch(/4 residents can't find work/);
   });
   it("shops need goods from industry; too much industry has nobody to sell to", () => {
@@ -134,8 +136,8 @@ describe("cityStats", () => {
   });
   it("health averages happiness, jobs, roads and services", () => {
     const s = cityStats([...street, at("cottage", 0, 1), at("shop", 1, 1), at("park", 2, 1)], types);
-    // happiness 56, jobs 4/4 → 100, roads 100, services 5 / (4/2) → 100
-    expect(s.health).toBe(Math.round((56 + 100 + 100 + 100) / 4));
+    // happiness 51 (56 − 5 for the shop short of goods), jobs 4/4 → 100, roads 100, services 5 / (4/2) → 100
+    expect(s.health).toBe(Math.round((51 + 100 + 100 + 100) / 4));
     expect(s.healthLabel).toBe("Thriving");
   });
 });
