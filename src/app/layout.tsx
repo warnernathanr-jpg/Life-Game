@@ -9,6 +9,7 @@ const displayFont = Bricolage_Grotesque({ variable: "--font-bricolage", subsets:
 const monoFont = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.lifecity.app"),
   title: "LifeCity",
   description: "Track your tasks and goals, earn coins, and build a city as you grow.",
   manifest: "/manifest.webmanifest",

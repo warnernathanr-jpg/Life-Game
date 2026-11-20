@@ -897,11 +897,20 @@ _Last updated: 2026-11-28_
 - Migrations `20261128150000_invite_leaderboard.sql`, `20261128160000_flat_land_price.sql` (applied live). 8 pgTAP tests
   (`invite_leaderboard.test.sql`); land and friends tests updated (382 total).
 
+### 64. lifecity.app (2026-11-28)
+- Domain **lifecity.app** bought through Vercel and attached to the `life-city` project: `www.lifecity.app` serves the app,
+  `lifecity.app` 308-redirects to it, and `life-city-five.vercel.app` still works.
+- Invite links always use `https://www.lifecity.app` (`shareOrigin()` in `src/lib/site.ts`; the local server when running
+  locally), so a player on the old vercel.app address still shares the new one. `metadataBase` is the new domain.
+- **To do in Supabase (owner)**: Authentication → URL Configuration → Site URL `https://www.lifecity.app`, and add
+  `https://www.lifecity.app/**` and `https://lifecity.app/**` to the redirect URLs (keep the vercel.app one). The connected
+  Supabase API token can't change this project's auth settings (401), and the MCP has no tool for it.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
 2. **Deploys**: the `life-city` project (LifeCity team `team_LG1WjQ02e987XW4cCEEwM4pq`) is connected to GitHub
-   `warnernathanr-jpg/life-game`; production tracks branch `claude/kind-dirac-r6ohvf`, so pushes deploy automatically.
+   `warnernathanr-jpg/life-game` (live at https://www.lifecity.app); production tracks branch `claude/kind-dirac-r6ohvf`, so pushes deploy automatically.
    The Vercel MCP connector (`create_deployment` with `gitSource`) can also start one. The sandbox CLI/API token only
    covers the Laundromat Success team: don't use `npx vercel deploy` for LifeCity.
 3. **Phase B**: goals with big rewards (150 / 500 / 750, must be set in advance and take real time), achievement

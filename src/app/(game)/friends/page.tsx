@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
+import { shareOrigin } from "@/lib/site";
 import { FriendsBoard } from "./friends-board";
 import { Leaderboard } from "./leaderboard";
 
@@ -15,15 +16,14 @@ async function FriendsContent() {
     supabase.rpc("my_friend_requests"),
   ]);
   const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "life-city-five.vercel.app";
-  const proto = h.get("x-forwarded-proto") ?? "https";
+  const origin = shareOrigin(h.get("x-forwarded-host") ?? h.get("host"), h.get("x-forwarded-proto"));
   const code = profile?.city_code ?? "";
   return (
     <FriendsBoard
       code={code}
       cityName={profile?.city_name ?? "Click Here to Name City"}
       name={profile?.display_name ?? null}
-      inviteUrl={`${proto}://${host}/signup?invite=${code}`}
+      inviteUrl={`${origin}/signup?invite=${code}`}
       friends={(friends ?? []).map((f) => ({ ...f, population: Number(f.population), buildings: Number(f.buildings) }))}
       requests={(requests ?? []).map((r) => ({ ...r, population: Number(r.population) }))}
     />

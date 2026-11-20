@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
+import { shareOrigin } from "@/lib/site";
 import type { PlacedBuildingRow, RoadControlKind } from "@/lib/database.types";
 import { CityBoard } from "../../(game)/city/city-board";
 
@@ -34,8 +35,7 @@ async function Visit({ params }: { params: Promise<{ id: string }> }) {
   }
   const city = data as FriendCity;
   const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "life-city-five.vercel.app";
-  const proto = h.get("x-forwarded-proto") ?? "https";
+  const origin = shareOrigin(h.get("x-forwarded-host") ?? h.get("host"), h.get("x-forwarded-proto"));
   return (
     <CityBoard
       cityName={city.city_name}
@@ -47,7 +47,7 @@ async function Visit({ params }: { params: Promise<{ id: string }> }) {
       progress={null}
       balance={0}
       standalone
-      visit={{ owner: city.display_name, inviteUrl: `${proto}://${host}/signup?invite=${me?.city_code ?? ""}` }}
+      visit={{ owner: city.display_name, inviteUrl: `${origin}/signup?invite=${me?.city_code ?? ""}` }}
     />
   );
 }
