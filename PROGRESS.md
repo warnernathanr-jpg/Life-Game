@@ -410,6 +410,13 @@ _Last updated: 2026-11-25_
   how **jammed the roads in use** are (busier roads weigh more). City Stats' happiness now has "Pollution & noise near homes"
   (up to −20) and "Traffic jams" (up to −12) with tips, replacing the old count of industrial buildings. 1 unit test.
 
+### 28. Settings page (2026-11-26)
+- The header's Sign out is now **Settings** (`/settings`): account email and **Sign out**, **Change password** (8–72 characters,
+  typed twice; `supabase.auth.updateUser`), and **Start over**: type START OVER, confirm once more, and `reset_progress('START
+  OVER')` deletes the city, tasks, check-offs, focus sessions, goals (with steps), one-time rewards and coin history, sets the
+  land back to 8×8 and gives the 100-coin welcome bonus again (account, city name, time zone and notification devices stay).
+- Migration `20261126020000_reset_progress.sql` (applied live). 7 pgTAP tests (`reset_progress.test.sql`, 262 total).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

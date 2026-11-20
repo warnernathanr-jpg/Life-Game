@@ -1,9 +1,8 @@
-import { Building2, Coins } from "lucide-react";
+import { Building2, Coins, Settings } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
 import { formatCoins } from "@/lib/game";
-import { signOut } from "../(auth)/actions";
 import { RewardPrompts } from "@/components/reward-prompts";
 import { ThemePicker } from "@/components/theme-picker";
 import { BottomNav, TopNav } from "./nav";
@@ -23,9 +22,10 @@ export default function GameLayout({ children }: LayoutProps<"/">) {
               <CoinBadge />
             </Suspense>
             <ThemePicker />
-            <form action={signOut}>
-              <button className="min-h-9 rounded-lg px-2 text-sm text-white/80 hover:bg-white/10">Sign out</button>
-            </form>
+            <Link href="/settings" aria-label="Settings" className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-white/80 hover:bg-white/10">
+              <Settings className="size-4" aria-hidden />
+              <span className="hidden sm:inline">Settings</span>
+            </Link>
           </div>
         </div>
       </header>

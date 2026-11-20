@@ -408,3 +408,33 @@ export async function deleteGoal(goalId: string): Promise<ActionResult> {
   refresh();
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+export type PasswordState = { error?: string; done?: number };
+
+export async function changePassword(prev: PasswordState, formData: FormData): Promise<PasswordState> {
+  const pw = String(formData.get("password") ?? "");
+  const again = String(formData.get("password2") ?? "");
+  if (pw.length < 8) return { error: "Use at least 8 characters.", done: prev.done };
+  if (pw.length > 72) return { error: "Use at most 72 characters.", done: prev.done };
+  if (pw !== again) return { error: "The two passwords don't match.", done: prev.done };
+  const { supabase } = await requireUser();
+  const { error } = await supabase.auth.updateUser({ password: pw });
+  if (error) {
+    console.error("changePassword", error.message);
+    return { error: error.message.includes("different") ? "Choose a password different from your current one." : "Couldn't change your password. Please try again.", done: prev.done };
+  }
+  return { done: (prev.done ?? 0) + 1 };
+}
+
+/** Start over: deletes all city, task, goal and coin history (the database checks the confirmation words). */
+export async function resetProgress(confirmText: string): Promise<ActionResult> {
+  const { supabase } = await requireUser();
+  const { error } = await supabase.rpc("reset_progress", { p_confirm: confirmText }).single();
+  if (error) return { ok: false, error: gameError(error) };
+  refresh();
+  return { ok: true };
+}

@@ -208,6 +208,7 @@ export type Database = {
       buy_tiles: { Args: { p_type_id: string; p_tiles: [number, number][] }; Returns: { built: number; cost: number; balance: number }[] };
       claim_reward: { Args: { p_reward: string }; Returns: { coins: number; balance: number }[] };
       save_push_subscription: { Args: { p_endpoint: string; p_p256dh: string; p_auth: string; p_user_agent?: string | null }; Returns: undefined };
+      reset_progress: { Args: { p_confirm: string }; Returns: { balance: number }[] };
       complete_goal_step: { Args: { p_step_id: string }; Returns: { coins: number; balance: number }[] };
       undo_goal_step: { Args: { p_step_id: string }; Returns: { coins: number; balance: number }[] };
       delete_goal_step: { Args: { p_step_id: string }; Returns: { coins: number; balance: number }[] };

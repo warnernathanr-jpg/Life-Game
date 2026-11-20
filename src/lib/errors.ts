@@ -12,6 +12,7 @@ const MESSAGES: Record<string, string> = {
   roads_side_by_side: "Roads can't run side by side. Leave a tile between them, or join them at a crossing.",
   cant_move: "That can't be moved.",
   step_not_found: "That step is gone.",
+  confirm_reset: "Type START OVER to confirm.",
   goal_not_found: "That goal is gone.",
   goal_done: "This goal is already reached. Reopen it to change its steps.",
   not_enough_coins: "Not enough coins yet. Finish some tasks!",
