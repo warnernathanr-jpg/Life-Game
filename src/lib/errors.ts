@@ -33,6 +33,7 @@ const MESSAGES: Record<string, string> = {
   too_many_tiles: "That's too long. Do it in shorter pieces (up to 200 tiles).",
   not_a_crossing: "Stop signs and traffic lights go on crossings, where three or four roads meet.",
   already_there: "There's already one here.",
+  pick_a_time: "Pick which time of day you did it.",
 };
 
 export function gameError(error: { message?: string } | null | undefined): string {

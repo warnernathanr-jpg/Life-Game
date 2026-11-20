@@ -7,13 +7,15 @@ import { cityExposure, computeLayer, LAYERS, type LayerId } from "@/lib/layers";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow, RoadControlKind } from "@/lib/database.types";
 import { MAX_CITY_SIZE, MAX_STROKE_TILES, ROAD_CONTROLS, cityStats, controlByType, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, roadControlTypes, sellRefund } from "@/lib/game";
-import { BRIDGE_TYPE, ROAD_TIERS, connectedIds, isRoadType, key, nextFacing, roadSet, streetOf, type Lot, type Tile } from "@/lib/roads";
+import { BRIDGE_TYPE, ROAD_TIERS, connectedIds, isRoadType, key, nextFacing, roadSet, streetOf, touchesRoad, type Lot, type Tile } from "@/lib/roads";
 import { buyBuilding, buyLand, buyTiles, moveBuilding, placeRoadControl, removeRoadControl, sellBuilding, sellMany, setBuildingColor, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
 import { useConfirm } from "@/components/confirm";
 import { citizensFrom, clockText, minuteOfDay, placesFrom, roleText } from "@/lib/sim";
 import { BuildOverlay } from "./build-overlay";
 import type { CitizenInfo } from "./traffic";
+import { gameClock } from "./sim-clock";
+import { DAY_NIGHT_EVENT, readDayNight } from "@/lib/prefs";
 import { CityName, CityStatsPanel, SelectedPanel, Shop } from "./panels";
 
 // three.js only loads on this page, in the browser.
@@ -161,6 +163,17 @@ export function CityBoard(props: {
   const stats = useMemo(() => cityStats(placed, types, progress, exposure), [placed, types, progress, exposure]);
   const [paused, setPaused] = useState(false);
   const [simClock, setSimClock] = useState(7 * 60 + 15);
+  // The clock starts at a random time each visit (traffic.tsx); show it right away rather than waiting for the 3D view.
+  // Day and night can be switched off in Settings (then it's sunny all day).
+  const [dayNight, setDayNight] = useState(true);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSimClock(gameClock());
+    const read = () => setDayNight(readDayNight());
+    read();
+    window.addEventListener(DAY_NIGHT_EVENT, read);
+    return () => window.removeEventListener(DAY_NIGHT_EVENT, read);
+  }, []);
   const [citizenId, setCitizenId] = useState<string | null>(null);
   const [citizenInfo, setCitizenInfo] = useState<CitizenInfo | null>(null);
   // Map layers (full screen): which one is shown, and whether the list is open.
@@ -688,7 +701,9 @@ export function CityBoard(props: {
       pending={pending}
       warning={
         needsRoad.has(selected.id)
-          ? "No road beside it, so it doesn't count yet. Build a road next to it."
+          ? touchesRoad(selected, roads)
+            ? "Its road isn't joined to the rest of town, so nobody can get here and it doesn't count. Connect that road to your other roads."
+            : "No road beside it, so it doesn't count yet. Build a road next to it."
           : stats.understaffed.has(selected.id)
             ? `Not enough workers: businesses are ${Math.round(stats.staffing * 100)}% staffed. Build homes so they can hire.`
             : undefined
@@ -834,7 +849,7 @@ export function CityBoard(props: {
                 previewOk={draftPlan ? draftPlan.ok : true}
                 overlay={full ? layerCells : null}
                 sim={sim}
-                minutes={simClock}
+                minutes={dayNight ? simClock : 12 * 60}
               />
               {strokeInfo && (
                 <div

@@ -37,11 +37,11 @@ export function IconPicker({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label={value ? `Icon: ${value.replace(/-/g, " ")}. Change icon` : "Choose an icon"}
-        className="input mt-1 flex items-center gap-2"
+        title="Choose an icon"
+        className="mt-1 flex h-11 w-16 items-center justify-center gap-1 rounded-lg border border-line bg-raised text-ink shadow-sm hover:border-accent/60 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
       >
         <ItemIcon icon={value} area={area} className="size-5 text-accent-text" />
-        <span className="flex-1 text-left text-sm text-muted">{value ? value.replace(/-\d$/, "").replace(/-/g, " ") : "Area icon"}</span>
-        <ChevronDown className="size-4 text-muted" aria-hidden />
+        <ChevronDown className="size-3.5 text-muted" aria-hidden />
       </button>
       {open && (
         <div className="absolute z-30 mt-1 w-[min(22rem,90vw)] rounded-xl bg-surface p-2 shadow-2xl ring-1 ring-line" role="listbox" aria-label="Icons">

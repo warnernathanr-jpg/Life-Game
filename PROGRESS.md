@@ -512,6 +512,27 @@ _Last updated: 2026-11-27_
   All applied live (in pieces: statements containing DELETE need the owner's approval in Supabase, which only came through
   from their computer, not their phone).
 
+### 38. Times of day for tasks, calendar counts, cut-off roads, settings and polish (2026-11-27)
+- **Times of day**: daily and certain-days tasks can list **Morning / Afternoon / Night** (add form chips). Each time is its own
+  check-off with its own coins (e.g. "Eat a healthy meal" × 3); the row shows a "1/3" ring and a chip per time (tap to check,
+  tap again to undo that time); the task stays under To do until every time is done. Migration
+  `20261127030000_task_times_of_day.sql` (applied live): `tasks.times_of_day`, `task_completions.slot` (unique per task, day and
+  slot), `complete_task(id, slot)` / `undo_task(id, slot)` (slot optional; `pick_a_time` when a timed task gets none),
+  `period_target()` counts the times, `my_tasks()` returns `times_of_day` and `slots_done`. 12 pgTAP tests (`task_times.test.sql`,
+  296 total).
+- **Calendar week and month** show counts, not names: "3 tasks · 1 done" / "all done", and "1 goal due" for goals whose
+  reach-by date is that day.
+- **Area points** card: just the points per area (the "75 more → Neighborhood Park" countdowns are gone).
+- **Icon picker**: a small icon-only button.
+- **Settings → Day and night** switch (per device, `src/lib/prefs.ts`): off = sunny all day. The **city clock starts at a random
+  time** each time the app is opened (`sim-clock.ts`, which now holds the clock and `lightFor()` apart from the 3D code).
+- **Cut-off roads**: buildings only count when their road joins the town's main network (the largest group of joined road
+  tiles, `mainRoadNetwork()` in `roads.ts`, 1 unit test); a building on a separate stretch gets the "!" marker and "Its road isn't
+  joined to the rest of town".
+- **Crosswalks** (zebra stripes) on every side of crossings on 2-lane and 4-lane roads. **High-rise** windows on all four sides.
+  **Townhouse** roof was upside down (a V); now a proper gable.
+- Owner's account: 100,000 test coins and 1,000 points per area (all buildings unlocked) after their Start over.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

@@ -306,9 +306,9 @@ export function cityStats(
   if (unconnected > 0) {
     add({
       key: "roads",
-      label: "Buildings without roads",
+      label: "Buildings without road access",
       value: -Math.min(10, unconnected * 2),
-      tip: `${unconnected} building${unconnected === 1 ? " isn't" : "s aren't"} next to a road, so ${unconnected === 1 ? "it doesn't" : "they don't"} count yet. Build a road beside ${unconnected === 1 ? "it" : "them"}.`,
+      tip: `${unconnected} building${unconnected === 1 ? " isn't" : "s aren't"} on a road joined to the rest of town, so ${unconnected === 1 ? "it doesn't" : "they don't"} count yet. Build a road beside ${unconnected === 1 ? "it" : "them"} and connect it to your other roads.`,
     });
   }
   // Real life → city: points spread evenly across the four life areas make the city happier.

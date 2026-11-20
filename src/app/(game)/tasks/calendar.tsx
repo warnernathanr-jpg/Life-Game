@@ -148,7 +148,33 @@ export function DayView({ tasks, date, today, done }: { tasks: MyTaskRow[]; date
   );
 }
 
-export function WeekView({ tasks, date, today, done }: { tasks: MyTaskRow[]; date: string; today: string; done: Done }) {
+/** Goals still open, with the day they should be reached by. */
+export type GoalDue = { id: string; title: string; target_date: string; completed_at: string | null };
+
+/** "3 tasks · 1 done" and "1 goal due" for a day (counts only, no titles). */
+function DaySummary({ tasks, goals, day, today, done, compact }: { tasks: MyTaskRow[]; goals: GoalDue[]; day: string; today: string; done: Done; compact?: boolean }) {
+  const items = dayItems(tasks, day, today, done);
+  const doneN = items.filter((t) => done.get(t.id)?.has(day)).length;
+  const due = goals.filter((g) => g.target_date === day && !g.completed_at).length;
+  if (items.length === 0 && due === 0) return <p className={`text-faint ${compact ? "text-[11px]" : "mt-1 text-xs"}`}>{compact ? "" : "Nothing set"}</p>;
+  return (
+    <div className={compact ? "mt-0.5 space-y-0.5 text-[11px] leading-tight" : "mt-1 space-y-1 text-sm"}>
+      {items.length > 0 && (
+        <p className={doneN === items.length && day <= today ? "text-good" : "text-ink"}>
+          <span className="font-semibold">{items.length}</span> task{items.length === 1 ? "" : "s"}
+          {doneN > 0 && <span className="text-muted"> · {doneN === items.length ? "all done" : `${doneN} done`}</span>}
+        </p>
+      )}
+      {due > 0 && (
+        <p className="font-medium text-coin">
+          {due} goal{due === 1 ? "" : "s"} due
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function WeekView({ tasks, goals, date, today, done }: { tasks: MyTaskRow[]; goals: GoalDue[]; date: string; today: string; done: Done }) {
   const days = viewDays("week", date);
   return (
     <div className="space-y-4">
@@ -156,19 +182,18 @@ export function WeekView({ tasks, date, today, done }: { tasks: MyTaskRow[]; dat
         {days.map((d, i) => {
           const items = dayItems(tasks, d, today, done);
           return (
-            <section key={d} className={`card p-3 lg:min-h-48 ${d === today ? "ring-2 ring-accent" : ""}`} aria-label={viewTitle("day", d)}>
-              <Link href={href("day", d, today)} className="flex items-baseline justify-between gap-2 hover:text-accent-text">
+            <Link
+              key={d}
+              href={href("day", d, today)}
+              aria-label={`${viewTitle("day", d)}: ${items.length} task${items.length === 1 ? "" : "s"}`}
+              className={`card block p-3 hover:bg-raised lg:min-h-28 ${d === today ? "ring-2 ring-accent" : ""}`}
+            >
+              <span className="flex items-baseline justify-between gap-2">
                 <span className="text-xs font-semibold uppercase text-muted">{WEEKDAYS[i]}</span>
                 <span className={`text-lg font-bold ${d === today ? "text-accent-text" : ""}`}>{Number(d.slice(8))}</span>
-              </Link>
-              {items.length === 0 ? (
-                <p className="mt-1 text-xs text-faint">Nothing set</p>
-              ) : (
-                <ul className="mt-1">
-                  {items.map((t) => <TaskLine key={t.id} task={t} day={d} today={today} done={done} compact />)}
-                </ul>
-              )}
-            </section>
+              </span>
+              <DaySummary tasks={tasks} goals={goals} day={d} today={today} done={done} />
+            </Link>
           );
         })}
       </div>
@@ -177,7 +202,7 @@ export function WeekView({ tasks, date, today, done }: { tasks: MyTaskRow[]; dat
   );
 }
 
-export function MonthView({ tasks, date, today, done }: { tasks: MyTaskRow[]; date: string; today: string; done: Done }) {
+export function MonthView({ tasks, goals, date, today, done }: { tasks: MyTaskRow[]; goals: GoalDue[]; date: string; today: string; done: Done }) {
   const days = viewDays("month", date);
   const month = date.slice(0, 7);
   return (
@@ -199,24 +224,7 @@ export function MonthView({ tasks, date, today, done }: { tasks: MyTaskRow[]; da
                   className={`flex min-h-14 flex-col rounded-lg p-1 text-left hover:bg-raised sm:min-h-24 sm:p-1.5 ${inMonth ? "" : "opacity-40"} ${d === today ? "ring-2 ring-accent" : "bg-raised/40"}`}
                 >
                   <span className={`text-xs font-semibold ${d === today ? "text-accent-text" : ""}`}>{Number(d.slice(8))}</span>
-                  {/* Phones: one dot per task (green when done). Wider: the first titles. */}
-                  <span className="mt-1 flex flex-wrap gap-0.5 sm:hidden" aria-hidden>
-                    {items.slice(0, 6).map((t) => (
-                      <span key={t.id} className={`size-1.5 rounded-full ${done.get(t.id)?.has(d) ? "bg-good" : AREA_DOT[t.area]}`} />
-                    ))}
-                  </span>
-                  <span className="mt-0.5 hidden space-y-0.5 sm:block" aria-hidden>
-                    {items.slice(0, 3).map((t) => {
-                      const isDone = done.get(t.id)?.has(d);
-                      return (
-                        <span key={t.id} className={`flex items-center gap-1 truncate text-[11px] leading-tight ${isDone ? "text-muted line-through" : ""}`}>
-                          {isDone ? <Check className="size-3 shrink-0 text-good" aria-hidden /> : <Circle className={`size-2 shrink-0 rounded-full ${AREA_DOT[t.area]} text-transparent`} aria-hidden />}
-                          <span className="truncate">{t.title}</span>
-                        </span>
-                      );
-                    })}
-                    {items.length > 3 && <span className="block text-[11px] text-muted">+{items.length - 3} more</span>}
-                  </span>
+                  <DaySummary tasks={tasks} goals={goals} day={d} today={today} done={done} compact />
                 </Link>
               </li>
             );

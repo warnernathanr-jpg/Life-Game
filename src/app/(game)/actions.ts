@@ -31,6 +31,7 @@ const taskSchema = z
     times: z.string().optional(),
     icon: z.string().optional(),
     due: z.string().optional(),
+    slots: z.array(z.enum(["morning", "afternoon", "night"])).optional(),
   })
   .transform((v, ctx) => {
     const out = {
@@ -42,7 +43,11 @@ const taskSchema = z
       times_per_period: null as number | null,
       icon: isIconName(v.icon) ? v.icon : null,
       due_date: null as string | null,
+      times_of_day: null as ("morning" | "afternoon" | "night")[] | null,
     };
+    if ((v.repeat === "daily" || v.repeat === "days") && v.slots && v.slots.length > 0) {
+      out.times_of_day = (["morning", "afternoon", "night"] as const).filter((t) => v.slots!.includes(t));
+    }
     if (v.repeat === "once" && v.due) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(v.due) || Number.isNaN(Date.parse(`${v.due}T12:00:00Z`))) {
         ctx.addIssue({ code: "custom", message: "Pick a valid due date." });
@@ -79,6 +84,7 @@ export async function addTask(prev: AddTaskState, formData: FormData): Promise<A
     times: formData.get("times") ?? undefined,
     icon: formData.get("icon") ?? undefined,
     due: formData.get("due") || undefined,
+    slots: formData.getAll("times_of_day").map(String),
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message, added: prev.added };
   const { supabase } = await requireUser();
@@ -91,19 +97,22 @@ export async function addTask(prev: AddTaskState, formData: FormData): Promise<A
   return { added: (prev.added ?? 0) + 1 };
 }
 
-export async function completeTask(taskId: string): Promise<ActionResult<{ coins: number; balance: number }>> {
-  if (!uuid.safeParse(taskId).success) return { ok: false, error: gameError(null) };
+const TIMES = ["morning", "afternoon", "night"] as const;
+const isTime = (v: unknown): v is (typeof TIMES)[number] => (TIMES as readonly unknown[]).includes(v);
+
+export async function completeTask(taskId: string, slot?: "morning" | "afternoon" | "night"): Promise<ActionResult<{ coins: number; balance: number }>> {
+  if (!uuid.safeParse(taskId).success || (slot !== undefined && !isTime(slot))) return { ok: false, error: gameError(null) };
   const { supabase } = await requireUser();
-  const { data, error } = await supabase.rpc("complete_task", { p_task_id: taskId }).single();
+  const { data, error } = await supabase.rpc("complete_task", slot ? { p_task_id: taskId, p_slot: slot } : { p_task_id: taskId }).single();
   if (error || !data) return { ok: false, error: gameError(error) };
   refresh();
   return { ok: true, coins: Number(data.coins), balance: Number(data.balance) };
 }
 
-export async function undoTask(taskId: string): Promise<ActionResult<{ coins: number }>> {
-  if (!uuid.safeParse(taskId).success) return { ok: false, error: gameError(null) };
+export async function undoTask(taskId: string, slot?: "morning" | "afternoon" | "night"): Promise<ActionResult<{ coins: number }>> {
+  if (!uuid.safeParse(taskId).success || (slot !== undefined && !isTime(slot))) return { ok: false, error: gameError(null) };
   const { supabase } = await requireUser();
-  const { data, error } = await supabase.rpc("undo_task", { p_task_id: taskId }).single();
+  const { data, error } = await supabase.rpc("undo_task", slot ? { p_task_id: taskId, p_slot: slot } : { p_task_id: taskId }).single();
   if (error || !data) return { ok: false, error: gameError(error) };
   refresh();
   return { ok: true, coins: Number(data.coins) };

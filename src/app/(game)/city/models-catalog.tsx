@@ -109,6 +109,13 @@ const MODELS: Record<string, Maker> = {
       {Array.from({ length: 12 }, (_, i) => (
         <B key={`s${i}`} p={[0.552, 0.35 + i * 0.24, 0]} s={[0.02, 0.1, 0.95]} c={p.glass} metal />
       ))}
+      {/* Windows on the back and the other side too, so it looks right from every angle. */}
+      {Array.from({ length: 12 }, (_, i) => (
+        <B key={`b${i}`} p={[0, 0.35 + i * 0.24, -0.552]} s={[0.95, 0.1, 0.02]} c={p.glass} metal />
+      ))}
+      {Array.from({ length: 12 }, (_, i) => (
+        <B key={`w${i}`} p={[-0.552, 0.35 + i * 0.24, 0]} s={[0.02, 0.1, 0.95]} c={p.glass} metal />
+      ))}
       <B p={[0, 3.22, 0]} s={[0.7, 0.18, 0.7]} c={p.roof} />
       <Cyl p={[0.2, 3.4, 0.2]} r={0.02} h={0.4} c="#e5e7eb" />
     </>

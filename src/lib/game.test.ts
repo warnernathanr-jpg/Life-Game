@@ -77,7 +77,7 @@ describe("cityStats", () => {
   it("buildings away from a road don't count", () => {
     const s = cityStats([...street, at("cottage", 0, 1), at("cottage", 5, 5), at("factory", 7, 7)], types);
     expect(s).toMatchObject({ population: 4, jobs: 0, unconnected: 2 });
-    expect(s.tips.some((t) => t.includes("2 buildings aren't next to a road"))).toBe(true);
+    expect(s.tips.some((t) => t.includes("2 buildings aren't on a road joined to the rest of town"))).toBe(true);
   });
   it("flags shops and industry when there aren't enough workers", () => {
     const shop = at("shop", 0, 1);

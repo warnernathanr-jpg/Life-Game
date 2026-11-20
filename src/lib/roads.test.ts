@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { connectedIds, effectiveFacing, facingFor, nextFacing, roadSet, rowJoins, roadShape, roadSides, streetOf, strokePath, touchesRoad, type Lot } from "./roads";
+import { connectedIds, mainRoadNetwork, effectiveFacing, facingFor, nextFacing, roadSet, rowJoins, roadShape, roadSides, streetOf, strokePath, touchesRoad, type Lot } from "./roads";
 
 describe("strokePath", () => {
   it("is straight along a row", () => {
@@ -112,5 +112,19 @@ describe("streetOf", () => {
     expect(streetOf({ x: 1, y: 0 }, at)).toEqual([{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }]);
     expect(streetOf({ x: 1, y: 1 }, at)).toEqual([{ x: 1, y: 0 }, { x: 1, y: 1 }]);
     expect(streetOf({ x: 3, y: 0 }, at)).toEqual([{ x: 3, y: 0 }]);
+  });
+});
+
+describe("main road network", () => {
+  it("buildings on a road that isn't joined to the rest of town don't count", () => {
+    const R = (x: number, y: number): Lot => ({ id: `r${x},${y}`, type_id: "road", x, y, w: 1, h: 1 });
+    const main = [R(0, 0), R(1, 0), R(2, 0), R(3, 0)];
+    const island = [R(6, 5), R(7, 5)];
+    const onMain: Lot = { id: "a", type_id: "cottage", x: 1, y: 1, w: 1, h: 1 };
+    const onIsland: Lot = { id: "b", type_id: "cottage", x: 6, y: 6, w: 1, h: 1 };
+    const ids = connectedIds([...main, ...island, onMain, onIsland]);
+    expect(ids.has("a")).toBe(true);
+    expect(ids.has("b")).toBe(false);
+    expect(mainRoadNetwork(new Set([...main, ...island].map((r) => `${r.x},${r.y}`))).size).toBe(4);
   });
 });

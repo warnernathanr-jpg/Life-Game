@@ -23,6 +23,8 @@ import {
   type Purpose,
 } from "@/lib/sim";
 import { BOX, mat } from "./models";
+import { clock, lightFor } from "./sim-clock";
+export { gameClock, lightFor, setGameClock } from "./sim-clock";
 import type { RoadControlKind } from "@/lib/database.types";
 import { TAIL_COLOR } from "./day-night";
 
@@ -63,33 +65,11 @@ type Trip = {
 };
 type State = { at: string; until: number; trip: null } | { at: null; until: number; trip: Trip };
 
-/** The game starts at 7:15 AM on day 1, just as the morning commute begins. */
-const START = 7 * 60 + 15;
 const CAR_SLOTS = 32;
 const WALK_SLOTS = 32;
 /** Road tiles per real second. */
 const SPEED = { car: 2.2, walk: 0.6 };
 
-/** Game clock shared across remounts (so changing the city doesn't send everyone back to 7:15). */
-const clock = { t: START };
-
-/** The game clock now (minutes since the start of day 1). */
-export const gameClock = () => clock.t;
-
-/**
- * Traffic light state for traffic moving along x ("x") or along y ("y") at game time t: a 16-minute cycle, x first
- * (green 6.5, yellow 1.5, then red while y has its turn).
- */
-export function lightFor(axis: "x" | "y", t: number): "green" | "yellow" | "red" {
-  const p = ((t % 16) + 16) % 16;
-  const q = axis === "x" ? p : (p + 8) % 16;
-  return q < 6.5 ? "green" : q < 8 ? "yellow" : "red";
-}
-
-/** Jump the game clock (minutes since the start of day 1), e.g. for previews of the city at night. */
-export function setGameClock(minutes: number) {
-  clock.t = minutes;
-}
 
 /** Game minutes still to go on a trip (for "arrives about"). */
 function minutesLeft(trip: Trip) {

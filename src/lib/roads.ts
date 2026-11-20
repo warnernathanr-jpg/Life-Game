@@ -72,9 +72,38 @@ export function touchesRoad(lot: Box, roads: Set<string>): boolean {
 }
 
 /** Ids of buildings (not roads) that touch a road. */
+/**
+ * Buildings that count: those touching the town's main road network (the largest group of joined road tiles). A building
+ * on a stretch of road that isn't joined to the rest of town is cut off: nobody can drive there, so it doesn't count.
+ */
 export function connectedIds(lots: Lot[]): Set<string> {
-  const roads = roadSet(lots);
-  return new Set(lots.filter((l) => !isRoadType(l.type_id) && touchesRoad(l, roads)).map((l) => l.id));
+  const main = mainRoadNetwork(roadSet(lots));
+  return new Set(lots.filter((l) => !isRoadType(l.type_id) && touchesRoad(l, main)).map((l) => l.id));
+}
+
+/** The largest group of road tiles joined edge to edge (ties: the first found). */
+export function mainRoadNetwork(roads: Set<string>): Set<string> {
+  const seen = new Set<string>();
+  let best = new Set<string>();
+  for (const start of roads) {
+    if (seen.has(start)) continue;
+    const group = new Set<string>([start]);
+    const queue = [start];
+    seen.add(start);
+    while (queue.length) {
+      const [x, y] = queue.pop()!.split(",").map(Number);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const k = key(x + dx, y + dy);
+        if (roads.has(k) && !seen.has(k)) {
+          seen.add(k);
+          group.add(k);
+          queue.push(k);
+        }
+      }
+    }
+    if (group.size > best.size) best = group;
+  }
+  return best;
 }
 
 export type Facing = "south" | "east" | "west" | "north";

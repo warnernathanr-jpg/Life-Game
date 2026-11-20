@@ -642,7 +642,19 @@ function Roads({ tiles, roads, variant }: { tiles: Lot[]; roads: Set<string>; va
       for (const [dx, dz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
         curbs.push(m(t.x + C / 2 + dx * (1 - C), 0.04, t.y + C / 2 + dz * (1 - C), C, 0.05, C));
       }
-      if (arms.length > 2) continue; // no paint in junctions
+      if (arms.length > 2) {
+        // Crossings: no lane paint, but a zebra crosswalk across each road that meets here, just inside the tile edge.
+        for (const [ax, az] of arms) {
+          const along = 0.36; // distance from the centre to the crosswalk
+          for (let i = -3; i <= 3; i++) {
+            const across = i * 0.085;
+            white.push(
+              m(cx + ax * along + (az ? across : 0), 0.032, cz + az * along + (ax ? across : 0), ax ? 0.14 : 0.045, 0.004, az ? 0.14 : 0.045),
+            );
+          }
+        }
+        continue;
+      }
       if (variant === "two") {
         if (arms.length === 0) yellow.push(m(cx, 0.032, cz, 0.3, 0.004, 0.05));
         for (const [ax, az] of arms) strip(yellow, ax, az, 0, 0.22, 0.05, 0.032, 0.19);
@@ -669,7 +681,7 @@ function Roads({ tiles, roads, variant }: { tiles: Lot[]; roads: Set<string>; va
         <>
           <Boxes list={parts.curbs} material={ROAD_PARTS.curb} />
           <Boxes list={parts.yellow} material={ROAD_PARTS.line} />
-          {variant === "four" && <Boxes list={parts.white} material={ROAD_PARTS.white} />}
+          <Boxes list={parts.white} material={ROAD_PARTS.white} />
         </>
       )}
     </>

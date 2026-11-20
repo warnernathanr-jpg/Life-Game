@@ -1,6 +1,7 @@
 // Hand-written to match supabase/migrations. Regenerate with `npm run db:types`
 // once a local Supabase is running (it will overwrite this file).
 
+export type TimeOfDay = "morning" | "afternoon" | "night";
 export type LifeArea = "health" | "work" | "knowledge" | "personal";
 export type TaskDifficulty = "easy" | "medium" | "hard" | "epic";
 export type TaskRepeat =
@@ -40,6 +41,8 @@ export type TaskRow = {
   icon: string | null;
   /** One-off tasks only: the day it's due (YYYY-MM-DD), or null. */
   due_date: string | null;
+  /** Daily / certain-days tasks: checked off once per listed time of day (null: once a day). */
+  times_of_day: TimeOfDay[] | null;
 };
 
 export type GoalRow = {
@@ -142,6 +145,9 @@ export type MyTaskRow = {
   today: string;
   icon: string | null;
   due_date: string | null;
+  times_of_day: TimeOfDay[] | null;
+  /** Times of day already checked off today. */
+  slots_done: TimeOfDay[];
 };
 
 export type FocusSessionRow = {
@@ -174,8 +180,8 @@ export type Database = {
       profiles: Table<ProfileRow, Partial<ProfileRow>, Partial<Pick<ProfileRow, "display_name" | "timezone" | "city_name">>>;
       tasks: Table<
         TaskRow,
-        Pick<TaskRow, "title" | "area"> & Partial<Pick<TaskRow, "difficulty" | "repeat" | "user_id" | "weekdays" | "times_per_period" | "icon" | "due_date">>,
-        Partial<Pick<TaskRow, "title" | "area" | "difficulty" | "repeat" | "archived_at" | "weekdays" | "times_per_period" | "icon" | "due_date">>
+        Pick<TaskRow, "title" | "area"> & Partial<Pick<TaskRow, "difficulty" | "repeat" | "user_id" | "weekdays" | "times_per_period" | "icon" | "due_date" | "times_of_day">>,
+        Partial<Pick<TaskRow, "title" | "area" | "difficulty" | "repeat" | "archived_at" | "weekdays" | "times_per_period" | "icon" | "due_date" | "times_of_day">>
       >;
       goals: Table<
         GoalRow,
@@ -209,8 +215,8 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
-      complete_task: { Args: { p_task_id: string }; Returns: { coins: number; balance: number }[] };
-      undo_task: { Args: { p_task_id: string }; Returns: { coins: number; balance: number }[] };
+      complete_task: { Args: { p_task_id: string; p_slot?: TimeOfDay | null }; Returns: { coins: number; balance: number }[] };
+      undo_task: { Args: { p_task_id: string; p_slot?: TimeOfDay | null }; Returns: { coins: number; balance: number }[] };
       buy_building: { Args: { p_type_id: string; p_x: number; p_y: number; p_rotated?: boolean }; Returns: { building_id: string; balance: number }[] };
       move_building: { Args: { p_building_id: string; p_x: number; p_y: number; p_rotated?: boolean | null }; Returns: undefined };
       sell_building: { Args: { p_building_id: string }; Returns: { refund: number; balance: number }[] };

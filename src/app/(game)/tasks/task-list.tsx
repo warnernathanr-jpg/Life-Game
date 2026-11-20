@@ -8,10 +8,10 @@ import { AreaIcon, ItemIcon } from "@/components/icons";
 
 import { useState, useTransition } from "react";
 import { useConfirm } from "@/components/confirm";
-import type { MyTaskRow } from "@/lib/database.types";
+import type { MyTaskRow, TimeOfDay } from "@/lib/database.types";
 import { AREA_BY_ID, nextMilestone } from "@/lib/game";
 import { rateWords, type HabitSummary } from "@/lib/habits";
-import { describeNext, describeProgress, describeSchedule } from "@/lib/tasks";
+import { TIMES_OF_DAY, describeNext, describeProgress, describeSchedule } from "@/lib/tasks";
 import { describeDue } from "@/lib/task-calendar";
 import { completeTask, removeTask, undoTask } from "../actions";
 
@@ -115,6 +115,26 @@ function TaskRow({
   const checked = task.done_today || task.done;
   const progress = describeProgress(task);
 
+  const slots = task.times_of_day ?? [];
+  const hasSlots = slots.length > 0;
+
+  function toggleSlot(slot: TimeOfDay) {
+    const done = task.slots_done.includes(slot);
+    const label = TIMES_OF_DAY.find((t) => t.id === slot)!.label.toLowerCase();
+    start(async () => {
+      if (done) {
+        const r = await undoTask(task.id, slot);
+        setMessage(r.ok ? { text: `Undone (${label}). ${r.coins ? `−${r.coins} coins.` : ""}`, tone: "good" } : { text: r.error, tone: "bad" });
+      } else {
+        const r = await completeTask(task.id, slot);
+        if (r.ok) {
+          setPop({ id: task.id, coins: r.coins, key: Date.now() });
+          setMessage({ text: `+${r.coins} coins for “${task.title}” (${label})!`, tone: "good" });
+        } else setMessage({ text: r.error, tone: "bad" });
+      }
+    });
+  }
+
   function toggle() {
     start(async () => {
       if (checked) {
@@ -156,18 +176,29 @@ function TaskRow({
   return (
     <li className={`relative flex items-center gap-3 px-4 py-3 sm:px-5 ${pending ? "opacity-60" : ""}`}>
       {confirmDialog}
+      {hasSlots ? (
+        <span
+          aria-hidden
+          className={`flex size-9 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold tabular-nums ${
+            task.done ? "border-good bg-good text-bg" : "border-line bg-raised text-muted"
+          }`}
+        >
+          {task.done ? <Check className="size-5" strokeWidth={3} /> : `${task.slots_done.length}/${slots.length}`}
+        </span>
+      ) : (
       <button
-        type="button"
-        onClick={toggle}
-        disabled={pending}
-        aria-pressed={checked}
-        aria-label={checked ? `Undo “${task.title}”` : `Complete “${task.title}” for ${task.reward} coins`}
-        className={`flex size-9 shrink-0 items-center justify-center rounded-full border-2 text-lg transition ${
-          checked ? "border-good bg-good text-bg" : "border-line bg-raised hover:border-accent"
-        }`}
-      >
-        {checked ? <Check className="size-5" strokeWidth={3} aria-hidden /> : null}
-      </button>
+          type="button"
+          onClick={toggle}
+          disabled={pending}
+          aria-pressed={checked}
+          aria-label={checked ? `Undo “${task.title}”` : `Complete “${task.title}” for ${task.reward} coins`}
+          className={`flex size-9 shrink-0 items-center justify-center rounded-full border-2 text-lg transition ${
+            checked ? "border-good bg-good text-bg" : "border-line bg-raised hover:border-accent"
+          }`}
+        >
+          {checked ? <Check className="size-5" strokeWidth={3} aria-hidden /> : null}
+        </button>
+      )}
       <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-raised text-accent-text">
         <ItemIcon icon={task.icon} area={task.area} className="size-5" />
       </span>
@@ -184,6 +215,29 @@ function TaskRow({
           {progress && <span className={task.done ? "" : "font-medium text-good"}>· {progress}</span>}
           {task.total_completions > 0 && <span>· {task.total_completions}× total</span>}
         </p>
+        {hasSlots && (
+          <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={`Times of day for “${task.title}”`}>
+            {TIMES_OF_DAY.filter((t) => slots.includes(t.id)).map((t) => {
+              const done = task.slots_done.includes(t.id);
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => toggleSlot(t.id)}
+                  disabled={pending || (!task.scheduled_today && !done)}
+                  aria-pressed={done}
+                  aria-label={done ? `Undo ${t.label.toLowerCase()}` : `Done ${t.label.toLowerCase()} (+${task.reward} coins)`}
+                  className={`flex min-h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold ${
+                    done ? "border-good bg-good text-bg" : "border-line bg-raised text-ink hover:border-accent"
+                  }`}
+                >
+                  {done ? <Check className="size-3.5" strokeWidth={3} aria-hidden /> : <t.Icon className="size-3.5" aria-hidden />}
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
         {habit && <HabitRhythm habit={habit} total={task.total_completions} />}
       </div>
       <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${checked ? "bg-raised text-faint" : "bg-coin-soft text-coin"}`}>

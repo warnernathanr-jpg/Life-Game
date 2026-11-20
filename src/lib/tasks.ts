@@ -1,5 +1,6 @@
 // How tasks repeat, in words, and when a certain-days task is next on.
-import type { MyTaskRow, TaskRepeat } from "./database.types";
+import { Moon, Sun, Sunrise } from "lucide-react";
+import type { MyTaskRow, TaskRepeat, TimeOfDay } from "./database.types";
 
 export const WEEKDAYS = [
   { iso: 1, short: "Mon", letter: "M" },
@@ -60,7 +61,10 @@ const PERIOD_WORD: Partial<Record<TaskRepeat, string>> = {
 };
 
 /** Progress text, e.g. "1 of 3 this week", "Done this month", "Done today". */
-export function describeProgress(t: Schedule & Pick<MyTaskRow, "done" | "done_today" | "period_count" | "period_target">): string | null {
+export function describeProgress(
+  t: Schedule & Pick<MyTaskRow, "done" | "done_today" | "period_count" | "period_target"> & { times_of_day?: TimeOfDay[] | null },
+): string | null {
+  if (t.times_of_day && t.times_of_day.length > 0) return `${t.period_count} of ${t.period_target} today`;
   if (t.repeat === "times_per_week" || t.repeat === "times_per_month") {
     return `${t.period_count} of ${t.period_target} ${PERIOD_WORD[t.repeat]}`;
   }
@@ -89,3 +93,10 @@ export function describeNext(weekdays: number[], today: string): string {
   if (n === 1) return "Tomorrow";
   return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][((isoWeekday(today) - 1 + n) % 7)];
 }
+
+/** Times of day a daily task can be checked off at, in order. */
+export const TIMES_OF_DAY: { id: TimeOfDay; label: string; Icon: typeof Sun }[] = [
+  { id: "morning", label: "Morning", Icon: Sunrise },
+  { id: "afternoon", label: "Afternoon", Icon: Sun },
+  { id: "night", label: "Night", Icon: Moon },
+];

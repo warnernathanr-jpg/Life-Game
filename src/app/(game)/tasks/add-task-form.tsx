@@ -5,7 +5,7 @@ import { IconPicker } from "@/components/icon-picker";
 import { useActionState, useEffect, useRef, useState } from "react";
 import type { TaskRepeat } from "@/lib/database.types";
 import { AREAS, DIFFICULTIES, REWARDS } from "@/lib/game";
-import { MAX_TIMES, REPEATS, WEEKDAYS } from "@/lib/tasks";
+import { MAX_TIMES, REPEATS, TIMES_OF_DAY, WEEKDAYS } from "@/lib/tasks";
 import { addTask, type AddTaskState } from "../actions";
 
 export function AddTaskForm() {
@@ -85,6 +85,25 @@ export function AddTaskForm() {
             <button type="button" className="link ml-1 text-sm" onClick={() => setDays([1, 2, 3, 4, 5])}>Weekdays</button>
             <button type="button" className="link ml-1 text-sm" onClick={() => setDays([6, 7])}>Weekends</button>
           </div>
+        </fieldset>
+      )}
+      {(repeat === "daily" || repeat === "days") && (
+        <fieldset key={`times-${state.added ?? 0}`} className="sm:col-span-2">
+          <legend className="text-sm font-medium text-ink">
+            Times of day <span className="font-normal text-muted">(optional: check it off at each time)</span>
+          </legend>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {TIMES_OF_DAY.map((t) => (
+              <label
+                key={t.id}
+                className="flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-line bg-raised px-3 text-sm font-medium text-ink has-checked:border-accent has-checked:bg-accent has-checked:text-on-accent has-focus-visible:ring-2 has-focus-visible:ring-accent"
+              >
+                <input type="checkbox" name="times_of_day" value={t.id} className="sr-only" />
+                <t.Icon className="size-4" aria-hidden /> {t.label}
+              </label>
+            ))}
+          </div>
+          <span className="mt-1 block text-xs text-muted">e.g. &ldquo;Eat a healthy meal&rdquo; in the morning, afternoon and at night. Each one earns coins.</span>
         </fieldset>
       )}
       {repeat === "once" && (

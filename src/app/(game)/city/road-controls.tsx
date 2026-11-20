@@ -6,7 +6,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { RoadControlKind } from "@/lib/database.types";
-import { gameClock, lightFor } from "./traffic";
+import { gameClock, lightFor } from "./sim-clock";
 import { mat } from "./models";
 
 const POLE = new THREE.CylinderGeometry(0.01, 0.012, 1, 6);

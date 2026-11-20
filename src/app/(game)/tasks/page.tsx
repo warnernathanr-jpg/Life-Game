@@ -17,11 +17,12 @@ export const metadata: Metadata = { title: "Tasks · Life City" };
 async function TasksPageContent({ searchParams }: { searchParams: PageProps<"/tasks">["searchParams"] }) {
   const sp = await searchParams;
   const { supabase } = await requireUser();
-  const [{ data: tasks }, { data: progress }, { data: types }, { data: profile }] = await Promise.all([
+  const [{ data: tasks }, { data: progress }, { data: types }, { data: profile }, { data: goals }] = await Promise.all([
     supabase.rpc("my_tasks"),
     supabase.rpc("my_progress").maybeSingle(),
     supabase.from("building_types").select("*").order("sort_order"),
     supabase.from("profiles").select("display_name").maybeSingle(),
+    supabase.from("goals").select("id, title, target_date, completed_at"),
   ]);
   const today = tasks?.[0]?.today ?? new Date().toISOString().slice(0, 10);
   // Check-offs from the last 5 weeks, for each habit's recent rhythm.
@@ -47,10 +48,13 @@ async function TasksPageContent({ searchParams }: { searchParams: PageProps<"/ta
   // One-offs due on a later day wait under "Coming up" (they can still be done early).
   const later = (t: (typeof active)[number]) => t.repeat === "once" && !!t.due_date && t.due_date > today && !t.done;
   const todo = active
-    .filter((t) => t.scheduled_today && !t.done && !t.done_today && !later(t))
+    .filter((t) => t.scheduled_today && !t.done && (!t.done_today || (t.times_of_day?.length ?? 0) > 0) && !later(t))
     .sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"));
   const upcoming = active.filter(later).sort((a, b) => a.due_date!.localeCompare(b.due_date!));
-  const doneList = active.filter((t) => t.done_today || (t.done && !["once", "daily", "days"].includes(t.repeat)));
+  const hasSlots = (t: (typeof active)[number]) => (t.times_of_day?.length ?? 0) > 0;
+  const doneList = active.filter((t) =>
+    hasSlots(t) ? t.done : t.done_today || (t.done && !["once", "daily", "days"].includes(t.repeat)),
+  );
   const otherDays = active
     .filter((t) => !t.scheduled_today && !t.done_today)
     .sort((a, b) => daysUntilNext(a.weekdays ?? [], a.today) - daysUntilNext(b.weekdays ?? [], b.today));
@@ -84,9 +88,9 @@ async function TasksPageContent({ searchParams }: { searchParams: PageProps<"/ta
         ) : view === "day" ? (
           <DayView tasks={active} date={date} today={today} done={done} />
         ) : view === "week" ? (
-          <WeekView tasks={active} date={date} today={today} done={done} />
+          <WeekView tasks={active} goals={goals ?? []} date={date} today={today} done={done} />
         ) : (
-          <MonthView tasks={active} date={date} today={today} done={done} />
+          <MonthView tasks={active} goals={goals ?? []} date={date} today={today} done={done} />
         )}
 
         <section className="card" aria-labelledby="add-task">

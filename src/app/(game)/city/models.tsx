@@ -234,8 +234,8 @@ function Model({ typeId, seed, join }: { typeId: string; seed: number; join?: { 
         <>
           <B p={[cx, 0, 0]} s={[w, 0.5, 0.56]} c={wall} />
           {/* Gable roof along the row */}
-          <mesh geometry={BOX} material={mat(roof)} position={[(roofL + roofR) / 2, 0.6, -0.15]} rotation={[0.62, 0, 0]} scale={[roofR - roofL, 0.05, 0.42]} castShadow />
-          <mesh geometry={BOX} material={mat(roof)} position={[(roofL + roofR) / 2, 0.6, 0.15]} rotation={[-0.62, 0, 0]} scale={[roofR - roofL, 0.05, 0.42]} castShadow />
+          <mesh geometry={BOX} material={mat(roof)} position={[(roofL + roofR) / 2, 0.6, -0.15]} rotation={[-0.62, 0, 0]} scale={[roofR - roofL, 0.05, 0.42]} castShadow />
+          <mesh geometry={BOX} material={mat(roof)} position={[(roofL + roofR) / 2, 0.6, 0.15]} rotation={[0.62, 0, 0]} scale={[roofR - roofL, 0.05, 0.42]} castShadow />
           {!join?.right && <B p={[0.22, 0.6, -0.12]} s={[0.09, 0.3, 0.09]} c="#78716c" />}
           <B p={[-0.12, 0, 0.281]} s={[0.13, 0.24, 0.02]} c={door} />
           <B p={[0.14, 0.22, 0.281]} s={[0.14, 0.12, 0.02]} c="#93c5fd" />
