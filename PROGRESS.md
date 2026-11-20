@@ -906,6 +906,10 @@ _Last updated: 2026-11-28_
   `https://www.lifecity.app/**` and `https://lifecity.app/**` to the redirect URLs (keep the vercel.app one). The connected
   Supabase API token can't change this project's auth settings (401), and the MCP has no tool for it.
 
+- **Navy logo** (2026-11-28): the logo's background is navy `#1e3a8a` (was green `#047857`) and its right-hand building light blue
+  `#bfdbfe` (was mint): `src/app/icon.svg` (browser tab), `public/icons/*` (home-screen icons, redrawn from SVG: rounded 192/512,
+  full-bleed 180 for iPhone, maskable 512 with the shapes at 78% in the safe zone) and `brand/instagram-profile.*`.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
