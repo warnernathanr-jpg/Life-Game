@@ -4,7 +4,6 @@ import { KeyRound, LogOut, RotateCcw, TriangleAlert, UserRound } from "lucide-re
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useConfirm } from "@/components/confirm";
 import { ThemeSettings } from "@/components/theme-picker";
-import { DayNightSetting } from "@/components/day-night-setting";
 import { signOut } from "../../(auth)/actions";
 import { changePassword, resetProgress, type PasswordState } from "../actions";
 
@@ -36,8 +35,6 @@ export function SettingsForms({ email }: { email: string }) {
       </section>
 
       <ThemeSettings />
-
-      <DayNightSetting />
 
       <section className="card" aria-labelledby="pw-h">
         <h2 id="pw-h" className="flex items-center gap-2 font-semibold">

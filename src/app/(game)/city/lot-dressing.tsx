@@ -12,11 +12,11 @@ import { B, Cyl, mat, type V3 } from "./models";
 
 const SPHERE = new THREE.SphereGeometry(1, 8, 6);
 
-const HOUSES = new Set(["small_cottage", "cottage", "suburban", "luxury", "duplex"]);
+const HOUSES = new Set(["small_cottage", "cottage", "suburban", "luxury"]);
 const ROWS = new Set(["house", "apartments", "highrise"]);
 const INDUSTRY = new Set(["factory", "small_factory", "warehouse", "workshop", "distribution"]);
 const SMALL_SHOPS = new Set(["corner_shop", "cafe", "restaurant", "clothing", "bank"]);
-const BIG_SHOPS = new Set(["office", "grocery", "cinema", "hotel", "mall"]);
+const BIG_SHOPS = new Set(["office", "cinema", "hotel", "mall"]);
 
 const CONCRETE = "#a8a29e";
 const DRIVEWAY = "#8f8a84";
@@ -123,6 +123,29 @@ export function LotDressing({ typeId, seed, lw, ld }: { typeId: string; seed: nu
         <Slab x={hx - 0.2} z={hz - 0.12} w={0.3} d={0.012} c="#facc15" y={0.0085} />
         <Cyl p={[-hx + 0.06, 0.008, hz - 0.05]} r={0.012} h={0.05} c="#facc15" />
         <Cyl p={[-hx + 0.16, 0.008, hz - 0.05]} r={0.012} h={0.05} c="#facc15" />
+      </>
+    );
+  }
+
+  if (typeId === "duplex" || typeId === "grocery") {
+    // A driveway along the whole front (both duplex homes / the store's entrance), with parked cars on the duplex.
+    return (
+      <>
+        <Slab x={0} z={hz - 0.1} w={lw - 0.06} d={0.18} c={DRIVEWAY} y={typeId === "grocery" ? 0.024 : 0.004} />
+        {typeId === "duplex" && (
+          <>
+            {r() < 0.75 && <Car p={[-hx * 0.5, 0.008, hz - 0.1]} c={pickOf(CARS)} along="x" />}
+            {r() < 0.75 && <Car p={[hx * 0.5, 0.008, hz - 0.1]} c={pickOf(CARS)} along="x" />}
+            <Bush p={[-hx + 0.08, 0, -hz + 0.09]} r={0.07} c={pickOf(BUSH)} />
+            <Bush p={[hx - 0.08, 0, -hz + 0.09]} r={0.07} c={pickOf(BUSH)} />
+          </>
+        )}
+        {typeId === "grocery" && (
+          <>
+            <Lamp p={[-hx + 0.05, 0.024, hz - 0.04]} />
+            <Lamp p={[hx - 0.05, 0.024, hz - 0.04]} />
+          </>
+        )}
       </>
     );
   }

@@ -4,7 +4,20 @@
 // along z, with its front (doors, signs) facing +z. Colors come from one small palette per building (picked by its
 // seed), so the same building always looks the same. Nothing here runs at import time (models.tsx imports this file).
 import type { ReactNode } from "react";
-import { B, Cyl, PALETTE, Roof, Tree, pick } from "./models";
+import { B, BOX, Cyl, PALETTE, Roof, Tree, mat, pick } from "./models";
+
+/** A two-sided roof along x (ridge in the middle), w × d, with its eaves at height y. */
+function SlopedRoof({ x, z, y, w, d, c }: { x: number; z: number; y: number; w: number; d: number; c: string }) {
+  const half = d / 2;
+  const tilt = 0.5;
+  const len = half / Math.cos(tilt);
+  return (
+    <>
+      <mesh geometry={BOX} material={mat(c)} position={[x, y + (half * Math.tan(tilt)) / 2, z - half / 2]} rotation={[-tilt, 0, 0]} scale={[w, 0.04, len]} castShadow />
+      <mesh geometry={BOX} material={mat(c)} position={[x, y + (half * Math.tan(tilt)) / 2, z + half / 2]} rotation={[tilt, 0, 0]} scale={[w, 0.04, len]} castShadow />
+    </>
+  );
+}
 
 /** One color set per building. */
 export type Pal = { wall: string; roof: string; trim: string; accent: string; glass: string; door: string };
@@ -301,16 +314,39 @@ const MODELS: Record<string, Maker> = {
   // ---------------- Knowledge ----------------
   school: (p) => (
     <>
-      <B p={[0, 0, 0]} s={[1.9, 0.02, 0.96]} c="#86efac" />
-      <B p={[-0.3, 0, -0.1]} s={[1.1, 0.44, 0.6]} c="#fed7aa" />
-      <Roof p={[-0.3, 0.44, -0.1]} s={[1.24, 0.24, 0.74]} c={p.roof} />
-      {windows(4, 0.8, 0.18, 0.201, 0.12)}
-      <B p={[-0.3, 0, 0.201]} s={[0.14, 0.22, 0.02]} c={p.door} />
-      <B p={[0.6, 0.02, 0.05]} s={[0.5, 0.01, 0.6]} c="#fcd34d" />
-      <B p={[0.55, 0.02, 0.0]} s={[0.06, 0.24, 0.06]} c={p.accent} />
-      <B p={[0.55, 0.26, 0.0]} s={[0.26, 0.04, 0.06]} c={p.accent} />
-      <Cyl p={[0.82, 0.02, 0.3]} r={0.012} h={0.7} c="#e5e7eb" />
-      <B p={[0.88, 0.6, 0.3]} s={[0.12, 0.08, 0.01]} c={p.accent} />
+      {/* Schoolyard: lawn, with a play area on the right. */}
+      <B p={[0, 0, 0]} s={[1.92, 0.012, 0.96]} c="#9ccf86" />
+      <B p={[0.58, 0.012, 0.06]} s={[0.66, 0.008, 0.62]} c="#d8c9a3" />
+      {/* Brick schoolhouse with white trim, a sloped roof along its length and a little bell tower. */}
+      <B p={[-0.34, 0, -0.1]} s={[1.08, 0.4, 0.5]} c="#c8553d" />
+      <B p={[-0.34, 0.38, -0.1]} s={[1.12, 0.03, 0.54]} c="#f5f5f4" />
+      <SlopedRoof x={-0.34} z={-0.1} y={0.41} w={1.16} d={0.58} c={p.roof} />
+      <B p={[-0.34, 0.6, -0.1]} s={[0.14, 0.14, 0.14]} c="#f5f5f4" />
+      <Roof p={[-0.34, 0.74, -0.1]} s={[0.2, 0.14, 0.2]} c={p.roof} />
+      {/* Front: windows either side of the door, a canopy over it, steps. */}
+      {[-0.78, -0.62, -0.06, 0.1].map((x) => (
+        <B key={x} p={[x, 0.15, 0.151]} s={[0.1, 0.12, 0.02]} c="#bfdbfe" />
+      ))}
+      <B p={[-0.34, 0, 0.151]} s={[0.16, 0.24, 0.02]} c={p.door} />
+      <B p={[-0.34, 0.25, 0.2]} s={[0.26, 0.025, 0.12]} c="#f5f5f4" />
+      <B p={[-0.34, 0, 0.21]} s={[0.24, 0.03, 0.1]} c="#d6d3d1" />
+      {/* Flag pole. */}
+      <Cyl p={[0.12, 0.012, 0.36]} r={0.01} h={0.62} c="#e5e7eb" />
+      <B p={[0.17, 0.52, 0.36]} s={[0.1, 0.07, 0.008]} c={p.accent} />
+      {/* Playground: a slide and a swing set. */}
+      <B p={[0.42, 0.02, 0.05]} s={[0.08, 0.2, 0.08]} c={p.accent} />
+      <mesh geometry={BOX} material={mat("#facc15")} position={[0.42, 0.13, 0.2]} rotation={[0.75, 0, 0]} scale={[0.07, 0.01, 0.3]} castShadow />
+      {/* Swing set: two posts, a top bar and two seats on ropes. */}
+      <B p={[0.6, 0.02, 0.06]} s={[0.015, 0.24, 0.015]} c="#64748b" />
+      <B p={[0.88, 0.02, 0.06]} s={[0.015, 0.24, 0.015]} c="#64748b" />
+      <B p={[0.74, 0.25, 0.06]} s={[0.3, 0.015, 0.015]} c="#64748b" />
+      {[0.68, 0.8].map((x) => (
+        <group key={x}>
+          <B p={[x, 0.08, 0.06]} s={[0.004, 0.17, 0.004]} c="#94a3b8" />
+          <B p={[x, 0.075, 0.06]} s={[0.06, 0.01, 0.035]} c={p.accent} />
+        </group>
+      ))}
+      <Tree p={[0.9, 0.012, -0.36]} s={0.7} />
     </>
   ),
   high_school: (p) => (
@@ -431,18 +467,58 @@ const MODELS: Record<string, Maker> = {
   ),
   stadium: (p) => (
     <>
+      {/* Plaza around the stadium. */}
       <B p={[0, 0, 0]} s={[3.94, 0.02, 3.94]} c={CONCRETE} />
-      <B p={[0, 0, 0]} s={[3.4, 0.55, 3.0]} c="#cbd5e1" />
-      <B p={[0, 0.55, 0]} s={[3.5, 0.05, 3.1]} c={p.accent} />
-      <B p={[0, 0.2, 0]} s={[2.6, 0.36, 2.2]} c="#94a3b8" />
-      <B p={[0, 0.57, 0]} s={[2.2, 0.02, 1.8]} c="#16a34a" />
-      <B p={[0, 0.59, 0]} s={[0.02, 0.004, 1.7]} c="#f8fafc" />
-      <Cyl p={[0, 0.59, 0]} r={0.25} h={0.004} c="#f8fafc" />
-      <B p={[0, 0.59, 0]} s={[0.46, 0.004, 0.46]} c="#16a34a" />
-      {[[-1.6, -1.4], [1.6, -1.4], [-1.6, 1.4], [1.6, 1.4]].map(([x, z], i) => (
+      {/* Football field running along x: mowed stripes, white yard lines, end zones in the team color, goal posts. */}
+      <B p={[0, 0.02, 0]} s={[2.5, 0.01, 1.3]} c="#15803d" />
+      {Array.from({ length: 10 }, (_, i) => (
+        <B key={`s${i}`} p={[-0.9 + i * 0.2, 0.031, 0]} s={[0.1, 0.002, 1.2]} c="#16a34a" />
+      ))}
+      <B p={[-1.1, 0.032, 0]} s={[0.2, 0.003, 1.2]} c={p.accent} />
+      <B p={[1.1, 0.032, 0]} s={[0.2, 0.003, 1.2]} c={p.accent} />
+      {Array.from({ length: 11 }, (_, i) => (
+        <B key={`y${i}`} p={[-1 + i * 0.2, 0.034, 0]} s={[0.012, 0.002, 1.2]} c="#f8fafc" />
+      ))}
+      <B p={[0, 0.034, 0.6]} s={[2.4, 0.002, 0.012]} c="#f8fafc" />
+      <B p={[0, 0.034, -0.6]} s={[2.4, 0.002, 0.012]} c="#f8fafc" />
+      {[-1.22, 1.22].map((x) => (
+        <group key={x}>
+          <B p={[x, 0.02, 0]} s={[0.02, 0.22, 0.02]} c="#facc15" />
+          <B p={[x, 0.22, 0]} s={[0.02, 0.02, 0.3]} c="#facc15" />
+          <B p={[x, 0.22, -0.15]} s={[0.015, 0.25, 0.015]} c="#facc15" />
+          <B p={[x, 0.22, 0.15]} s={[0.015, 0.25, 0.015]} c="#facc15" />
+        </group>
+      ))}
+      {/* Stands on both long sides: three tiers rising away from the field, with the team color on top. */}
+      {[-1, 1].map((side) => (
+        <group key={side}>
+          {[0, 1, 2].map((tier) => (
+            <B
+              key={tier}
+              p={[0, 0, side * (0.82 + tier * 0.22)]}
+              s={[2.9, 0.16 + tier * 0.16, 0.24]}
+              c={tier % 2 === 0 ? "#cbd5e1" : "#94a3b8"}
+            />
+          ))}
+          <B p={[0, 0.48, side * 1.26]} s={[2.95, 0.06, 0.26]} c={p.accent} />
+          {/* Rows of seats (colored strips on each tier). */}
+          {[0, 1, 2].map((tier) => (
+            <B key={`r${tier}`} p={[0, 0.16 + tier * 0.16, side * (0.74 + tier * 0.22)]} s={[2.86, 0.012, 0.05]} c={p.trim} />
+          ))}
+        </group>
+      ))}
+      {/* Smaller stands behind the end zones. */}
+      {[-1, 1].map((side) => (
+        <B key={`e${side}`} p={[side * 1.6, 0, 0]} s={[0.4, 0.22, 1.4]} c="#cbd5e1" />
+      ))}
+      {/* Scoreboard over one end, light towers at the corners. */}
+      <B p={[1.75, 0, 0]} s={[0.06, 0.7, 0.06]} c="#475569" />
+      <B p={[1.75, 0.7, 0]} s={[0.08, 0.3, 0.7]} c="#111827" />
+      <B p={[1.7, 0.78, 0]} s={[0.01, 0.16, 0.56]} c="#f59e0b" />
+      {[[-1.75, -1.75], [1.75, -1.75], [-1.75, 1.75], [1.75, 1.75]].map(([x, z], i) => (
         <group key={i}>
-          <Cyl p={[x, 0, z]} r={0.04} h={1.6} c="#e5e7eb" />
-          <B p={[x, 1.6, z]} s={[0.3, 0.14, 0.08]} c="#fef9c3" />
+          <Cyl p={[x, 0, z]} r={0.035} h={1.5} c="#e5e7eb" />
+          <B p={[x, 1.5, z]} s={[0.28, 0.14, 0.08]} c="#fef9c3" />
         </group>
       ))}
     </>

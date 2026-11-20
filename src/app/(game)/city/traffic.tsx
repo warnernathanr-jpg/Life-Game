@@ -9,7 +9,6 @@ import * as THREE from "three";
 import { key, type Tile } from "@/lib/roads";
 import {
   SIM_MINUTES_PER_SECOND,
-  clockText,
   decide,
   dwellMinutes,
   outing,
@@ -173,7 +172,7 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
       return {
         ...base,
         status: `${verb} ${where}`,
-        detail: `From ${s.trip.fromId === c.homeId ? "home" : (from?.name ?? "somewhere")} · arrives about ${clockText(t + minutesLeft(s.trip))}`,
+        detail: `From ${s.trip.fromId === c.homeId ? "home" : (from?.name ?? "somewhere")} · ${minutesLeft(s.trip) < 6 ? "almost there" : "on the way"}`,
         mode: s.trip.mode,
         placeId: s.trip.toId,
       };
@@ -181,7 +180,7 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
     const at = places.get(s.at);
     const label = s.at === c.homeId ? "At home" : s.at === c.workId ? `At work · ${at?.name ?? ""}` : s.at === c.schoolId ? `At school · ${at?.name ?? ""}` : `At ${at?.name ?? "a place"}`;
     const home = places.get(c.homeId);
-    const detail = s.at === c.homeId && !home?.entrance ? "Can't go anywhere: the home has no road" : s.until > t ? `Until about ${clockText(s.until)}` : "Heading out soon";
+    const detail = s.at === c.homeId && !home?.entrance ? "Can't go anywhere: the home has no road" : s.until - t > 20 ? "Staying a while" : "Heading out soon";
     return { ...base, status: label, detail, mode: "inside", placeId: s.at };
   };
 

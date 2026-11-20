@@ -236,6 +236,19 @@ export function nextAt(t: number, m: number): number {
  * always heading home in between. `r` is a random number source (so the day varies but stays plausible).
  */
 export function decide(c: Citizen, atId: string, t: number, places: Map<string, Place>, r: () => number): Plan {
+  // Everyone keeps their own hours (shifts spread around the clock), so the city is always busy. The routine below runs
+  // on each person's own time; the clock itself isn't shown anywhere.
+  const offset = personalOffset(c);
+  const plan = routine(c, atId, t + offset, places, r);
+  return "stayUntil" in plan ? { stayUntil: plan.stayUntil - offset } : plan;
+}
+
+/** How far (game minutes) a person's day is shifted from everyone else's: spread evenly over the day by their seed. */
+export function personalOffset(c: Pick<Citizen, "seed">): number {
+  return (c.seed >>> 3) % DAY;
+}
+
+function routine(c: Citizen, atId: string, t: number, places: Map<string, Place>, r: () => number): Plan {
   const m = minuteOfDay(t);
   const day = Math.floor(t / DAY);
   const atHome = atId === c.homeId;

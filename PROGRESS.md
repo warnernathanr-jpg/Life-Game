@@ -524,14 +524,27 @@ _Last updated: 2026-11-27_
   reach-by date is that day.
 - **Area points** card: just the points per area (the "75 more → Neighborhood Park" countdowns are gone).
 - **Icon picker**: a small icon-only button.
-- **Settings → Day and night** switch (per device, `src/lib/prefs.ts`): off = sunny all day. The **city clock starts at a random
-  time** each time the app is opened (`sim-clock.ts`, which now holds the clock and `lightFor()` apart from the 3D code).
+- (Later removed, see 39:) a Settings day/night switch and a random start time. `sim-clock.ts` holds the internal clock and
+  `lightFor()` apart from the 3D code.
 - **Cut-off roads**: buildings only count when their road joins the town's main network (the largest group of joined road
   tiles, `mainRoadNetwork()` in `roads.ts`, 1 unit test); a building on a separate stretch gets the "!" marker and "Its road isn't
   joined to the rest of town".
 - **Crosswalks** (zebra stripes) on every side of crossings on 2-lane and 4-lane roads. **High-rise** windows on all four sides.
   **Townhouse** roof was upside down (a V); now a proper gable.
 - Owner's account: 100,000 test coins and 1,000 points per area (all buildings unlocked) after their Start over.
+
+### 39. No clock or day/night; always-busy city; models and menu polish (2026-11-27)
+- **Day/night and the clock are gone** (owner's request): the city is always in daylight, the clock pill is now just a pause button,
+  and the Settings day/night switch was removed. The simulation still keeps time internally (routines, traffic lights) but it's
+  never shown; citizen cards say "on the way / almost there" and "staying a while" instead of times.
+- **Always busy**: every citizen's day is shifted by their own offset (`personalOffset()` in `sim.ts`: spread over 24 hours by
+  their seed), so commutes, errands and visits happen all the time rather than at shared rush hours.
+- **Build menu** shows every building's size (1×1, 2×1, 4×4…), also in the effect chips.
+- **Duplex** and **Grocery Store** have a driveway along their whole front (cars on the duplex's, lamps at the store).
+- **Elementary School** rebuilt: brick schoolhouse with white trim, a sloped roof along its length, bell tower, aligned windows and
+  an entrance canopy, a flag pole and a playground with a slide and swings (the old windows floated past the building).
+- **Football Stadium** (was Sports Stadium): striped field with yard lines, end zones in the team color, goal posts, three-tier stands
+  on both long sides, end stands, a scoreboard and light towers. Migration `20261127040000_football_stadium.sql` (applied live).
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate

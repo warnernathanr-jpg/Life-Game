@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Car, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, LocateFixed, Maximize2, Minimize2, Moon, MousePointer2, Pause, Play, RotateCcw, RotateCw, Sun, Sunrise, Sunset, X, ZoomIn, ZoomOut } from "lucide-react";
+import { Ban, Car, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, LocateFixed, Maximize2, Minimize2, MousePointer2, Pause, Play, RotateCcw, RotateCw, X, ZoomIn, ZoomOut } from "lucide-react";
 import dynamic from "next/dynamic";
 import { BuildingIcon, BulldozeIcon, CoinIcon } from "@/components/icons";
 import { cityExposure, computeLayer, LAYERS, type LayerId } from "@/lib/layers";
@@ -11,11 +11,9 @@ import { BRIDGE_TYPE, ROAD_TIERS, connectedIds, isRoadType, key, nextFacing, roa
 import { buyBuilding, buyLand, buyTiles, moveBuilding, placeRoadControl, removeRoadControl, sellBuilding, sellMany, setBuildingColor, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
 import { useConfirm } from "@/components/confirm";
-import { citizensFrom, clockText, minuteOfDay, placesFrom, roleText } from "@/lib/sim";
+import { citizensFrom, placesFrom, roleText } from "@/lib/sim";
 import { BuildOverlay } from "./build-overlay";
 import type { CitizenInfo } from "./traffic";
-import { gameClock } from "./sim-clock";
-import { DAY_NIGHT_EVENT, readDayNight } from "@/lib/prefs";
 import { CityName, CityStatsPanel, SelectedPanel, Shop } from "./panels";
 
 // three.js only loads on this page, in the browser.
@@ -47,13 +45,6 @@ function LayerIcon({ id }: { id: LayerId | null }) {
 /** Load a page fresh (deliberately not client-side navigation: see enterFull). */
 function hardNavigate(path: string) {
   window.location.assign(new URL(path, window.location.origin).href);
-}
-
-/** Sky for the city clock. */
-function DayIcon({ t }: { t: number }) {
-  const m = minuteOfDay(Math.floor(t));
-  const Icon = m < 6 * 60 || m >= 21 * 60 ? Moon : m < 9 * 60 ? Sunrise : m < 18 * 60 ? Sun : Sunset;
-  return <Icon className="size-4 text-coin" aria-hidden />;
 }
 
 export type Mode =
@@ -162,18 +153,7 @@ export function CityBoard(props: {
   );
   const stats = useMemo(() => cityStats(placed, types, progress, exposure), [placed, types, progress, exposure]);
   const [paused, setPaused] = useState(false);
-  const [simClock, setSimClock] = useState(7 * 60 + 15);
-  // The clock starts at a random time each visit (traffic.tsx); show it right away rather than waiting for the 3D view.
-  // Day and night can be switched off in Settings (then it's sunny all day).
-  const [dayNight, setDayNight] = useState(true);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSimClock(gameClock());
-    const read = () => setDayNight(readDayNight());
-    read();
-    window.addEventListener(DAY_NIGHT_EVENT, read);
-    return () => window.removeEventListener(DAY_NIGHT_EVENT, read);
-  }, []);
+
   const [citizenId, setCitizenId] = useState<string | null>(null);
   const [citizenInfo, setCitizenInfo] = useState<CitizenInfo | null>(null);
   // Map layers (full screen): which one is shown, and whether the list is open.
@@ -195,7 +175,7 @@ export function CityBoard(props: {
         if (id) setMode({ kind: "idle" });
       },
       onInfo: setCitizenInfo,
-      onClock: setSimClock,
+      onClock: () => {}, // the clock runs inside the simulation only; it isn't shown
     }),
     [places, citizens, paused, citizenId],
   );
@@ -737,16 +717,15 @@ export function CityBoard(props: {
     />
   ) : null;
 
+  // Just a pause button (no clock): pausing makes it easy to tap a car or a person.
   const clockPill = (className: string) => (
-    <div className={`flex items-center gap-1 rounded-full bg-surface/95 py-1 pr-1 pl-3 text-sm font-semibold text-ink shadow ring-1 ring-line ${className}`}>
-      <DayIcon t={simClock} />
-      <span className="tabular-nums" aria-label={`City time ${clockText(simClock)}`}>{clockText(simClock)}</span>
+    <div className={`flex items-center rounded-full bg-surface/95 p-1 shadow ring-1 ring-line ${className}`}>
       <button
         type="button"
         onClick={() => setPaused((p) => !p)}
         aria-label={paused ? "Resume the city" : "Pause the city"}
         title={paused ? "Resume" : "Pause (then tap a car or a person)"}
-        className={`ml-1 flex size-8 items-center justify-center rounded-full ${paused ? "bg-accent text-on-accent" : "bg-raised hover:bg-line"}`}
+        className={`flex size-8 items-center justify-center rounded-full ${paused ? "bg-accent text-on-accent" : "text-ink hover:bg-raised"}`}
       >
         {paused ? <Play className="size-4" aria-hidden /> : <Pause className="size-4" aria-hidden />}
       </button>
@@ -849,7 +828,7 @@ export function CityBoard(props: {
                 previewOk={draftPlan ? draftPlan.ok : true}
                 overlay={full ? layerCells : null}
                 sim={sim}
-                minutes={dayNight ? simClock : 12 * 60}
+                minutes={12 * 60}
               />
               {strokeInfo && (
                 <div
