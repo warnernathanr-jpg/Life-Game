@@ -10,11 +10,31 @@ import { key, type Tile } from "@/lib/roads";
 import { roadPath, type Place } from "@/lib/sim";
 import { BOX, mat } from "./models";
 import { pointAt } from "./traffic";
+import { busPositions, carPositions, isAhead, near } from "./vehicles";
 
 const SPEED = 1.8; // tiles a second
 const DWELL = 3; // seconds at each stop
 const MAX_BUSES = 4;
 const LANE = 0.2;
+const GAP = 0.6; // keeps this far behind the vehicle ahead
+const STUCK = 6; // seconds held up before nosing through anyway
+
+/** May a bus at progress u along a path move on? Not with a car or bus just ahead, or a car in the crossing it's entering. */
+function clearAhead(path: Tile[], u: number, self: number, roads: Set<string>, waited: number): boolean {
+  if (waited > STUCK) return true;
+  const p = pointAt(path, Math.min(u, path.length - 1), LANE);
+  const me = { x: p.x, z: p.z, hx: Math.sin(p.heading), hz: Math.cos(p.heading) };
+  if (carPositions.some((c) => isAhead(me, c, GAP))) return false;
+  for (const [id, b] of busPositions) if (id !== self && isAhead(me, b, GAP + 0.15)) return false;
+  const k = Math.floor(u);
+  const next = path[k + 1];
+  if (next && u - k > 0.5) {
+    let n = 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (roads.has(key(next.x + dx, next.y + dy))) n++;
+    if (n >= 3 && near(carPositions, next.x + 0.5, next.y + 0.5, 0.5)) return false;
+  }
+  return true;
+}
 
 type Leg = { path: Tile[]; stop: boolean };
 
@@ -89,8 +109,8 @@ export function Buses({ places, roads, paused }: { places: Place[]; roads: Set<s
     return st.length >= 1 && legs.length === 0 ? st[0].entrance : null;
   }, [places, legs]);
   const count = legs.length ? Math.min(MAX_BUSES, places.filter((p) => p.typeId === "bus_station").length) : home ? 1 : 0;
-  const state = useRef<{ leg: number; u: number; wait: number }[]>([]);
-  const tour = useRef<{ legs: Leg[]; leg: number; u: number; wait: number }>({ legs: [], leg: 0, u: 0, wait: 0 });
+  const state = useRef<{ leg: number; u: number; wait: number; held: number }[]>([]);
+  const tour = useRef<{ legs: Leg[]; leg: number; u: number; wait: number; held: number }>({ legs: [], leg: 0, u: 0, wait: 0, held: 0 });
   const refs = useRef<(THREE.Group | null)[]>([]);
   const ticker = useRef<number | null>(null);
   const pausedRef = useRef(paused);
@@ -100,7 +120,7 @@ export function Buses({ places, roads, paused }: { places: Place[]; roads: Set<s
 
   // One station: the bus waits inside, then sets off on a tour (counted in real seconds, so an idle map isn't kept busy).
   useLayoutEffect(() => {
-    tour.current = { legs: [], leg: 0, u: 0, wait: 8 + Math.random() * 10 };
+    tour.current = { legs: [], leg: 0, u: 0, wait: 8 + Math.random() * 10, held: 0 };
     if (!home) return;
     ticker.current = window.setInterval(() => {
       const t = tour.current;
@@ -120,9 +140,12 @@ export function Buses({ places, roads, paused }: { places: Place[]; roads: Set<s
 
   // A new route: spread the buses out along it.
   useLayoutEffect(() => {
-    state.current = Array.from({ length: count }, (_, i) => ({ leg: Math.floor((i * legs.length) / Math.max(1, count)) % Math.max(1, legs.length), u: 0, wait: i === 0 ? DWELL : 0 }));
+    state.current = Array.from({ length: count }, (_, i) => ({ leg: Math.floor((i * legs.length) / Math.max(1, count)) % Math.max(1, legs.length), u: 0, wait: i === 0 ? DWELL : 0, held: 0 }));
+    busPositions.clear();
     invalidate();
   }, [legs, count, invalidate]);
+
+  useLayoutEffect(() => () => busPositions.clear(), []);
 
   useFrame((_, delta) => {
     const dt = paused ? 0 : Math.min(delta, 0.1);
@@ -130,8 +153,14 @@ export function Buses({ places, roads, paused }: { places: Place[]; roads: Set<s
       const t = tour.current;
       const g = refs.current[0];
       if (g) g.visible = t.legs.length > 0;
-      if (!t.legs.length || !g) return;
-      t.u += dt * SPEED;
+      if (!t.legs.length || !g) {
+        busPositions.delete(0);
+        return;
+      }
+      if (dt > 0 && clearAhead(t.legs[t.leg].path, t.u, 0, roads, t.held)) {
+        t.u += dt * SPEED;
+        t.held = 0;
+      } else t.held += dt;
       if (t.u >= t.legs[t.leg].path.length - 1) {
         t.u = 0;
         t.leg += 1;
@@ -140,6 +169,7 @@ export function Buses({ places, roads, paused }: { places: Place[]; roads: Set<s
           t.legs = [];
           t.wait = 25 + Math.random() * 25;
           g.visible = false;
+          busPositions.delete(0);
           return;
         }
       }
@@ -147,6 +177,7 @@ export function Buses({ places, roads, paused }: { places: Place[]; roads: Set<s
       const p = pointAt(leg.path, Math.min(t.u, leg.path.length - 1), LANE);
       g.position.set(p.x, 0, p.z);
       g.rotation.y = p.heading;
+      busPositions.set(0, { x: p.x, z: p.z, hx: Math.sin(p.heading), hz: Math.cos(p.heading) });
       if (!paused) invalidate();
       return;
     }
@@ -154,8 +185,10 @@ export function Buses({ places, roads, paused }: { places: Place[]; roads: Set<s
     state.current.forEach((b, i) => {
       const leg = legs[b.leg % legs.length];
       if (b.wait > 0) b.wait -= dt;
+      else if (dt > 0 && !clearAhead(leg.path, b.u, i, roads, b.held)) b.held += dt;
       else {
         b.u += dt * SPEED;
+        b.held = 0;
         if (b.u >= leg.path.length - 1) {
           b.u = 0;
           b.leg = (b.leg + 1) % legs.length;
@@ -168,6 +201,7 @@ export function Buses({ places, roads, paused }: { places: Place[]; roads: Set<s
       const p = pointAt(at.path, Math.min(b.u, at.path.length - 1), LANE);
       g.position.set(p.x, 0, p.z);
       g.rotation.y = p.heading;
+      busPositions.set(i, { x: p.x, z: p.z, hx: Math.sin(p.heading), hz: Math.cos(p.heading) });
     });
     if (!paused) invalidate();
   });
@@ -176,11 +210,12 @@ export function Buses({ places, roads, paused }: { places: Place[]; roads: Set<s
     <group raycast={() => null}>
       {Array.from({ length: count }, (_, i) => (
         <group key={i} ref={(el) => { refs.current[i] = el; }}>
-          <mesh geometry={BOX} material={BODY} position={[0, 0.07, 0]} scale={[0.17, 0.12, 0.44]} castShadow />
-          <mesh geometry={BOX} material={WINDOWS} position={[0, 0.1, 0]} scale={[0.175, 0.04, 0.4]} />
-          <mesh geometry={BOX} material={WINDOWS} position={[0, 0.1, 0.221]} scale={[0.14, 0.05, 0.01]} />
-          <mesh geometry={BOX} material={STRIPE} position={[0, 0.045, 0]} scale={[0.176, 0.02, 0.44]} />
-          <mesh geometry={BOX} material={ROOF} position={[0, 0.132, 0]} scale={[0.16, 0.008, 0.4]} />
+          {/* A tall city bus: yellow body, a band of windows all round, a teal stripe and a yellow roof. */}
+          <mesh geometry={BOX} material={BODY} position={[0, 0.115, 0]} scale={[0.17, 0.21, 0.46]} castShadow />
+          <mesh geometry={BOX} material={WINDOWS} position={[0, 0.165, 0]} scale={[0.175, 0.065, 0.42]} />
+          <mesh geometry={BOX} material={WINDOWS} position={[0, 0.16, 0.231]} scale={[0.14, 0.08, 0.01]} />
+          <mesh geometry={BOX} material={STRIPE} position={[0, 0.075, 0]} scale={[0.176, 0.025, 0.46]} />
+          <mesh geometry={BOX} material={ROOF} position={[0, 0.224, 0]} scale={[0.16, 0.01, 0.42]} />
         </group>
       ))}
     </group>

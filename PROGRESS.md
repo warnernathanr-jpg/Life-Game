@@ -796,6 +796,14 @@ _Last updated: 2026-11-28_
   station**, its bus waits inside for 25–50 seconds (counted in real time; paused or hidden tabs don't count), then drives a
   tour past 2–3 random far-off roads and comes back to park again. Only for show; paused with the city.
 
+- **Buses, round 2** (2026-11-28): taller buses (about 1.7× a car) with a band of windows. Buses and cars keep their distance
+  (`vehicles.ts`: positions shared each frame): a bus waits behind a car or bus ahead in its lane and before a crossing with a car
+  in it; cars wait behind a bus and for a bus to clear a crossing; either noses through after 6 seconds stuck. Checked: 3 buses
+  with town traffic for 30 s, closest same-lane gap 0.74 tiles, no overlaps.
+- **Cars turn into buildings** (2026-11-28): every trip's path now starts and ends one tile inside the buildings' lots
+  (`lotTileBy()` in `traffic.tsx`), so cars pull out of the building onto the road, and at the end turn off the road toward
+  the building and disappear just past its edge (walkers too).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

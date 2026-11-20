@@ -26,6 +26,7 @@ import { clock, lightFor } from "./sim-clock";
 export { gameClock, lightFor, setGameClock } from "./sim-clock";
 import type { RoadControlKind } from "@/lib/database.types";
 import { TAIL_COLOR } from "./day-night";
+import { busPositions, carPositions, isAhead, near } from "./vehicles";
 
 const HEADLIGHT = mat("#fef3c7");
 const TAILLIGHT = mat(TAIL_COLOR);
@@ -75,8 +76,25 @@ const SPEED = { car: 2.2, walk: 0.6 };
 
 
 /** Game minutes still to go on a trip (for "arrives about"). */
+/**
+ * Trips start and end one tile inside the buildings' lots (the path's first and last tiles), so cars pull out of the
+ * building onto the road and, at the end, turn off the road into the building before they disappear just past its edge.
+ */
+const START_U = 0.7;
+const tripEnd = (path: Tile[]) => path.length - 0.7;
+
+/** The building's tile right next to its road entrance. */
+function lotTileBy(p: Place, ent: Tile): Tile {
+  for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+    const x = ent.x + dx;
+    const y = ent.y + dy;
+    if (x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h) return { x, y };
+  }
+  return ent;
+}
+
 function minutesLeft(trip: Trip) {
-  return (Math.max(0, trip.path.length - trip.u) / SPEED[trip.mode]) * SIM_MINUTES_PER_SECOND;
+  return (Math.max(0, tripEnd(trip.path) - trip.u) / SPEED[trip.mode]) * SIM_MINUTES_PER_SECOND;
 }
 
 /** How far right of the road's centre line people keep: cars in their lane, walkers on the sidewalk. */
@@ -152,8 +170,11 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
 
   const route = (from: Place, to: Place) => {
     if (!from.entrance || !to.entrance) return null;
-    const k = `${key(from.entrance.x, from.entrance.y)}>${key(to.entrance.x, to.entrance.y)}`;
-    if (!pathCache.current.has(k)) pathCache.current.set(k, roadPath(roads, from.entrance, to.entrance));
+    const k = `${from.id}>${to.id}`;
+    if (!pathCache.current.has(k)) {
+      const road = roadPath(roads, from.entrance, to.entrance);
+      pathCache.current.set(k, road ? [lotTileBy(from, from.entrance), ...road, lotTileBy(to, to.entrance)] : null);
+    }
     return pathCache.current.get(k) ?? null;
   };
 
@@ -216,10 +237,10 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
       s.until = t + 5; // the streets are full: leave a little later
       return false;
     }
-    const mode = travelMode(path.length, plan.purpose, c.age);
+    const mode = travelMode(path.length - 2, plan.purpose, c.age);
     // Don't pull out on top of another car: wait a moment until the start of the road is clear.
     if (mode === "car") {
-      const startPt = pointAt(path, 0, SIDE.car);
+      const startPt = pointAt(path, START_U + 0.4, SIDE.car);
       const crowded = [...states.current.values()].some((o) => {
         if (!o.trip || o.trip.mode !== "car") return false;
         const q = pointAt(o.trip.path, o.trip.u, SIDE.car);
@@ -230,7 +251,7 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
         return false;
       }
     }
-    states.current.set(c.id, { at: null, until: 0, trip: { purpose: plan.purpose, fromId: s.at, toId: plan.toId, path, mode, start: t, u: 0, waited: 0 } });
+    states.current.set(c.id, { at: null, until: 0, trip: { purpose: plan.purpose, fromId: s.at, toId: plan.toId, path, mode, start: t, u: START_U, waited: 0 } });
     return true;
   };
 
@@ -247,7 +268,7 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
         const s = states.current.get(c.id);
         if (!s) continue;
         if (s.trip) {
-          if (s.trip.u >= s.trip.path.length) {
+          if (s.trip.u >= tripEnd(s.trip.path)) {
             const purpose = s.trip.purpose;
             const linger = purpose === "home" ? 30 : dwellMinutes(purpose, random.current);
             states.current.set(c.id, { at: s.trip.toId, until: t + linger, trip: null });
@@ -289,6 +310,8 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
         const p = pointAt(s.trip.path, s.trip.u, SIDE.car);
         travelling.push({ id: c.id, trip: s.trip, x: p.x, z: p.z, hx: Math.sin(p.heading), hz: Math.cos(p.heading) });
       }
+      carPositions.length = 0;
+      for (const a of travelling) carPositions.push({ x: a.x, z: a.z, hx: a.hx, hz: a.hz });
       const holds = reservations.current;
       // Forget holds by cars that are no longer driving.
       const driving = new Set(travelling.map((a) => a.id));
@@ -308,7 +331,7 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
         if ((trip.squeeze ?? 0) > 0) {
           trip.squeeze! -= dt;
           const was = Math.floor(trip.u);
-          trip.u = Math.min(trip.u + step, trip.path.length);
+          trip.u = Math.min(trip.u + step, tripEnd(trip.path));
           trip.waited = 0;
           if (Math.floor(trip.u) !== was) {
             const left = trip.path[was];
@@ -328,13 +351,15 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
           // Right on top of each other (e.g. two cars that just left the same place): one waits.
           if (Math.abs(ahead) <= 0.05) return o.id < c.id;
           return ahead > 0 && ahead < GAP;
-        });
+        }) || [...busPositions.values()].some((bus) => isAhead({ x: me.x, z: me.z, hx: me.hx, hz: me.hz }, bus, GAP + 0.16));
         // 2. Intersections (3+ roads meet): only one car inside at a time; others wait at the edge.
         const k = Math.floor(trip.u);
         const next = trip.path[k + 1];
         let mayGo = !blocked;
         if (mayGo && next && trip.u - k > 0.55 && isJunction(next)) {
           const nk = key(next.x, next.y);
+          // A bus in the crossing: wait for it to clear.
+          if (near(busPositions.values(), next.x + 0.5, next.y + 0.5, 0.55) && trip.waited < MAX_WAIT) mayGo = false;
           const control = controls?.get(nk);
           const here = trip.path[k];
           if (control === "light") {
@@ -363,7 +388,7 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
         }
         if (mayGo) {
           const before = Math.floor(trip.u);
-          trip.u = Math.min(trip.u + step, trip.path.length);
+          trip.u = Math.min(trip.u + step, tripEnd(trip.path));
           trip.waited = 0;
           // Left a tile: let go of it.
           if (Math.floor(trip.u) !== before) {
