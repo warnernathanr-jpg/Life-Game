@@ -509,8 +509,8 @@ _Last updated: 2026-11-27_
   unhappiness) drop when busy crossings get a light. 1 unit test.
 - Database: migration `20261127020000_road_controls.sql`: `road_controls` (RLS read own, no direct writes),
   `place_road_control()`, `remove_road_control()`, a trigger removing a control with its road; 11 pgTAP tests (284 total).
-  **Live: the table and `place_road_control()` are applied; `remove_road_control()` and the trigger are not yet** (the
-  Supabase approval for statements with DELETE didn't come through from the owner's phone). Until then, Remove shows an error.
+  All applied live (in pieces: statements containing DELETE need the owner's approval in Supabase, which only came through
+  from their computer, not their phone).
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
