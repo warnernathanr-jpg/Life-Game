@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
-export const viewport: Viewport = { themeColor: "#070d20" };
+export const viewport: Viewport = { themeColor: "#070d20", viewportFit: "cover" }; // cover: the bottom menu sits on the screen edge as the browser bar hides
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

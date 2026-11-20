@@ -4,7 +4,7 @@
 // with the form as a hidden field (`name`), or reported through onChange.
 import { ChevronDown, X } from "lucide-react";
 import { useState } from "react";
-import { ICON_NAMES, type IconName } from "@/lib/task-icons";
+import { ICON_GROUPS, type IconName } from "@/lib/task-icons";
 import { CHOICE_ICONS, ItemIcon } from "./icons";
 
 export function IconPicker({
@@ -45,24 +45,32 @@ export function IconPicker({
       </button>
       {open && (
         <div className="absolute z-30 mt-1 w-[min(22rem,90vw)] rounded-xl bg-surface p-2 shadow-2xl ring-1 ring-line" role="listbox" aria-label="Icons">
-          <div className="grid grid-cols-8 gap-1">
-            {ICON_NAMES.map((n) => {
-              const Icon = CHOICE_ICONS[n];
-              return (
-                <button
-                  key={n}
-                  type="button"
-                  role="option"
-                  aria-selected={value === n}
-                  aria-label={n.replace(/-\d$/, "").replace(/-/g, " ")}
-                  title={n.replace(/-\d$/, "").replace(/-/g, " ")}
-                  onClick={() => choose(n)}
-                  className={`flex aspect-square items-center justify-center rounded-lg ${value === n ? "bg-accent text-on-accent" : "text-ink hover:bg-raised"}`}
-                >
-                  <Icon className="size-5" aria-hidden />
-                </button>
-              );
-            })}
+          <div className="max-h-[min(60vh,24rem)] space-y-2 overflow-y-auto pr-1">
+            {ICON_GROUPS.map((g) => (
+              <div key={g.label}>
+                <p className="px-1 pb-1 text-xs font-semibold text-muted">{g.label}</p>
+                <div className="grid grid-cols-8 gap-1">
+                  {g.icons.map((n) => {
+                    const Icon = CHOICE_ICONS[n];
+                    const label = n.replace(/-\d$/, "").replace(/-/g, " ");
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        role="option"
+                        aria-selected={value === n}
+                        aria-label={label}
+                        title={label}
+                        onClick={() => choose(n)}
+                        className={`flex aspect-square items-center justify-center rounded-lg ${value === n ? "bg-accent text-on-accent" : "text-ink hover:bg-raised"}`}
+                      >
+                        <Icon className="size-5" aria-hidden />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
           <button type="button" onClick={() => choose(null)} className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg py-1.5 text-sm text-muted hover:bg-raised">
             <X className="size-4" aria-hidden /> Use the life area&apos;s icon

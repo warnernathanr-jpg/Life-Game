@@ -1,14 +1,14 @@
 "use client";
 
-import { Ban, Car, Eye, EyeOff, UserPlus, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, Maximize2, MousePointer2, Pause, Play, RotateCw, X } from "lucide-react";
+import { Ban, Car, Eye, EyeOff, UserPlus, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, Maximize2, MousePointer2, Move, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Pause, Play, RotateCw, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { BulldozeIcon, CoinIcon } from "@/components/icons";
 import { cityExposure, computeLayer, LAYERS, type LayerId } from "@/lib/layers";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow, RoadControlKind } from "@/lib/database.types";
 import { MAX_CITY_SIZE, MAX_STROKE_TILES, ROAD_CONTROLS, cityStats, controlByType, milestoneFor, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, roadControlTypes, sellRefund } from "@/lib/game";
 import { BRIDGE_TYPE, ROAD_TIERS, connectedIds, isRoadType, key, nextFacing, roadSet, streetOf, touchesRoad, type Lot, type Tile } from "@/lib/roads";
-import { buyBuilding, buyLand, buyTiles, claimCityMilestone, moveBuilding, placeLandmark, placeRoadControl, removeRoadControl, sellBuilding, sellMany, setBuildingColor, setFacing, upgradeBuilding } from "../actions";
+import { buyBuilding, buyLand, buyTiles, shiftCity, claimCityMilestone, moveBuilding, placeLandmark, placeRoadControl, removeRoadControl, sellBuilding, sellMany, setBuildingColor, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
 import { useConfirm } from "@/components/confirm";
 import { citizensFrom, placesFrom, roleText } from "@/lib/sim";
@@ -54,6 +54,7 @@ export type Mode =
   | { kind: "move"; id: string }
   | { kind: "paint"; typeId: PaintType }
   | { kind: "bulldoze" }
+  | { kind: "shift" }
   | { kind: "control"; control: RoadControlKind };
 
 export function CityBoard(props: {
@@ -241,6 +242,43 @@ export function CityBoard(props: {
     }
   }, [lots, mode]);
 
+  // Move city: how far everything built is from each edge of the land, and sliding it one tile.
+  const edges = useMemo(() => {
+    if (lots.length === 0) return null;
+    const minX = Math.min(...lots.map((l) => l.x));
+    const minY = Math.min(...lots.map((l) => l.y));
+    const maxX = Math.max(...lots.map((l) => l.x + l.w));
+    const maxY = Math.max(...lots.map((l) => l.y + l.h));
+    return { left: minX, top: minY, right: size - maxX, bottom: size - maxY };
+  }, [lots, size]);
+  const shiftingRef = useRef(false);
+  const shift = useCallback(
+    (dx: number, dy: number) => {
+      if (shiftingRef.current || !edges) return;
+      const room = dx < 0 ? edges.left : dx > 0 ? edges.right : dy < 0 ? edges.top : edges.bottom;
+      if (room <= 0) return;
+      shiftingRef.current = true;
+      start(async () => {
+        const r = await shiftCity(dx, dy);
+        shiftingRef.current = false;
+        if (!r.ok) setMessage({ text: r.error, tone: "bad" });
+      });
+    },
+    [edges],
+  );
+  useEffect(() => {
+    if (mode.kind !== "shift") return;
+    const dirs: Record<string, [number, number]> = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+    function onKey(e: KeyboardEvent) {
+      const d = dirs[e.key];
+      if (!d) return;
+      e.preventDefault();
+      shift(d[0], d[1]);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mode.kind, shift]);
+
   function say(text: string, tone: "good" | "bad" = "good") {
     setMessage({ text, tone });
   }
@@ -287,7 +325,7 @@ export function CityBoard(props: {
   // Building is two steps: tap (or drag) shows a preview, then Confirm builds it. Nothing is bought by accident
   // (e.g. while zooming with two fingers).
   function onTile(x: number, y: number) {
-    if (props.visit) return; // just looking
+    if (props.visit || mode.kind === "shift") return; // just looking / moving the whole city
     if (mode.kind === "paint") return onStroke([{ x, y }]);
     if (mode.kind === "control") return void putControl(x, y, mode.control);
     if (mode.kind === "place" || mode.kind === "move") {
@@ -615,9 +653,10 @@ export function CityBoard(props: {
   const tools: { id: string; label: string; icon: React.ReactNode; mode: Mode }[] = [
     { id: "idle", label: "Select", icon: <MousePointer2 className="size-5" aria-hidden />, mode: { kind: "idle" } },
     { id: "bulldoze", label: "Bulldoze", icon: <BulldozeIcon className="size-5" />, mode: { kind: "bulldoze" } },
+    { id: "shift", label: "Move city", icon: <Move className="size-5" aria-hidden />, mode: { kind: "shift" } },
   ];
   const activeTool =
-    mode.kind === "paint" ? mode.typeId : mode.kind === "bulldoze" ? "bulldoze" : mode.kind === "idle" || mode.kind === "selected" ? "idle" : null;
+    mode.kind === "paint" ? mode.typeId : mode.kind === "bulldoze" ? "bulldoze" : mode.kind === "shift" ? "shift" : mode.kind === "idle" || mode.kind === "selected" ? "idle" : null;
   const strokeInfo =
     stroke && mode.kind === "paint"
       ? (() => {
@@ -1003,6 +1042,50 @@ export function CityBoard(props: {
                 </div>
                 </div>
               )}
+              {full && mode.kind === "shift" && (
+                <div
+                  className="absolute left-1/2 z-10 w-[min(18rem,calc(100%-1rem))] -translate-x-1/2 rounded-2xl bg-surface/95 p-3 text-ink shadow-xl ring-1 ring-line backdrop-blur bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))]"
+                  role="group"
+                  aria-label="Move the whole city"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-bold">
+                      <Move className="size-4" aria-hidden /> Move city
+                    </p>
+                    <button type="button" className="btn-secondary min-h-9 px-3 py-1 text-sm" onClick={() => setMode({ kind: "idle" })}>
+                      Done
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-muted">Slide everything you&apos;ve built one tile at a time (free). Arrow keys work too.</p>
+                  {edges ? (
+                    <div className="mx-auto mt-2 grid w-max grid-cols-3 gap-1.5 text-center text-xs">
+                      {[
+                        { at: "col-start-2", dx: 0, dy: -1, room: edges.top, Icon: ArrowUp, label: "Up" },
+                        { at: "col-start-1", dx: -1, dy: 0, room: edges.left, Icon: ArrowLeft, label: "Left" },
+                        { at: "col-start-3", dx: 1, dy: 0, room: edges.right, Icon: ArrowRight, label: "Right" },
+                        { at: "col-start-2", dx: 0, dy: 1, room: edges.bottom, Icon: ArrowDown, label: "Down" },
+                      ].map((b) => (
+                        <button
+                          key={b.label}
+                          type="button"
+                          disabled={b.room <= 0 || pending}
+                          onClick={() => shift(b.dx, b.dy)}
+                          aria-label={`Move the city ${b.label.toLowerCase()} (${b.room} tile${b.room === 1 ? "" : "s"} to the edge)`}
+                          className={`${b.at} ${b.label === "Left" ? "row-start-2" : b.label === "Right" ? "row-start-2" : ""} flex size-14 flex-col items-center justify-center rounded-xl bg-raised font-semibold ring-1 ring-line hover:bg-accent-soft disabled:opacity-40`}
+                        >
+                          <b.Icon className="size-5" aria-hidden />
+                          <span className="text-[10px] font-normal text-muted">{b.room} to edge</span>
+                        </button>
+                      ))}
+                      <div className="col-start-2 row-start-2 flex size-14 items-center justify-center rounded-xl text-[10px] text-muted">
+                        {size}×{size}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-muted">Build something first.</p>
+                  )}
+                </div>
+              )}
               {full && selected && (
                 <div className="absolute inset-x-0 bottom-0 flex justify-center p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
                   <div className="max-h-[50dvh] w-full max-w-md overflow-y-auto rounded-2xl shadow-2xl">
@@ -1017,7 +1100,7 @@ export function CityBoard(props: {
                   progress={progress}
                   balance={balance}
                   activeId={placingType?.id ?? (mode.kind === "paint" ? mode.typeId : mode.kind === "control" ? ROAD_CONTROLS.find((c) => c.kind === mode.control)!.typeId : undefined)}
-                  tools={[tools[0], tools[tools.length - 1]]}
+                  tools={tools}
                   activeTool={activeTool}
                   onTool={(id) => {
                     setMessage(null);

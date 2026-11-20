@@ -654,6 +654,17 @@ function Roads({ tiles, roads, variant }: { tiles: Lot[]; roads: Set<string>; va
           }
           continue;
         }
+        if (arms.length >= 3) {
+          // A junction: a square of ruts in the middle. Each arm's ruts run from the square to the tile edge, and the
+          // square's sides are only drawn where no road leaves, so tracks turn cleanly instead of crossing.
+          for (const [ax, az] of arms) for (const off of [-R, R]) strip(ruts, ax, az, off, 0.5 - R + W / 2, W, 0.032, R - W / 2);
+          for (const [dx, dz] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+            if (arms.some(([ax, az]) => ax === dx && az === dz)) continue;
+            const len = 2 * R + W;
+            ruts.push(m(cx + dx * R, 0.032, cz + dz * R, dz ? len : W, 0.004, dx ? len : W));
+          }
+          continue;
+        }
         const list = arms.length ? arms : [[1, 0], [-1, 0]];
         for (const [ax, az] of list) for (const off of [-R, R]) strip(ruts, ax, az, off, 0.5, W, 0.032);
         continue;

@@ -603,6 +603,16 @@ _Last updated: 2026-11-28_
   `20261128020000_monument_milestone.sql` (applied live).
 - **Two-finger tilt** on phones (full screen): slide two fingers up or down together to tip the view between top-down and a
   side view; pinch still zooms, twist rotates, one finger moves the map (two fingers no longer pan).
+- **Move city** (full-screen bar, after Bulldoze): arrow buttons (and the keyboard's arrow keys) slide everything built one tile
+  inside your land, free, showing how far each edge is; refused past an edge. `shift_city(dx, dy)` (migration
+  `20261128030000_shift_city.sql`, applied live; 5 more pgTAP tests in `world_50.test.sql`).
+- **Dirt road junctions**: a square of ruts in the middle; each arm's ruts run from it to the tile edge and its sides are only drawn
+  where no road leaves, so tracks turn instead of crossing.
+- **157 task and goal icons** (was 50), grouped in the picker (Health & fitness, Mind & learning, Work & money, Home & chores,
+  People & pets, Hobbies & fun, Nature & travel, Time & goals) in a scrolling panel. `ICON_GROUPS` in `src/lib/task-icons.ts`,
+  components in `src/components/choice-icons.tsx`. Existing names unchanged.
+- **Bottom menu on iPhone**: the page now uses the whole screen (`viewportFit: "cover"`), so the tab bar stays on the bottom edge
+  while the browser bar hides; the header is padded below the status bar.
 - Stats page ignores hand-granted test points (no task, no coins) in check-off counts, the chart and the history calendar.
 - Props: café/restaurant planters only, warehouse crates and bay line clear of the doors, parking garage "P" sign on a post;
   Clock Tower faces on all four sides; Fountain Plaza with running water (`fountain-water.tsx`).

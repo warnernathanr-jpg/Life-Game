@@ -10,7 +10,7 @@ import { InviteRedeemer } from "@/components/invite";
 export default function GameLayout({ children }: LayoutProps<"/">) {
   return (
     <>
-      <header className="bg-header text-white">
+      <header className="bg-header text-white" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
           <Link href="/city" className="flex items-center gap-1.5 font-bold">
             <Building2 className="size-5" aria-hidden />

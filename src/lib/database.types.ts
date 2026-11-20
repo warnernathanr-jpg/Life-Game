@@ -255,6 +255,7 @@ export type Database = {
       complete_focus: { Args: { p_id: string }; Returns: { coins: number; balance: number }[] };
       fail_focus: { Args: { p_id: string }; Returns: undefined };
       buy_land: { Args: Record<string, never>; Returns: { city_size: number; balance: number }[] };
+      shift_city: { Args: { p_dx: number; p_dy: number }; Returns: undefined };
       my_progress: { Args: Record<string, never>; Returns: ProgressRow[] };
       my_tasks: { Args: Record<string, never>; Returns: MyTaskRow[] };
       land_price: { Args: { p_purchases: number }; Returns: number };

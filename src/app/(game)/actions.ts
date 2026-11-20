@@ -286,6 +286,16 @@ export async function buyLand(): Promise<ActionResult<{ size: number }>> {
   return { ok: true, size: data.city_size };
 }
 
+/** Slide the whole city one tile inside your land (free). */
+export async function shiftCity(dx: number, dy: number): Promise<ActionResult> {
+  if (![dx, dy].every(Number.isInteger) || Math.abs(dx) + Math.abs(dy) !== 1) return { ok: false, error: "Move one tile at a time." };
+  const { supabase } = await requireUser();
+  const { error } = await supabase.rpc("shift_city", { p_dx: dx, p_dy: dy });
+  if (error) return { ok: false, error: gameError(error) };
+  refresh();
+  return { ok: true };
+}
+
 export async function renameCity(name: string): Promise<ActionResult> {
   const parsed = z.string().trim().min(1, "Give your city a name.").max(40, "Keep it under 40 characters.").safeParse(name);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };

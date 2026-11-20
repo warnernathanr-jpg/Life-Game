@@ -58,39 +58,8 @@ import {
   Warehouse,
   Waves,
   Flower2,
-  Apple,
-  Baby,
-  Bed,
-  Bike,
-  CalendarDays,
-  Camera,
-  Car,
   Clock,
-  Code,
-  Dog,
-  Footprints,
-  Gamepad2,
-  GlassWater,
-  Guitar,
-  Languages,
-  Laptop,
-  Mail,
-  Moon,
-  Mountain,
-  Music,
-  Palette,
-  Pencil,
-  Phone,
-  PiggyBank,
-  Pill,
-  Salad,
-  Smile,
-  SprayCan,
-  Sprout,
-  Star,
-  Sun,
   Target,
-  Wallet,
   createLucideIcon,
   type LucideIcon,
   type LucideProps,
@@ -146,18 +115,8 @@ export const BridgeRoadIcon = createLucideIcon("bridge-road", [
   ["path", { d: "M2 21c2-1.3 4-1.3 6 0s4 1.3 6 0 4-1.3 6 0", key: "water" }],
 ]);
 import type { IconName } from "@/lib/task-icons";
-
-/** The icons a task or goal can have (names in src/lib/task-icons.ts). */
-export const CHOICE_ICONS: Record<IconName, LucideIcon> = {
-  dumbbell: Dumbbell, footprints: Footprints, bike: Bike, "heart-pulse": HeartPulse, apple: Apple, salad: Salad, bed: Bed,
-  "glass-water": GlassWater, pill: Pill, mountain: Mountain, brain: Brain, "book-open": BookOpen,
-  "graduation-cap": GraduationCap, pencil: Pencil, languages: Languages, code: Code, briefcase: Briefcase, laptop: Laptop,
-  mail: Mail, phone: Phone, "calendar-days": CalendarDays, clock: Clock, music: Music, guitar: Guitar, palette: Palette,
-  camera: Camera, "gamepad-2": Gamepad2, sparkles: Sparkles, house: House, "spray-can": SprayCan,
-  "shopping-cart": ShoppingCart, "utensils-crossed": UtensilsCrossed, coffee: Coffee, users: Users, baby: Baby, dog: Dog,
-  sprout: Sprout, "tree-pine": TreePine, "flower-2": Flower2, hammer: Hammer, sun: Sun, moon: Moon, star: Star,
-  target: Target, trophy: Trophy, "piggy-bank": PiggyBank, wallet: Wallet, car: Car, plane: Plane, smile: Smile,
-};
+import { CHOICE_ICONS } from "./choice-icons";
+export { CHOICE_ICONS };
 
 const BUILDING: Record<string, LucideIcon> = {
   // Residential
