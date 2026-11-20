@@ -224,6 +224,58 @@ function GoalCard({ goal, steps, today }: { goal: GoalRow; steps: GoalStepRow[];
   );
 }
 
+/** The new goal's steps: one field per step with its own difficulty, and a button to add another. */
+function StepFields() {
+  const [rows, setRows] = useState([{ key: 0, focus: false }]);
+  const nextKey = useRef(1);
+  const add = () => setRows((r) => (r.length >= 30 ? r : [...r, { key: nextKey.current++, focus: true }]));
+  return (
+    <fieldset>
+      <legend className="text-sm font-medium">Steps <span className="font-normal text-muted">(optional)</span></legend>
+      <ol className="mt-1 space-y-2">
+        {rows.map((row, i) => (
+          <li key={row.key} className="flex items-center gap-2">
+            <span className="w-5 shrink-0 text-right text-xs text-muted" aria-hidden>{i + 1}.</span>
+            <input
+              name="step_title"
+              maxLength={120}
+              autoFocus={row.focus}
+              aria-label={`Step ${i + 1}`}
+              placeholder={i === 0 ? "e.g. Run 1 km without stopping" : "Next step"}
+              className="input min-w-0 flex-1"
+              onKeyDown={(e) => {
+                // Enter adds another step instead of sending the form.
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (e.currentTarget.value.trim() && i === rows.length - 1) add();
+                }
+              }}
+            />
+            <select name="step_difficulty" defaultValue="easy" aria-label={`Step ${i + 1} difficulty`} className="input w-[6.75rem] shrink-0 px-2 text-sm sm:w-32">
+              {DIFFICULTIES.map((d) => (
+                <option key={d.id} value={d.id}>{d.label} +{REWARDS[d.id]}</option>
+              ))}
+            </select>
+            {rows.length > 1 && (
+              <button
+                type="button"
+                aria-label={`Remove step ${i + 1}`}
+                onClick={() => setRows((r) => r.filter((x) => x.key !== row.key))}
+                className="flex size-9 shrink-0 items-center justify-center rounded-lg text-faint hover:bg-raised hover:text-ink"
+              >
+                ×
+              </button>
+            )}
+          </li>
+        ))}
+      </ol>
+      {rows.length < 30 && (
+        <button type="button" onClick={add} className="link mt-2 text-sm">+ Add another step</button>
+      )}
+    </fieldset>
+  );
+}
+
 function AddGoalForm({ today }: { today: string }) {
   const [state, action, pending] = useActionState<AddGoalState, FormData>(addGoal, {});
   const formRef = useRef<HTMLFormElement>(null);
@@ -267,17 +319,14 @@ function AddGoalForm({ today }: { today: string }) {
           ))}
         </div>
         <p className="mt-1 text-xs text-muted">
-          Paid when you reach the goal, if you set it at least {MIN_DAYS} days before. Steps pay like tasks (easy +{REWARDS.easy} … epic +{REWARDS.epic}); choose each step&apos;s difficulty as you add it.
+          Paid when you reach the goal, if you set it at least {MIN_DAYS} days before. Steps pay like tasks (easy +{REWARDS.easy} … epic +{REWARDS.epic}).
         </p>
       </fieldset>
       <label className="block">
         <span className="text-sm font-medium">Reach it by</span>
         <input type="date" name="target_date" required min={today} defaultValue={addDays(today, 30)} className="input mt-1" />
       </label>
-      <label className="block">
-        <span className="text-sm font-medium">Steps <span className="font-normal text-muted">(one per line, optional; easy +{REWARDS.easy} each, change later)</span></span>
-        <textarea name="steps" rows={4} placeholder={"Run 1 km without stopping\nRun 3 km\nSign up for a race"} className="input mt-1" />
-      </label>
+      <StepFields key={state.added ?? 0} />
       <label className="block">
         <span className="text-sm font-medium">Notes <span className="font-normal text-muted">(optional)</span></span>
         <textarea name="notes" rows={2} maxLength={1000} className="input mt-1" />

@@ -442,6 +442,11 @@ _Last updated: 2026-11-27_
   monthly / N-times tasks in an "Any day this week/month" list with how often they were done. Check-offs still only happen
   on today's list. `src/lib/task-calendar.ts` (4 unit tests), `src/app/(game)/tasks/calendar.tsx`.
 
+### 31. Goal steps as separate fields (2026-11-27)
+- The Add a goal form has one field per step, each with its own difficulty (Easy +10 … Epic +100), a × to remove it and
+  **+ Add another step** (Enter in the last filled step adds one too; up to 30). Replaces the one-per-line text box.
+  `addGoal` reads `step_title` / `step_difficulty` pairs. Browser-checked at 390px.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

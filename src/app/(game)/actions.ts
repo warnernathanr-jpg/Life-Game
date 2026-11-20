@@ -319,7 +319,9 @@ const goalSchema = z.object({
   target_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a date to reach it by."),
   area: z.enum(["health", "work", "knowledge", "personal", ""]).optional(),
   notes: z.string().trim().max(1000, "Keep notes under 1,000 characters.").optional(),
-  steps: z.string().max(4000).optional(),
+  steps: z
+    .array(z.object({ title: z.string().trim().max(120, "Keep each step under 120 characters."), difficulty: z.enum(["easy", "medium", "hard", "epic"]).catch("easy") }))
+    .max(30),
   icon: z.string().optional(),
   difficulty: z.enum(["easy", "medium", "hard", "epic"]).optional(),
 });
@@ -330,7 +332,7 @@ export async function addGoal(prev: AddGoalState, formData: FormData): Promise<A
     target_date: formData.get("target_date") ?? "",
     area: formData.get("area") ?? "",
     notes: formData.get("notes") ?? "",
-    steps: formData.get("steps") ?? "",
+    steps: formData.getAll("step_title").map((t, i) => ({ title: String(t), difficulty: String(formData.getAll("step_difficulty")[i] ?? "easy") })),
     icon: formData.get("icon") ?? undefined,
     difficulty: formData.get("difficulty") ?? undefined,
   });
@@ -353,13 +355,10 @@ export async function addGoal(prev: AddGoalState, formData: FormData): Promise<A
     console.error("addGoal", error);
     return { error: "Couldn't save the goal. Please try again.", added: prev.added };
   }
-  // One step per line.
-  const steps = (v.steps ?? "")
-    .split("\n")
-    .map((s) => s.trim().slice(0, 120))
-    .filter(Boolean)
-    .slice(0, 30)
-    .map((title, position) => ({ goal_id: goal.id, title, position }));
+  // Each filled-in step field, in order, with its own difficulty.
+  const steps = v.steps
+    .filter((st) => st.title)
+    .map((st, position) => ({ goal_id: goal.id, title: st.title, difficulty: st.difficulty, position }));
   if (steps.length > 0) {
     const { error: stepError } = await supabase.from("goal_steps").insert(steps);
     if (stepError) console.error("addGoal steps", stepError);
