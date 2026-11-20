@@ -885,6 +885,18 @@ _Last updated: 2026-11-28_
 
 - Achievements page: badges in each group are listed by their coins, smallest first (2026-11-28).
 
+### 63. Invite badge, friend badge 100, leaderboard, flat land price (2026-11-28)
+- **"Spread the word"** badge (50 coins): earned the first time you share your invite link (share sheet finished) or copy it, on the
+  Friends page or while visiting a city (`record_invite_shared()` sets `profiles.invite_shared_at`; the app can't see whether the
+  message was actually sent). **"Good neighbor"** (first friend) now pays **100**.
+- **Top cities** leaderboard on the Friends page: the 10 most populous cities in LifeCity (homes beside a road; ties by buildings,
+  then the older city) with rank, city, player name, people and buildings; your row is highlighted with "You" and **Open**, others
+  have **Visit**. `leaderboard()` (names, cities, counts only) and `private.top_cities()`; `friend_city()` now also lets anyone
+  visit a city in the top 10 (others still need to be friends).
+- **Land always costs 300 coins** per expansion (`land_price()` and `landPrice()`; was 300 × 1.35ⁿ).
+- Migrations `20261128150000_invite_leaderboard.sql`, `20261128160000_flat_land_price.sql` (applied live). 8 pgTAP tests
+  (`invite_leaderboard.test.sql`); land and friends tests updated (382 total).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

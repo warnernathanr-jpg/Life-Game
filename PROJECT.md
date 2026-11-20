@@ -10,7 +10,7 @@
   Later: goals with milestones, habit streaks, progress charts.
 - **Economy:** one coin is spent on everything; completing a task earns coins (easy 10, medium 25, hard 50, epic 100;
   no daily limit). Every check-off also earns **area points** in its life area (never spent) that unlock buildings. The focus timer pays
-  1 coin per focused minute (5–60 minute sessions). One-time 200-coin rewards for adding the app to the home
+  1 coin per focused minute (5–60 minute sessions). Land expansions cost 300 coins each. One-time 200-coin rewards for adding the app to the home
   screen and for turning on notifications.
 - **City game:** spend coins on residential, commercial, industrial and service buildings and place them on a grid.
   Lay roads (dirt, 2-lane, 4-lane; bridges over water) to connect them (a building only counts when it touches a road). Save up to buy more land.

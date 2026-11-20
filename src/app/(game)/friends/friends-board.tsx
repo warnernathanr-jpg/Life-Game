@@ -20,6 +20,7 @@ import {
   acceptFriendRequest,
   addFriend,
   dropFriendRequest,
+  recordInviteShared,
   removeFriend,
 } from "../actions";
 
@@ -69,6 +70,7 @@ export function FriendsBoard({
     try {
       await navigator.clipboard.writeText(text);
       setMessage({ text: `${what} copied.`, ok: true });
+      if (text.includes(inviteUrl)) void recordInviteShared();
     } catch {
       setMessage({ text, ok: true });
     }
@@ -77,12 +79,15 @@ export function FriendsBoard({
   async function share() {
     const text = `I'm building ${cityName} by getting things done in LifeCity. Come build your own city and add me: my code is ${code}.`;
     try {
-      if (navigator.share)
-        return await navigator.share({
+      if (navigator.share) {
+        await navigator.share({
           title: "LifeCity",
           text,
           url: inviteUrl,
         });
+        void recordInviteShared();
+        return;
+      }
     } catch {
       return;
     }

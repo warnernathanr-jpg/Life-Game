@@ -360,6 +360,12 @@ export async function claimReward(reward: "home_screen" | "notifications" | "tut
   return { ok: true, coins: data.coins };
 }
 
+/** The player shared or copied their invite link (earns the "Spread the word" badge the first time). */
+export async function recordInviteShared(): Promise<void> {
+  const { supabase } = await requireUser();
+  await supabase.rpc("record_invite_shared");
+}
+
 /** Collect one earned badge's coins (each badge is collected on its own). */
 export async function claimAchievement(id: string): Promise<ActionResult<{ coins: number }>> {
   if (!ACHIEVEMENT_BY_ID.has(id)) return { ok: false, error: gameError(null) };

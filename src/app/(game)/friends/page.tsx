@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
 import { FriendsBoard } from "./friends-board";
+import { Leaderboard } from "./leaderboard";
 
 export const metadata: Metadata = { title: "Friends · LifeCity" };
 
@@ -34,10 +35,13 @@ export default function FriendsPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Friends</h1>
-        <p className="text-sm text-muted">Share your city code, add friends by theirs, and visit each other&apos;s cities once they accept.</p>
+        <p className="text-sm text-muted">Share your city code, add friends by theirs, visit each other&apos;s cities, and see the top cities in LifeCity.</p>
       </div>
       <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
         <FriendsContent />
+      </Suspense>
+      <Suspense fallback={<p className="text-sm text-muted">Loading the top cities…</p>}>
+        <Leaderboard />
       </Suspense>
     </div>
   );

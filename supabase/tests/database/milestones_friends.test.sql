@@ -8,7 +8,7 @@ insert into auth.users (id, email) values
   ('a3333333-3333-3333-3333-333333333333', 'm3@example.com');
 insert into public.coin_ledger (user_id, amount, kind, reason) values ('a1111111-1111-1111-1111-111111111111', 5000, 'bonus', 'test');
 
-select is(array[public.land_price(0), public.land_price(1), public.land_price(10)], array[300, 410, 6030]::bigint[], 'land: 300 × 1.35ⁿ');
+select is(array[public.land_price(0), public.land_price(1), public.land_price(10)], array[300, 300, 300]::bigint[], 'land: always 300');
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"a1111111-1111-1111-1111-111111111111"}', true);
@@ -34,8 +34,9 @@ select throws_ok($$ insert into public.city_milestones (population, coins) value
 -- Friends.
 create temporary table codes as select (select city_code from public.profiles where id = 'a1111111-1111-1111-1111-111111111111') as mine;
 select is((select length(mine) from codes), 6, 'every city has a 6-character code');
+-- (Player 1 is on the leaderboard, so anyone may visit it; player 2 has no people yet, so only friends may.)
+select throws_ok($$ select * from public.friend_city('a2222222-2222-2222-2222-222222222222') $$, '42501', 'not_a_friend', 'not visible before adding');
 select set_config('request.jwt.claims', '{"sub":"a2222222-2222-2222-2222-222222222222"}', true);
-select throws_ok($$ select * from public.friend_city('a1111111-1111-1111-1111-111111111111') $$, '42501', 'not_a_friend', 'not visible before adding');
 select results_eq(format('select friend_id from public.add_friend(%L)', lower((select mine from codes))), $$ values ('a1111111-1111-1111-1111-111111111111'::uuid) $$, 'add a friend by code (any case)');
 -- That sends a request; once the other player accepts, both can visit.
 select set_config('request.jwt.claims', '{"sub":"a1111111-1111-1111-1111-111111111111"}', true);

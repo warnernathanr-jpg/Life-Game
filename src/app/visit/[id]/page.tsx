@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth";
 import type { PlacedBuildingRow, RoadControlKind } from "@/lib/database.types";
 import { CityBoard } from "../../(game)/city/city-board";
 
-export const metadata: Metadata = { title: "Visiting a friend · LifeCity" };
+export const metadata: Metadata = { title: "Visiting a city · LifeCity" };
 
 type FriendCity = {
   city_name: string;
@@ -27,7 +27,7 @@ async function Visit({ params }: { params: Promise<{ id: string }> }) {
   if (error || !data || !types) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="font-semibold">This city isn&apos;t on your friends list.</p>
+        <p className="font-semibold">This city isn&apos;t on your friends list or the top 10.</p>
         <Link href="/friends" className="btn-primary">Back to friends</Link>
       </div>
     );

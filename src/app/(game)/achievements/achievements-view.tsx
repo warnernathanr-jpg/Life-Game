@@ -1,5 +1,5 @@
 // The Achievements page's badges and timeline (data comes from the page; kept separate so it can be previewed).
-import { Award, Building2, CalendarCheck, Check, Coins, Compass, Flag, Hammer, Handshake, Hourglass, Landmark, LandPlot, ListChecks, ListPlus, Lock, Medal, Repeat, Rocket, Sprout, Target, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
+import { Award, Building2, CalendarCheck, Check, Coins, Compass, Flag, Hammer, Handshake, Hourglass, Landmark, LandPlot, ListChecks, ListPlus, Lock, Share2, Medal, Repeat, Rocket, Sprout, Target, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
 import { ACHIEVEMENTS, ACHIEVEMENT_BY_ID, ACHIEVEMENT_GROUPS, coinsToCollect } from "@/lib/achievements";
 import { CollectButton } from "./collect-button";
 import { formatCoins } from "@/lib/game";
@@ -8,7 +8,7 @@ import { MarkSeen } from "./mark-seen";
 const ICONS: Record<string, LucideIcon> = {
   check: Check, "list-checks": ListChecks, rocket: Rocket, "calendar-check": CalendarCheck, repeat: Repeat, compass: Compass,
   target: Target, trophy: Trophy, timer: Timer, hourglass: Hourglass, sprout: Sprout, hammer: Hammer, "building-2": Building2,
-  users: Users, landmark: Landmark, "land-plot": LandPlot, handshake: Handshake, "list-plus": ListPlus, flag: Flag,
+  users: Users, landmark: Landmark, "land-plot": LandPlot, handshake: Handshake, "list-plus": ListPlus, flag: Flag, "share-2": Share2,
 };
 
 export type TimelineRow = { at: string; kind: string; title: string; detail: string | null };

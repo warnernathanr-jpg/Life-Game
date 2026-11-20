@@ -93,6 +93,7 @@ import {
   moveBuilding,
   placeLandmark,
   placeRoadControl,
+  recordInviteShared,
   removeRoadControl,
   sellBuilding,
   sellMany,
@@ -452,13 +453,17 @@ export function CityBoard(props: {
     const text =
       "I'm building a city by getting things done in LifeCity. Come build yours and add me as a friend!";
     try {
-      if (navigator.share)
-        return await navigator.share({ title: "LifeCity", text, url });
+      if (navigator.share) {
+        await navigator.share({ title: "LifeCity", text, url });
+        void recordInviteShared();
+        return;
+      }
     } catch {
       return; // share sheet closed
     }
     try {
       await navigator.clipboard.writeText(`${text} ${url}`);
+      void recordInviteShared();
       say("Invite link copied. Paste it to a friend.");
     } catch {
       say(url);

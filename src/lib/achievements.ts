@@ -32,7 +32,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "people_100", title: "Growing town", description: "Reach 100 people.", group: "Your city", icon: "users", coins: 100 },
   { id: "people_1000", title: "Big city", description: "Reach 1,000 people.", group: "Your city", icon: "landmark", coins: 400 },
   { id: "land_first", title: "Room to grow", description: "Buy more land.", group: "Your city", icon: "land-plot", coins: 50 },
-  { id: "first_friend", title: "Good neighbor", description: "Become friends with another city.", group: "Your city", icon: "handshake", coins: 50 },
+  { id: "invite_shared", title: "Spread the word", description: "Share your invite link with a friend.", group: "Your city", icon: "share-2", coins: 50 },
+  { id: "first_friend", title: "Good neighbor", description: "Become friends with another city.", group: "Your city", icon: "handshake", coins: 100 },
 ];
 
 export const ACHIEVEMENT_BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));

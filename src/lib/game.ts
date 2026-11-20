@@ -33,7 +33,8 @@ export function nextMilestone(total: number) {
 
 /** public.land_price(): 300 × 1.6ⁿ, rounded to the nearest 10. */
 export function landPrice(purchases: number): number {
-  return Math.round((300 * Math.pow(1.35, purchases)) / 10) * 10;
+  void purchases; // every expansion costs the same (public.land_price)
+  return 300;
 }
 
 /** public.sell_refund(): half of what was paid (integer coins). */
