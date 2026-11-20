@@ -827,6 +827,17 @@ _Last updated: 2026-11-28_
   **Schooling**: children are about 22% of residents; school places are 40 / 60 / 100 (elementary / high school / university,
   `SCHOOL_SEATS`); with 30+ people and too few places: "Not enough school places", up to −12. Each comes with a tip. 2 unit tests.
 
+### 59. Taxi depots and taxis; City Hall roof (2026-11-28)
+- The **Gas Station is now a Taxi Depot** (same id `gas_station`, so placed ones became depots): name, description and happiness 0
+  in migration `20261128110000_taxi_depot.sql` (applied live); new model (garage with two bays, checkered band, two taxis out
+  front, yellow sign), taxi icon (`CarTaxiFront`), no pollution, and it eases traffic more (−0.15 each, up to 2, in
+  `transportFactor()`).
+- **Taxis** (`taxis.tsx`): one per depot (up to 4) pulls out of its depot, drives a fare to a random building, turns in there
+  (hidden 1.5–3.5 s), takes the next fare, and after a few fares (or now and then) goes back to the depot for a break. They keep
+  their distance from cars and buses (`clearAhead()` from `buses.tsx`, positions shared in `vehicles.ts`). Browser check: two
+  depots, taxis on the road in 70 of 100 samples, no errors.
+- **City Hall**: its roof was centred in front of the building; it now covers the hall and the portico columns evenly.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

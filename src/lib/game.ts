@@ -298,7 +298,7 @@ export function cityStats(
   if (shopsHappy !== 0) add({ key: "shops", label: "Shops & cafés", value: shopsHappy });
   if (homesHappy !== 0) add({ key: "homes", label: "Housing", value: homesHappy });
   if (exposure) {
-    // Pollution and noise where people actually live (spreads from industry, gas stations and the airport).
+    // Pollution and noise where people actually live (spreads from industry and the airport).
     const p = -Math.round(exposure.pollution * 25);
     if (p !== 0) {
       add({

@@ -14,7 +14,7 @@ export const LAYERS: { id: LayerId; label: string; good: string; bad: string; ab
   { id: "crime", label: "Crime", good: "Safe", bad: "High", about: "Shops and dense housing see more crime. A police station nearby brings it down." },
   { id: "education", label: "Education", good: "Well served", bad: "No schools", about: "How well each home is served by schools, the high school, the university and libraries." },
   { id: "health", label: "Health care", good: "Close by", bad: "Far away", about: "How close each home is to a clinic or hospital." },
-  { id: "pollution", label: "Pollution & noise", good: "Clean", bad: "Polluted", about: "Spreads from factories, warehouses, gas stations and the airport, fading with distance." },
+  { id: "pollution", label: "Pollution & noise", good: "Clean", bad: "Polluted", about: "Spreads from factories, warehouses and the airport, fading with distance." },
   { id: "land_value", label: "Land value", good: "High", bad: "Low", about: "Parks, water, trees and landmarks raise it; pollution lowers it." },
 ];
 
@@ -32,11 +32,11 @@ const CALMED: Record<"stop" | "light", number> = { stop: 1.3, light: 1.6 };
 
 /**
  * How busy the roads are because of how people get around: 1.5 with no transport buildings (everyone drives); bus
- * stations, parking garages, gas stations and an airport bring it down (to 0.35 at best).
+ * stations, taxi depots, parking garages and an airport bring it down (to 0.35 at best).
  */
 export function transportFactor(lots: Pick<Lot, "type_id">[]): number {
   const n = (id: string) => lots.filter((l) => l.type_id === id).length;
-  return Math.max(0.35, 1.5 - 0.3 * Math.min(3, n("bus_station")) - 0.15 * Math.min(3, n("parking")) - 0.08 * Math.min(2, n("gas_station")) - 0.2 * Math.min(1, n("airport")));
+  return Math.max(0.35, 1.5 - 0.3 * Math.min(3, n("bus_station")) - 0.15 * Math.min(3, n("parking")) - 0.15 * Math.min(2, n("gas_station")) - 0.2 * Math.min(1, n("airport")));
 }
 
 /** Share of would-be car trips taken by bus instead (0 with no transport buildings, up to 70%), for the moving traffic. */
@@ -44,7 +44,7 @@ export function transitShare(lots: Pick<Lot, "type_id">[]): number {
   return clamp((1.5 - transportFactor(lots)) / (1.5 - 0.35)) * 0.7;
 }
 const POLLUTERS: Record<string, number> = {
-  factory: 1, distribution: 0.8, workshop: 0.6, small_factory: 0.5, warehouse: 0.4, gas_station: 0.35, airport: 1,
+  factory: 1, distribution: 0.8, workshop: 0.6, small_factory: 0.5, warehouse: 0.4, airport: 1,
 };
 
 const clamp = (v: number) => Math.max(0, Math.min(1, v));

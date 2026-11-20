@@ -20,7 +20,7 @@ const GAP = 0.6; // keeps this far behind the vehicle ahead
 const STUCK = 6; // seconds held up before nosing through anyway
 
 /** May a bus at progress u along a path move on? Not with a car or bus just ahead, or a car in the crossing it's entering. */
-function clearAhead(path: Tile[], u: number, self: number, roads: Set<string>, waited: number): boolean {
+export function clearAhead(path: Tile[], u: number, self: number, roads: Set<string>, waited: number): boolean {
   if (waited > STUCK) return true;
   const p = pointAt(path, Math.min(u, path.length - 1), LANE);
   const me = { x: p.x, z: p.z, hx: Math.sin(p.heading), hz: Math.cos(p.heading) };

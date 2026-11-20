@@ -10,6 +10,7 @@ import { layerColor, transitShare, type LayerCell } from "@/lib/layers";
 import { MAX_CITY_SIZE, worldOffset } from "@/lib/game";
 import { Clouds } from "./clouds";
 import { Buses } from "./buses";
+import { Taxis } from "./taxis";
 import { Emergencies } from "./emergencies";
 import { Traffic, type SimProps } from "./traffic";
 import { LotDressing } from "./lot-dressing";
@@ -354,6 +355,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
         <StreetLights lots={lots} roads={roads} minutes={props.minutes ?? 12 * 60} />
         {props.controls && props.controls.size > 0 && <RoadControls controls={props.controls} />}
         {props.sim && <Traffic sim={props.sim} roads={roads} controls={props.controls} transit={transit} />}
+        {props.sim && <Taxis places={props.sim.places} roads={roads} paused={props.sim.paused} />}
         {props.sim && <Buses places={props.sim.places} roads={roads} paused={props.sim.paused} />}
         {props.sim && <Emergencies places={props.sim.places} roads={roads} paused={props.sim.paused} onNews={props.sim.onNews} />}
         {props.overlay && <LayerOverlay cells={props.overlay} byTile={byTile} />}

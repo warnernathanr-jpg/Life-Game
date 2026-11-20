@@ -24,7 +24,7 @@ import {
   Flag,
   Flame,
   Frame,
-  Fuel,
+  CarTaxiFront,
   Gem,
   GraduationCap,
   Hammer,
@@ -169,7 +169,7 @@ const BUILDING: Record<string, LucideIcon> = {
   museum: Frame,
   zoo: PawPrint,
   // Transport
-  gas_station: Fuel,
+  gas_station: CarTaxiFront,
   bus_station: Bus,
   parking: SquareParking,
   airport: Plane,
