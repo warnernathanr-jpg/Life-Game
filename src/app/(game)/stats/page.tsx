@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AreaPoints } from "@/components/area-points";
 import { requireUser } from "@/lib/auth";
-import { cityStats, formatCoins, nextUnlocks } from "@/lib/game";
+import { formatCoins, nextUnlocks } from "@/lib/game";
 import { addDays, isHabit, rateWords, summarizeHabit } from "@/lib/habits";
 import { describeSchedule } from "@/lib/tasks";
 import { ActivityChart } from "./activity-chart";
@@ -13,12 +13,12 @@ export const metadata: Metadata = { title: "Stats · Life City" };
 async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats">["searchParams"] }) {
   const { month: monthParam } = await searchParams;
   const { supabase } = await requireUser();
-  const [{ data: tasks }, { data: progress }, { data: types }, { data: placed }, { data: profile }] = await Promise.all([
+  const [{ data: tasks }, { data: progress }, { data: types }, { data: goals }, { data: profile }] = await Promise.all([
     supabase.rpc("my_tasks"),
     supabase.rpc("my_progress").maybeSingle(),
     supabase.from("building_types").select("*").order("sort_order"),
-    supabase.from("placed_buildings").select("id, type_id, x, y, rotated"),
-    supabase.from("profiles").select("timezone, city_name").maybeSingle(),
+    supabase.from("goals").select("id, completed_at, target_date"),
+    supabase.from("profiles").select("timezone").maybeSingle(),
   ]);
   const tz = profile?.timezone ?? "UTC";
   const today = tasks?.[0]?.today ?? new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
@@ -55,7 +55,9 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
     area: c.area,
     time: timeFmt.format(new Date(c.completed_at)),
   }));
-  const city = cityStats(placed ?? [], types ?? []);
+  const activeGoals = (goals ?? []).filter((g) => !g.completed_at);
+  const reachedGoals = (goals ?? []).length - activeGoals.length;
+  const lateGoals = activeGoals.filter((g) => g.target_date < today).length;
 
   const daysByTask = new Map<string, string[]>();
   for (const c of recent) if (c.task_id) daysByTask.set(c.task_id, [...(daysByTask.get(c.task_id) ?? []), c.local_day]);
@@ -68,14 +70,14 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
     { label: "Coins", value: formatCoins(Number(progress?.balance ?? 0)), note: "to spend" },
     { label: "Check-offs", value: String(checkoffsWeek), note: `last 7 days · ${formatCoins(allCheckoffs ?? 0)} all time` },
     { label: "Focus", value: `${focusWeek} min`, note: `last 7 days · ${formatCoins(focusAll)} min all time` },
-    { label: "Population", value: formatCoins(city.population), note: `${city.buildings} buildings · ${city.happiness}% happy` },
+    { label: "Goals", value: String(activeGoals.length), note: `in progress · ${reachedGoals} reached${lateGoals ? ` · ${lateGoals} past the date` : ""}` },
   ];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Stats</h1>
-        <p className="text-sm text-muted">How you&apos;re doing, and what it&apos;s building.</p>
+        <p className="text-sm text-muted">How you&apos;re doing with your tasks, habits, focus and goals. (Your city&apos;s numbers are on the City page.)</p>
       </div>
 
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -136,24 +138,6 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
             <h2 id="pts-h" className="font-semibold">Area points</h2>
             <p className="mb-3 text-xs text-muted">Earned with every check-off. They unlock buildings and are never spent.</p>
             <AreaPoints unlocks={nextUnlocks(types ?? [], progress ?? null)} />
-          </section>
-          <section className="card" aria-labelledby="city-h">
-            <h2 id="city-h" className="font-semibold">{profile?.city_name ?? "Your city"}</h2>
-            <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">
-              {[
-                ["Population", city.population],
-                ["Jobs", city.jobs],
-                ["Happiness", `${city.happiness}%`],
-                ["City score", city.score],
-                ["Buildings", city.buildings],
-                ["Road tiles", city.roads],
-              ].map(([k, v]) => (
-                <div key={String(k)} className="rounded-lg bg-raised px-2.5 py-1.5">
-                  <dt className="text-xs text-muted">{k}</dt>
-                  <dd className="font-semibold tabular-nums">{v}</dd>
-                </div>
-              ))}
-            </dl>
           </section>
         </aside>
       </div>

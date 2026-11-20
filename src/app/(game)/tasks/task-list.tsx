@@ -4,7 +4,7 @@ import { CoinIcon } from "@/components/icons";
 
 import { CalendarDays, Check, Sprout, Target } from "lucide-react";
 
-import { AreaIcon } from "@/components/icons";
+import { AreaIcon, ItemIcon } from "@/components/icons";
 
 import { useState, useTransition } from "react";
 import { useConfirm } from "@/components/confirm";
@@ -154,6 +154,9 @@ function TaskRow({
       >
         {checked ? <Check className="size-5" strokeWidth={3} aria-hidden /> : null}
       </button>
+      <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-raised text-accent-text">
+        <ItemIcon icon={task.icon} area={task.area} className="size-5" />
+      </span>
       <div className="min-w-0 flex-1">
         <p className={`break-words font-medium ${task.done ? "text-muted line-through" : ""}`}>{task.title}</p>
         <p className="flex flex-wrap gap-x-2 text-xs text-muted">

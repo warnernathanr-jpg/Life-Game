@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-figtree);
+  --font-display: var(--font-bricolage);
+  --font-mono: var(--font-jetbrains);
 
   /* Theme roles (values per theme below). Use these instead of fixed palette colors. */
   --color-bg: var(--t-bg);                 /* page background */
@@ -199,3 +200,9 @@
 /* 3D map: the app handles every finger gesture on it itself (drag, pinch, twist, painting), so the browser must not
    scroll or zoom the page from touches on the map. */
 [data-map] canvas { touch-action: none; }
+
+/* Headings (and big numbers marked font-display) use the display font. */
+h1, h2, h3, .font-display {
+  font-family: var(--font-bricolage), var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}

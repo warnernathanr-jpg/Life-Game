@@ -36,6 +36,30 @@ export type TaskRow = {
   times_per_period: number | null;
   archived_at: string | null;
   created_at: string;
+  /** A Lucide icon name from src/lib/task-icons.ts (null: the life area's icon). */
+  icon: string | null;
+};
+
+export type GoalRow = {
+  id: string;
+  user_id: string;
+  title: string;
+  notes: string | null;
+  area: LifeArea | null;
+  icon: string | null;
+  target_date: string;
+  completed_at: string | null;
+  created_at: string;
+};
+
+export type GoalStepRow = {
+  id: string;
+  goal_id: string;
+  user_id: string;
+  title: string;
+  position: number;
+  done_at: string | null;
+  created_at: string;
 };
 
 export type BuildingTypeRow = {
@@ -101,6 +125,7 @@ export type MyTaskRow = {
   scheduled_today: boolean;
   total_completions: number;
   today: string;
+  icon: string | null;
 };
 
 export type FocusSessionRow = {
@@ -133,8 +158,18 @@ export type Database = {
       profiles: Table<ProfileRow, Partial<ProfileRow>, Partial<Pick<ProfileRow, "display_name" | "timezone" | "city_name">>>;
       tasks: Table<
         TaskRow,
-        Pick<TaskRow, "title" | "area"> & Partial<Pick<TaskRow, "difficulty" | "repeat" | "user_id" | "weekdays" | "times_per_period">>,
-        Partial<Pick<TaskRow, "title" | "area" | "difficulty" | "repeat" | "archived_at" | "weekdays" | "times_per_period">>
+        Pick<TaskRow, "title" | "area"> & Partial<Pick<TaskRow, "difficulty" | "repeat" | "user_id" | "weekdays" | "times_per_period" | "icon">>,
+        Partial<Pick<TaskRow, "title" | "area" | "difficulty" | "repeat" | "archived_at" | "weekdays" | "times_per_period" | "icon">>
+      >;
+      goals: Table<
+        GoalRow,
+        Pick<GoalRow, "title" | "target_date"> & Partial<Pick<GoalRow, "notes" | "area" | "icon">>,
+        Partial<Pick<GoalRow, "title" | "notes" | "area" | "icon" | "target_date" | "completed_at">>
+      >;
+      goal_steps: Table<
+        GoalStepRow,
+        Pick<GoalStepRow, "goal_id" | "title"> & Partial<Pick<GoalStepRow, "position">>,
+        Partial<Pick<GoalStepRow, "title" | "position" | "done_at">>
       >;
       task_completions: Table<{
         id: string;

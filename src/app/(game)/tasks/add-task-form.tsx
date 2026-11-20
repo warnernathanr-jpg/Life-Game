@@ -1,5 +1,7 @@
 "use client";
 
+import { IconPicker } from "@/components/icon-picker";
+
 import { useActionState, useEffect, useRef, useState } from "react";
 import type { TaskRepeat } from "@/lib/database.types";
 import { AREAS, DIFFICULTIES, REWARDS } from "@/lib/game";
@@ -11,6 +13,7 @@ export function AddTaskForm() {
   const titleRef = useRef<HTMLInputElement>(null);
   const [repeat, setRepeat] = useState<TaskRepeat>("daily");
   const [days, setDays] = useState<number[]>([]);
+  const [area, setArea] = useState("health");
 
   // After each successful add, clear the title (keep the other choices) and focus it for the next one.
   useEffect(() => {
@@ -26,9 +29,13 @@ export function AddTaskForm() {
         <span className="text-sm font-medium text-ink">Task</span>
         <input ref={titleRef} name="title" required maxLength={120} placeholder="e.g. Go for a 20-minute walk" className="input mt-1" />
       </label>
+      <div className="block">
+        <span className="text-sm font-medium text-ink">Icon</span>
+        <IconPicker key={state.added ?? 0} area={area} />
+      </div>
       <label className="block">
         <span className="text-sm font-medium text-ink">Life area</span>
-        <select name="area" defaultValue="health" className="input mt-1">
+        <select name="area" value={area} onChange={(e) => setArea(e.target.value)} className="input mt-1">
           {AREAS.map((a) => (
             <option key={a.id} value={a.id}>{a.label}</option>
           ))}

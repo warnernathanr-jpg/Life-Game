@@ -56,9 +56,55 @@ import {
   Warehouse,
   Waves,
   Flower2,
+  Apple,
+  Baby,
+  Bed,
+  Bike,
+  CalendarDays,
+  Camera,
+  Car,
+  Clock,
+  Code,
+  Dog,
+  Footprints,
+  Gamepad2,
+  GlassWater,
+  Guitar,
+  Languages,
+  Laptop,
+  Mail,
+  Moon,
+  Mountain,
+  Music,
+  Palette,
+  Pencil,
+  Phone,
+  PiggyBank,
+  Pill,
+  Salad,
+  Smile,
+  SprayCan,
+  Sprout,
+  Star,
+  Sun,
+  Target,
+  Wallet,
   type LucideIcon,
   type LucideProps,
 } from "lucide-react";
+import type { IconName } from "@/lib/task-icons";
+
+/** The icons a task or goal can have (names in src/lib/task-icons.ts). */
+export const CHOICE_ICONS: Record<IconName, LucideIcon> = {
+  dumbbell: Dumbbell, footprints: Footprints, bike: Bike, "heart-pulse": HeartPulse, apple: Apple, salad: Salad, bed: Bed,
+  "glass-water": GlassWater, pill: Pill, mountain: Mountain, brain: Brain, "book-open": BookOpen,
+  "graduation-cap": GraduationCap, pencil: Pencil, languages: Languages, code: Code, briefcase: Briefcase, laptop: Laptop,
+  mail: Mail, phone: Phone, "calendar-days": CalendarDays, clock: Clock, music: Music, guitar: Guitar, palette: Palette,
+  camera: Camera, "gamepad-2": Gamepad2, sparkles: Sparkles, house: House, "spray-can": SprayCan,
+  "shopping-cart": ShoppingCart, "utensils-crossed": UtensilsCrossed, coffee: Coffee, users: Users, baby: Baby, dog: Dog,
+  sprout: Sprout, "tree-pine": TreePine, "flower-2": Flower2, hammer: Hammer, sun: Sun, moon: Moon, star: Star,
+  target: Target, trophy: Trophy, "piggy-bank": PiggyBank, wallet: Wallet, car: Car, plane: Plane, smile: Smile,
+};
 
 const BUILDING: Record<string, LucideIcon> = {
   // Residential
@@ -174,6 +220,12 @@ export function GroupIcon({ id, ...props }: IconProps & { id: string }) {
 /** The icon for a life area (Health, Work, Knowledge, Personal). */
 export function AreaIcon({ area, ...props }: IconProps & { area: string }) {
   return render(AREA[area] ?? Sparkles, props);
+}
+
+/** A task's or goal's chosen icon, or its life area's icon when none was chosen. */
+export function ItemIcon({ icon, area, ...props }: Omit<IconProps, "name"> & { icon?: string | null; area?: string | null }) {
+  const chosen = icon ? CHOICE_ICONS[icon as IconName] : undefined;
+  return render(chosen ?? AREA[area ?? ""] ?? Target, props);
 }
 
 /** Coins: an amber coin stack. */

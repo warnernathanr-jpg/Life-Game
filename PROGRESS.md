@@ -341,6 +341,22 @@ _Last updated: 2026-11-25_
   City Stats, map buttons, clock and pause, citizen card, tasks, focus, history calendar, reward popups and the landing page
   all use them. `AREAS` / `BUILD_GROUPS` no longer carry emoji fields; the `building_types.icon` column is no longer shown.
 
+### 22. Goals, task icons, Stats page about you, new fonts (2026-11-26)
+- **Goals tab** (`/goals`, in the bottom bar: City, Tasks, Goals, Focus, Stats): a goal has a title, optional icon and life area,
+  a **reach-it-by date**, notes and **steps** (subtasks: add one per line when creating, add/check/delete later). Cards show the
+  date and "N days left / past the date", a progress bar from the steps, Mark goal reached / Reopen, Delete (in-app confirm);
+  reached goals fold away under "Completed". No coins yet (Phase B can add rewards).
+- Migration `20261126000000_goals_task_icons.sql` (applied live): `goals`, `goal_steps` (RLS: own rows; a step only on your own
+  goal; the owner writes directly since no coins move), `tasks.icon`, `my_tasks()` returns `icon`. 9 pgTAP tests (`goals.test.sql`,
+  243 total).
+- **Task icons**: an icon picker (`src/components/icon-picker.tsx`, 50 Lucide icons listed in `src/lib/task-icons.ts`, validated on
+  the server) on the add-task and add-goal forms; task rows and goals show the icon (`ItemIcon`, falling back to the area icon).
+- **Stats page** is about tasks, habits, focus and goals only (Goals tile replaces Population; the city card is gone). City numbers
+  live on the City page.
+- **Fonts**: Figtree for text and Bricolage Grotesque for headings (instead of the default Geist that most new Next.js apps use);
+  JetBrains Mono for code.
+- Fix: an import had been placed above `"use server"` in `actions.ts` (lint warned); the directive is first again.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

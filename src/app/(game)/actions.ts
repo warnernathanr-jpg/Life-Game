@@ -1,5 +1,6 @@
 "use server";
 
+import { isIconName } from "@/lib/task-icons";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
@@ -28,9 +29,18 @@ const taskSchema = z
     repeat: z.enum(["once", "daily", "weekly", "monthly", "quarterly", "yearly", "days", "times_per_week", "times_per_month"]),
     weekdays: z.array(z.coerce.number().int().min(1).max(7)),
     times: z.string().optional(),
+    icon: z.string().optional(),
   })
   .transform((v, ctx) => {
-    const out = { title: v.title, area: v.area, difficulty: v.difficulty, repeat: v.repeat, weekdays: null as number[] | null, times_per_period: null as number | null };
+    const out = {
+      title: v.title,
+      area: v.area,
+      difficulty: v.difficulty,
+      repeat: v.repeat,
+      weekdays: null as number[] | null,
+      times_per_period: null as number | null,
+      icon: isIconName(v.icon) ? v.icon : null,
+    };
     if (v.repeat === "days") {
       if (v.weekdays.length === 0) {
         ctx.addIssue({ code: "custom", message: "Pick at least one day." });
@@ -58,6 +68,7 @@ export async function addTask(prev: AddTaskState, formData: FormData): Promise<A
     repeat: formData.get("repeat"),
     weekdays: formData.getAll("weekdays"),
     times: formData.get("times") ?? undefined,
+    icon: formData.get("icon") ?? undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message, added: prev.added };
   const { supabase } = await requireUser();
@@ -284,5 +295,109 @@ export async function savePushSubscription(subscription: unknown, userAgent: str
     p_user_agent: userAgent.slice(0, 300),
   });
   if (error) return { ok: false, error: gameError(error) };
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Goals (no coins: the owner writes them directly under RLS)
+// ---------------------------------------------------------------------------
+
+export type AddGoalState = { error?: string; added?: number };
+
+const goalSchema = z.object({
+  title: z.string().trim().min(1, "Give the goal a name.").max(120, "Keep it under 120 characters."),
+  target_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a date to reach it by."),
+  area: z.enum(["health", "work", "knowledge", "personal", ""]).optional(),
+  notes: z.string().trim().max(1000, "Keep notes under 1,000 characters.").optional(),
+  steps: z.string().max(4000).optional(),
+  icon: z.string().optional(),
+});
+
+export async function addGoal(prev: AddGoalState, formData: FormData): Promise<AddGoalState> {
+  const parsed = goalSchema.safeParse({
+    title: formData.get("title") ?? "",
+    target_date: formData.get("target_date") ?? "",
+    area: formData.get("area") ?? "",
+    notes: formData.get("notes") ?? "",
+    steps: formData.get("steps") ?? "",
+    icon: formData.get("icon") ?? undefined,
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0].message, added: prev.added };
+  const v = parsed.data;
+  const { supabase } = await requireUser();
+  const { data: goal, error } = await supabase
+    .from("goals")
+    .insert({
+      title: v.title,
+      target_date: v.target_date,
+      area: v.area ? v.area : null,
+      notes: v.notes ? v.notes : null,
+      icon: isIconName(v.icon) ? v.icon : null,
+    })
+    .select("id")
+    .single();
+  if (error || !goal) {
+    console.error("addGoal", error);
+    return { error: "Couldn't save the goal. Please try again.", added: prev.added };
+  }
+  // One step per line.
+  const steps = (v.steps ?? "")
+    .split("\n")
+    .map((s) => s.trim().slice(0, 120))
+    .filter(Boolean)
+    .slice(0, 30)
+    .map((title, position) => ({ goal_id: goal.id, title, position }));
+  if (steps.length > 0) {
+    const { error: stepError } = await supabase.from("goal_steps").insert(steps);
+    if (stepError) console.error("addGoal steps", stepError);
+  }
+  refresh();
+  return { added: (prev.added ?? 0) + 1 };
+}
+
+export async function addGoalStep(goalId: string, title: string): Promise<ActionResult> {
+  const clean = title.trim().slice(0, 120);
+  if (!uuid.safeParse(goalId).success || !clean) return { ok: false, error: "Write the step first." };
+  const { supabase } = await requireUser();
+  const { count } = await supabase.from("goal_steps").select("id", { count: "exact", head: true }).eq("goal_id", goalId);
+  const { error } = await supabase.from("goal_steps").insert({ goal_id: goalId, title: clean, position: count ?? 0 });
+  if (error) return { ok: false, error: "Couldn't add the step." };
+  refresh();
+  return { ok: true };
+}
+
+export async function setGoalStepDone(stepId: string, done: boolean): Promise<ActionResult> {
+  if (!uuid.safeParse(stepId).success) return { ok: false, error: gameError(null) };
+  const { supabase } = await requireUser();
+  const { error } = await supabase.from("goal_steps").update({ done_at: done ? new Date().toISOString() : null }).eq("id", stepId);
+  if (error) return { ok: false, error: "Couldn't update the step." };
+  refresh();
+  return { ok: true };
+}
+
+export async function deleteGoalStep(stepId: string): Promise<ActionResult> {
+  if (!uuid.safeParse(stepId).success) return { ok: false, error: gameError(null) };
+  const { supabase } = await requireUser();
+  const { error } = await supabase.from("goal_steps").delete().eq("id", stepId);
+  if (error) return { ok: false, error: "Couldn't delete the step." };
+  refresh();
+  return { ok: true };
+}
+
+export async function setGoalDone(goalId: string, done: boolean): Promise<ActionResult> {
+  if (!uuid.safeParse(goalId).success) return { ok: false, error: gameError(null) };
+  const { supabase } = await requireUser();
+  const { error } = await supabase.from("goals").update({ completed_at: done ? new Date().toISOString() : null }).eq("id", goalId);
+  if (error) return { ok: false, error: "Couldn't update the goal." };
+  refresh();
+  return { ok: true };
+}
+
+export async function deleteGoal(goalId: string): Promise<ActionResult> {
+  if (!uuid.safeParse(goalId).success) return { ok: false, error: gameError(null) };
+  const { supabase } = await requireUser();
+  const { error } = await supabase.from("goals").delete().eq("id", goalId);
+  if (error) return { ok: false, error: "Couldn't delete the goal." };
+  refresh();
   return { ok: true };
 }
