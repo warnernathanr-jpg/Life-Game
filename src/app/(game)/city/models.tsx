@@ -376,7 +376,8 @@ function Model({ typeId, seed, join }: { typeId: string; seed: number; join?: { 
           <Tree p={[-0.26, 0.04, -0.24]} s={1.1} crown={crown} />
           <Tree p={[0.26, 0.04, -0.26]} s={0.9} pine />
           <Tree p={[0.24, 0.04, 0.26]} s={1} crown={pick(PALETTE.crowns, seed, 11)} />
-          <B p={[-0.24, 0.04, 0.24]} s={[0.24, 0.06, 0.08]} c="#92400e" />
+          <B p={[-0.24, 0.04, 0.24]} s={[0.24, 0.06, 0.08]} c={chosen ? accent : "#92400e"} />
+          {chosen && <B p={[0.0, 0.04, 0.3]} s={[0.12, 0.05, 0.12]} c={awning} />}
         </>
       );
     case "court":
@@ -384,7 +385,10 @@ function Model({ typeId, seed, join }: { typeId: string; seed: number; join?: { 
       return (
         <>
           <B p={[0, 0, 0]} s={[1.92, 0.03, 1.92]} c="#15803d" />
-          <B p={[0, 0.03, 0]} s={[1.6, 0.01, 1.2]} c={pick(["#c2410c", "#1d4ed8", "#7c3aed", "#0f766e"], seed, 12)} />
+          <B p={[0, 0.03, 0]} s={[1.6, 0.01, 1.2]} c={chosen ? roof : pick(["#c2410c", "#1d4ed8", "#7c3aed", "#0f766e"], seed, 12)} />
+          {chosen && [-1, 1].map((side) => (
+            <B key={side} p={[side * 0.62, 0.035, 0]} s={[0.36, 0.006, 0.44]} c={awning} />
+          ))}
           {[
             [0, -0.6, 1.6, 0.03], [0, 0.6, 1.6, 0.03], [-0.8, 0, 0.03, 1.2], [0.8, 0, 0.03, 1.2], [0, 0, 0.03, 1.2],
           ].map(([x, z, w, d], i) => (
@@ -415,15 +419,15 @@ function Model({ typeId, seed, join }: { typeId: string; seed: number; join?: { 
             <group key={i} position={[x, 0.04, z]}>
               <B p={[0, 0, 0]} s={[0.7, 0.06, 0.7]} c="#78350f" />
               {[[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18], [0, 0]].map(([fx, fz], j) => (
-                <mesh key={j} geometry={CROWN} material={mat(["#f472b6", "#facc15", "#f87171", "#c084fc", "#fb923c"][(j + i + seed) % 5])} position={[fx, 0.1, fz]} scale={0.14} />
+                <mesh key={j} geometry={CROWN} material={mat((chosen ? [awning, accent, facade, band, "#f8fafc"] : ["#f472b6", "#facc15", "#f87171", "#c084fc", "#fb923c"])[(j + i + seed) % 5])} position={[fx, 0.1, fz]} scale={0.14} />
               ))}
             </group>
           ))}
           {[[-1.25, -1.25], [1.25, 1.25], [-1.25, 1.25], [1.25, -1.3], [0.3, -1.3], [-1.3, 0.3]].map(([x, z], i) => (
             <Tree key={i} p={[x, 0.04, z]} s={1.1} pine={i % 3 === 1} crown={pick(PALETTE.crowns, seed, 20 + i)} />
           ))}
-          <B p={[-0.3, 0.04, 0.25]} s={[0.3, 0.07, 0.08]} c="#92400e" />
-          <B p={[0.25, 0.04, -0.3]} s={[0.08, 0.07, 0.3]} c="#92400e" />
+          <B p={[-0.3, 0.04, 0.25]} s={[0.3, 0.07, 0.08]} c={chosen ? accent : "#92400e"} />
+          <B p={[0.25, 0.04, -0.3]} s={[0.08, 0.07, 0.3]} c={chosen ? accent : "#92400e"} />
         </>
       );
     case "central_park":

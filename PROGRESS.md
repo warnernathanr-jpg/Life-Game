@@ -786,6 +786,10 @@ _Last updated: 2026-11-28_
   a front door with a lintel and steps, a tower window, windows on both sides and fronts of the wings and a door on each wing.
 - 1 more unit test (`transportFactor`); the happiness test follows the new numbers.
 
+- **Colors on parks** (2026-11-28): the Basketball Court's surface takes the picked family's roof color with key areas in its
+  awning color; the Neighborhood Park's bench and a flower bed, and the Garden Park's flowers and benches, use the family too.
+  With Auto they keep their usual colors.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
