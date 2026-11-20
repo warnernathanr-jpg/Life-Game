@@ -13,6 +13,13 @@ import { B, Cyl, mat, type V3 } from "./models";
 const SPHERE = new THREE.SphereGeometry(1, 8, 6);
 
 const HOUSES = new Set(["small_cottage", "cottage", "suburban", "luxury"]);
+/** Front wall depth and door position of each house model (see models.tsx / models-catalog.tsx). */
+const HOUSE_LAYOUT: Record<string, { front: number; door: number; drive: boolean; lawn?: boolean }> = {
+  small_cottage: { front: 0.21, door: 0, drive: true },
+  cottage: { front: 0.25, door: 0, drive: true },
+  suburban: { front: 0.17, door: -0.12, drive: false, lawn: true },
+  luxury: { front: 0.36, door: -0.45, drive: true, lawn: true },
+};
 const ROWS = new Set(["house", "apartments", "highrise"]);
 const INDUSTRY = new Set(["factory", "small_factory", "warehouse", "workshop", "distribution"]);
 const SMALL_SHOPS = new Set(["corner_shop", "cafe", "restaurant", "clothing", "bank"]);
@@ -22,7 +29,6 @@ const CONCRETE = "#a8a29e";
 const DRIVEWAY = "#8f8a84";
 const PAVING = "#d6d3cd";
 const BUSH = ["#15803d", "#166534", "#16a34a", "#3f6212"];
-const FLOWERS = ["#f472b6", "#facc15", "#f87171", "#c084fc", "#fb923c", "#f8fafc"];
 const CARS = ["#dc2626", "#2563eb", "#f8fafc", "#111827", "#9ca3af", "#16a34a", "#eab308"];
 
 function rng(seed: number) {
@@ -131,7 +137,7 @@ export function LotDressing({ typeId, seed, lw, ld }: { typeId: string; seed: nu
     // A driveway along the whole front (both duplex homes / the store's entrance), with parked cars on the duplex.
     return (
       <>
-        <Slab x={0} z={hz - 0.1} w={lw - 0.06} d={0.18} c={DRIVEWAY} y={typeId === "grocery" ? 0.024 : 0.004} />
+        <Slab x={0} z={hz - 0.1} w={lw - 0.06} d={0.18} c={DRIVEWAY} y={0.024} />
         {typeId === "duplex" && (
           <>
             {r() < 0.75 && <Car p={[-hx * 0.5, 0.008, hz - 0.1]} c={pickOf(CARS)} along="x" />}
@@ -151,23 +157,23 @@ export function LotDressing({ typeId, seed, lw, ld }: { typeId: string; seed: nu
   }
 
   if (HOUSES.has(typeId)) {
+    // Where each model's front wall and door are (lot frame, +z = road), and whether it gets a driveway here
+    // (the Suburban House has its own garage driveway in the model).
+    const layout = HOUSE_LAYOUT[typeId] ?? { front: 0.25, door: 0, drive: true };
     const side = r() < 0.5 ? -1 : 1; // which side the driveway runs
-    const dx = side * (hx - 0.14);
-    const len = Math.min(0.42, hz - 0.02);
-    const bushC = pickOf(BUSH);
-    const flowers = Array.from({ length: 5 }, (_, i) => ({ x: -side * (hx - 0.1) + (i % 3) * 0.03 * -side, z: hz - 0.07 - Math.floor(i / 3) * 0.04, c: pickOf(FLOWERS) }));
+    const dx = side * (hx - 0.11);
+    const driveStart = layout.front + 0.02; // stops at the front of the house, never under it
+    const driveLen = hz - driveStart;
     return (
       <>
-        <Slab x={dx} z={hz - len / 2} w={0.2} d={len} c={DRIVEWAY} />
-        {r() < 0.6 && <Car p={[dx, 0.008, hz - 0.17]} c={pickOf(CARS)} along="z" />}
-        {/* Bushes at the back corners and by the front, a little flower bed on the other side of the driveway. */}
-        <Bush p={[-hx + 0.09, 0, -hz + 0.09]} r={0.08} c={bushC} />
-        <Bush p={[hx - 0.09, 0, -hz + 0.09]} r={0.07} c={pickOf(BUSH)} />
-        <Bush p={[-side * (hx - 0.08), 0, hz - 0.22]} r={0.06} c={bushC} />
-        <Slab x={-side * (hx - 0.13)} z={hz - 0.09} w={0.14} d={0.09} c="#7c5a3a" y={0.005} />
-        {flowers.map((f, i) => (
-          <B key={i} p={[f.x, 0.008, f.z]} s={[0.03, 0.035, 0.03]} c={f.c} />
-        ))}
+        {/* Front walk from the door to the sidewalk. */}
+        <Slab x={layout.door} z={(layout.front + hz) / 2} w={0.1} d={hz - layout.front} c={PAVING} y={layout.lawn ? 0.025 : 0.005} />
+        {layout.drive && <Slab x={dx} z={driveStart + driveLen / 2} w={0.16} d={driveLen} c={DRIVEWAY} y={layout.lawn ? 0.024 : 0.004} />}
+        {layout.drive && driveLen >= 0.28 && r() < 0.6 && <Car p={[dx, 0.008, hz - 0.15]} c={pickOf(CARS)} along="z" />}
+        {/* A few bushes: the back corners and beside the walk. */}
+        <Bush p={[-hx + 0.09, 0, -hz + 0.09]} r={0.07} c={pickOf(BUSH)} />
+        <Bush p={[hx - 0.09, 0, -hz + 0.09]} r={0.065} c={pickOf(BUSH)} />
+        <Bush p={[layout.door - side * 0.12, 0, hz - 0.1]} r={0.045} c={pickOf(BUSH)} />
       </>
     );
   }

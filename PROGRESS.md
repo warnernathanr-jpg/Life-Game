@@ -572,6 +572,11 @@ _Last updated: 2026-11-27_
   `city_milestones`, `claim_city_milestone()`, `place_landmark()`, `my_city_population()`, `profiles.city_code`, `friendships` (read and
   remove own), `add_friend()`, `my_friends()`, `friend_city()` (only for cities you've added). 18 pgTAP tests (314 total).
 - Owner's account (after another Start over): 30×30 land, 200,500 coins, 1,000 points per area.
+- **House lots**: every house has a front walk from its door to the sidewalk; driveways stop at the front of the house (the Starter House's
+  ran under it); the flower bed (a brown slab with colored dots) is gone. Lawn plots are 0.02 thick, so drives and walks on lawn homes
+  sit above them (the Suburban House's garage driveway and the duplex's were hidden under the grass). **Luxury Home** remodelled: house
+  moved toward the front with a front door and porch roof, windows on both floors, sides and back, a garage door, and the **pool in the
+  back yard** with loungers.
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
