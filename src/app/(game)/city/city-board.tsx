@@ -9,6 +9,7 @@ import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow, RoadControlKind }
 import { MAX_CITY_SIZE, MAX_STROKE_TILES, ROAD_CONTROLS, cityStats, controlByType, milestoneFor, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, roadControlTypes, sellRefund } from "@/lib/game";
 import { BRIDGE_TYPE, ROAD_TIERS, connectedIds, isRoadType, key, nextFacing, roadSet, streetOf, touchesRoad, type Lot, type Tile } from "@/lib/roads";
 import { startMusic, stopMusic } from "@/lib/music";
+import { playSfx, type Sfx } from "@/lib/sfx";
 import { buyBuilding, buyLand, buyTiles, shiftCity, claimCityMilestone, moveBuilding, placeLandmark, placeRoadControl, removeRoadControl, sellBuilding, sellMany, setBuildingColor, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
 import { useConfirm } from "@/components/confirm";
@@ -129,6 +130,16 @@ export function CityBoard(props: {
   const [draftSpot, setDraftSpot] = useState<Tile | null>(null);
   /** Scenic view: only the city, no menus or grid lines. */
   const [scenic, setScenic] = useState(false);
+  useEffect(() => {
+    if (!scenic) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopImmediatePropagation(); // just leave the scenic view, not full screen
+      setScenic(false);
+    };
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
+  }, [scenic]);
   const [draftTiles, setDraftTiles] = useState<Tile[]>([]);
   const [draftRot, setDraftRot] = useState(false);
   const modeKey =
@@ -217,6 +228,17 @@ export function CityBoard(props: {
   );
   const city3d = useRef<City3DHandle>(null);
   const mapBox = useRef<HTMLDivElement>(null);
+  // A soft click for every button pressed over the full-screen map.
+  useEffect(() => {
+    const box = mapBox.current;
+    if (!box || !props.standalone) return;
+    const onDown = (e: PointerEvent) => {
+      const b = (e.target as HTMLElement | null)?.closest("button");
+      if (b && !b.disabled) playSfx("click");
+    };
+    box.addEventListener("pointerdown", onDown);
+    return () => box.removeEventListener("pointerdown", onDown);
+  }, [props.standalone]);
   // City Stats as a panel over the map in full screen.
   const [statsOpen, setStatsOpen] = useState(false);
   // Full screen is its own page (/play) showing only the map, so it opens the same way every time.
@@ -316,8 +338,9 @@ export function CityBoard(props: {
     return () => window.removeEventListener("keydown", onKey);
   }, [mode.kind, shift]);
 
-  function say(text: string, tone: "good" | "bad" = "good") {
+  function say(text: string, tone: "good" | "bad" = "good", sound?: Sfx) {
     setMessage({ text, tone });
+    if (sound) playSfx(sound);
   }
 
   /** Paint stroke: tiles that would be added (tiles already of that type are skipped), and whether it can be done. */
@@ -362,6 +385,7 @@ export function CityBoard(props: {
   // Building is two steps: tap (or drag) shows a preview, then Confirm builds it. Nothing is bought by accident
   // (e.g. while zooming with two fingers).
   function onTile(x: number, y: number) {
+    if (scenic) return setScenic(false); // a tap on the map leaves the scenic view
     if (props.visit || mode.kind === "shift") return; // just looking / moving the whole city
     if (mode.kind === "paint") return onStroke([{ x, y }]);
     if (mode.kind === "control") return void putControl(x, y, mode.control);
@@ -411,7 +435,7 @@ export function CityBoard(props: {
         start(async () => {
           const r = await placeLandmark(placingType.id, x, y, draftRot);
           if (!r.ok) return say(r.error, "bad");
-          say(`${placingType.name} built. Congratulations on your city!`);
+          say(`${placingType.name} built. Congratulations on your city!`, "good", "fanfare");
           setMode({ kind: "idle" });
         });
         return;
@@ -421,7 +445,7 @@ export function CityBoard(props: {
         const r = await buyBuilding(placingType.id, x, y, draftRot);
         if (!r.ok) return say(r.error, "bad");
         const nearRoad = connectedIds([...lots, { id: r.id, type_id: placingType.id, x, y, ...draftDims }]).has(r.id);
-        say(`Built a ${placingType.name} for ${formatCoins(placingType.cost)} coins.${nearRoad ? "" : " It needs a road beside it to count."}`);
+        say(`Built a ${placingType.name} for ${formatCoins(placingType.cost)} coins.${nearRoad ? "" : " It needs a road beside it to count."}`, "good", "build");
         // One building per pick: back to looking around (no Cancel needed).
         setMode({ kind: "idle" });
       });
@@ -432,7 +456,7 @@ export function CityBoard(props: {
       start(async () => {
         const r = await moveBuilding(movingLot.id, x, y, draftRot);
         if (!r.ok) return say(r.error, "bad");
-        say("Moved.");
+        say("Moved.", "good", "build");
         setMode({ kind: "selected", id: movingLot.id });
       });
     }
@@ -454,7 +478,7 @@ export function CityBoard(props: {
       if (!r.ok) return say(r.error, "bad");
       const notes = [plan.bridges > 0 && `${plan.bridges} bridge${plan.bridges === 1 ? "" : "s"}`, plan.trees > 0 && `${plan.trees} tree tile${plan.trees === 1 ? "" : "s"} cleared`].filter(Boolean);
       const what = typeId === "tree" ? `Planted ${r.built} tree${r.built === 1 ? "" : "s"}` : typeId === "water" ? `Dug ${r.built} water tile${r.built === 1 ? "" : "s"}` : `Built ${r.built} ${paintType.name.toLowerCase()} tile${r.built === 1 ? "" : "s"}`;
-      say(`${what}${notes.length ? ` (${notes.join(", ")})` : ""} for ${formatCoins(r.cost)} coins.`);
+      say(`${what}${notes.length ? ` (${notes.join(", ")})` : ""} for ${formatCoins(r.cost)} coins.`, "good", "build");
     });
   }
 
@@ -486,7 +510,7 @@ export function CityBoard(props: {
         start(async () => {
           const r = await sellMany(ids);
           if (!r.ok) return say(r.error, "bad");
-          say(`Demolished ${r.sold} item${r.sold === 1 ? "" : "s"}. +${formatCoins(r.refund)} coins back.`);
+          say(`Demolished ${r.sold} item${r.sold === 1 ? "" : "s"}. +${formatCoins(r.refund)} coins back.`, "good", "demolish");
         });
       });
     }
@@ -510,7 +534,7 @@ export function CityBoard(props: {
     start(async () => {
       const r = await sellBuilding(b.id);
       if (!r.ok) return say(r.error, "bad");
-      say(`Demolished. +${formatCoins(r.refund)} coins back.`);
+      say(`Demolished. +${formatCoins(r.refund)} coins back.`, "good", "demolish");
       setMode({ kind: "idle" });
     });
   }
@@ -554,7 +578,7 @@ export function CityBoard(props: {
     start(async () => {
       const r = await upgradeBuilding(b.id);
       if (!r.ok) return say(r.error, "bad");
-      say(`Upgraded to ${info.to.name} for ${formatCoins(r.cost)} coins.`);
+      say(`Upgraded to ${info.to.name} for ${formatCoins(r.cost)} coins.`, "good", "build");
     });
   }
 
@@ -588,7 +612,7 @@ export function CityBoard(props: {
   function claimMilestone(population: number) {
     start(async () => {
       const r = await claimCityMilestone(population);
-      say(r.ok ? `+${formatCoins(r.coins)} coins for reaching ${formatCoins(population)} people!` : r.error, r.ok ? "good" : "bad");
+      say(r.ok ? `+${formatCoins(r.coins)} coins for reaching ${formatCoins(population)} people!` : r.error, r.ok ? "good" : "bad", r.ok ? "fanfare" : undefined);
     });
   }
 
@@ -608,7 +632,7 @@ export function CityBoard(props: {
     start(async () => {
       const r = await placeRoadControl(x, y, kind);
       if (!r.ok) return say(r.error, "bad");
-      say(`${info.name} built for ${formatCoins(r.cost)} coins.`);
+      say(`${info.name} built for ${formatCoins(r.cost)} coins.`, "good", "build");
       setMode({ kind: "idle" });
     });
   }
@@ -621,7 +645,7 @@ export function CityBoard(props: {
     start(async () => {
       const r = await removeRoadControl(x, y);
       if (!r.ok) return say(r.error, "bad");
-      say(`Removed. +${formatCoins(r.refund)} coins back.`);
+      say(`Removed. +${formatCoins(r.refund)} coins back.`, "good", "demolish");
     });
   }
 
@@ -638,7 +662,7 @@ export function CityBoard(props: {
     start(async () => {
       const r = await buyTiles(to.id, tiles.map((t) => [t.x, t.y]));
       if (!r.ok) return say(r.error, "bad");
-      say(`Changed ${r.built} tile${r.built === 1 ? "" : "s"} to ${to.name} for ${formatCoins(r.cost)} coins.`);
+      say(`Changed ${r.built} tile${r.built === 1 ? "" : "s"} to ${to.name} for ${formatCoins(r.cost)} coins.`, "good", "build");
       setMode({ kind: "idle" });
     });
   }
@@ -683,7 +707,7 @@ export function CityBoard(props: {
     start(async () => {
       const r = await buyLand();
       if (!r.ok) return say(r.error, "bad");
-      say(`Your city is now ${r.size}×${r.size}!`);
+      say(`Your city is now ${r.size}×${r.size}!`, "good", "fanfare");
     });
   }
 
@@ -935,11 +959,9 @@ export function CityBoard(props: {
                   type="button"
                   data-keep
                   onClick={() => setScenic(false)}
-                  aria-label="Show the menus again"
-                  title="Show the menus again"
-                  className="absolute right-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] flex size-10 items-center justify-center rounded-full bg-black/25 text-white/90 backdrop-blur hover:bg-black/40"
+                  className="absolute top-[max(0.5rem,env(safe-area-inset-top))] right-2 flex min-h-10 items-center gap-1.5 rounded-xl bg-surface/90 px-3 text-sm font-semibold text-ink shadow ring-1 ring-line backdrop-blur"
                 >
-                  <EyeOff className="size-5" aria-hidden />
+                  <EyeOff className="size-4" aria-hidden /> Show menus
                 </button>
               )}
               {draftBar && (

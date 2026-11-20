@@ -640,6 +640,14 @@ _Last updated: 2026-11-28_
   then the tab bar as a normal part of the frame), so neither the browser bar hiding nor the end-of-scroll bounce can move the
   menu. Wide screens scroll the page as before. The 3D view's pause-while-scrolling check listens for scrolling inside the frame.
 
+### 44. Leaving the scenic view, sound effects (2026-11-28)
+- **Scenic view** was hard to leave (a faint eye icon in the bottom corner): now a clear **Show menus** button at the top right,
+  a tap anywhere on the map, or Escape brings the menus back.
+- **Sound effects** in the city (`src/lib/sfx.ts`, Web Audio, no files): a soft click for every button pressed over the
+  full-screen map, a pop when something is built (buildings, roads, upgrades, moves, stop signs), a crunch when demolishing,
+  and a rising chime for buying land, the first building and claiming a milestone. On by default; **Settings → Sounds** switches
+  them off (remembered per device, `lifecity.sfx`). `say()` in `city-board.tsx` takes an optional sound.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

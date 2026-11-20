@@ -1,9 +1,10 @@
 "use client";
 
-import { KeyRound, LogOut, RotateCcw, TriangleAlert, UserRound } from "lucide-react";
+import { KeyRound, LogOut, RotateCcw, TriangleAlert, UserRound, Volume2 } from "lucide-react";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useConfirm } from "@/components/confirm";
 import { ThemeSettings } from "@/components/theme-picker";
+import { playSfx, setSfxEnabled, sfxEnabled } from "@/lib/sfx";
 import { signOut } from "../../(auth)/actions";
 import { changePassword, resetProgress, setDisplayName, type PasswordState } from "../actions";
 
@@ -56,6 +57,7 @@ export function SettingsForms({ email, name }: { email: string; name: string }) 
       </section>
 
       <ThemeSettings />
+      <SoundSettings />
 
       <section className="card" aria-labelledby="pw-h">
         <h2 id="pw-h" className="flex items-center gap-2 font-semibold">
@@ -114,5 +116,37 @@ export function SettingsForms({ email, name }: { email: string; name: string }) 
         {resetMsg && <p role="status" className={`mt-2 text-sm ${resetMsg.ok ? "text-good" : "text-bad"}`}>{resetMsg.text}</p>}
       </section>
     </div>
+  );
+}
+
+/** Sound effects in the city (button clicks, building, demolishing), remembered on this device. */
+function SoundSettings() {
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOn(sfxEnabled());
+  }, []);
+  return (
+    <section className="card" aria-labelledby="sfx-h">
+      <h2 id="sfx-h" className="flex items-center gap-2 font-semibold">
+        <Volume2 className="size-4" aria-hidden /> Sounds
+      </h2>
+      <label className="mt-2 flex cursor-pointer items-center justify-between gap-3">
+        <span className="text-sm">
+          Button and building sounds in the city
+          <span className="block text-xs text-muted">Music has its own button in full screen.</span>
+        </span>
+        <input
+          type="checkbox"
+          className="size-5 accent-[var(--t-accent)]"
+          checked={on}
+          onChange={(e) => {
+            setSfxEnabled(e.target.checked);
+            setOn(e.target.checked);
+            if (e.target.checked) playSfx("build");
+          }}
+        />
+      </label>
+    </section>
   );
 }
