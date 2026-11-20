@@ -468,6 +468,13 @@ _Last updated: 2026-11-27_
   one line, and other days have the same status row as today's list). The **week view** shows each task's icon.
 - **Basketball Court** has its own basketball icon (Lucide's volleyball looked wrong).
 
+### 34. Pick a building's colors (2026-11-27)
+- Selecting a building shows **Colors**: Auto plus 10 color schemes (swatch = roof over wall). Free, saved per building in
+  `placed_buildings.color_seed` (a seed for the same palettes the automatic colors use, so every model reacts); Auto = null.
+  `COLOR_CHOICES` in `models.tsx`; `set_building_color()` (own buildings only, not roads or landscaping).
+- Migration `20261127010000_building_colors.sql` (applied live). 6 pgTAP tests (`building_colors.test.sql`, 273 total).
+- Renaming citizens was dropped at the owner's request.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

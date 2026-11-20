@@ -195,6 +195,18 @@ export async function setFacing(buildingId: string, facing: "south" | "east" | "
   return { ok: true };
 }
 
+/** Pick a building's color scheme (a seed for its palettes), or null for its automatic colors. Free. */
+export async function setBuildingColor(buildingId: string, seed: number | null): Promise<ActionResult> {
+  if (!uuid.safeParse(buildingId).success || (seed !== null && (!Number.isInteger(seed) || seed < 0 || seed > 4294967295))) {
+    return { ok: false, error: gameError(null) };
+  }
+  const { supabase } = await requireUser();
+  const { error } = await supabase.rpc("set_building_color", { p_building_id: buildingId, p_seed: seed });
+  if (error) return { ok: false, error: gameError(error) };
+  refresh();
+  return { ok: true };
+}
+
 /** Buy road tiles along a stroke (tiles that are already road are free). */
 export async function buyRoads(points: [number, number][]): Promise<ActionResult<{ built: number; cost: number }>> {
   const parsed = tiles.safeParse(points);

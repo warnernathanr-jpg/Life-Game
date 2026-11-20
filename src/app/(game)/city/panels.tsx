@@ -7,6 +7,7 @@ import { AreaIcon, BuildingIcon, CoinIcon, GroupIcon } from "@/components/icons"
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
 import { AREA_BY_ID, BUILD_GROUPS, CATEGORY_BY_ID, buildGroupOf, formatCoins, sizeText, type BuildGroupId, pointsToUnlock, sellRefund, type CityStats } from "@/lib/game";
 import { renameCity } from "../actions";
+import { COLOR_CHOICES } from "./models";
 
 type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid">;
 
@@ -196,6 +197,7 @@ export function SelectedPanel({
   people,
   onPerson,
   roadChange,
+  colors,
 }: {
   lot: Placed & { w: number; h: number };
   type?: BuildingTypeRow;
@@ -213,6 +215,8 @@ export function SelectedPanel({
   /** Residents, staff or students of this building (from the city simulation). */
   people?: { title: string; empty: string; list: { id: string; name: string; age: number; line: string }[] };
   onPerson?: (id: string) => void;
+  /** Color scheme picker (buildings only): the chosen seed (null = automatic). */
+  colors?: { current: number | null; onPick: (seed: number | null) => void };
   /** For a road tile: the other road kinds it can become, for this tile or its whole street. */
   roadChange?: {
     street: number;
@@ -262,6 +266,38 @@ export function SelectedPanel({
               ))}
             </ul>
           )}
+        </div>
+      )}
+      {colors && (
+        <div className="mt-4">
+          <h3 className="text-sm font-semibold">Colors</h3>
+          <div className="mt-1.5 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Building colors">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={colors.current === null}
+              disabled={pending}
+              onClick={() => colors.onPick(null)}
+              className={`flex h-9 items-center rounded-full px-3 text-xs font-semibold ring-1 ${colors.current === null ? "bg-accent text-on-accent ring-accent" : "bg-raised text-ink ring-line hover:ring-accent"}`}
+            >
+              Auto
+            </button>
+            {COLOR_CHOICES.map((c, i) => (
+              <button
+                key={c.seed}
+                type="button"
+                role="radio"
+                aria-checked={colors.current === c.seed}
+                aria-label={`Color scheme ${i + 1}`}
+                disabled={pending}
+                onClick={() => colors.onPick(c.seed)}
+                className={`relative size-9 overflow-hidden rounded-full ring-2 ${colors.current === c.seed ? "ring-accent ring-offset-2 ring-offset-surface" : "ring-line hover:ring-accent/60"}`}
+                style={{ background: c.main }}
+              >
+                <span aria-hidden className="absolute inset-x-0 top-0 h-1/2" style={{ background: c.second }} />
+              </button>
+            ))}
+          </div>
         </div>
       )}
       {roadChange && roadChange.options.length > 0 && (

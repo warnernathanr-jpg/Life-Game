@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
 import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, sellRefund } from "@/lib/game";
 import { BRIDGE_TYPE, ROAD_TIERS, connectedIds, isRoadType, key, nextFacing, roadSet, streetOf, type Lot, type Tile } from "@/lib/roads";
-import { buyBuilding, buyLand, buyTiles, moveBuilding, sellBuilding, sellMany, setFacing, upgradeBuilding } from "../actions";
+import { buyBuilding, buyLand, buyTiles, moveBuilding, sellBuilding, sellMany, setBuildingColor, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
 import { useConfirm } from "@/components/confirm";
 import { citizensFrom, clockText, minuteOfDay, placesFrom, roleText } from "@/lib/sim";
@@ -22,7 +22,7 @@ const City3D = dynamic(() => import("./city-3d"), {
   loading: () => <div className="flex h-full items-center justify-center text-sm text-muted">Loading 3D city…</div>,
 });
 
-type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid" | "facing"> & { rotated?: boolean };
+type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid" | "facing"> & { rotated?: boolean; color_seed?: number | null };
 /** Tiles painted by dragging: roads and landscaping. */
 const PAINT_TYPES = ["dirt_road", "road", "avenue", "tree", "water"] as const;
 type PaintType = (typeof PAINT_TYPES)[number];
@@ -643,6 +643,18 @@ export function CityBoard(props: {
       }}
       onClose={() => setMode({ kind: "idle" })}
       roadChange={roadChangeFor(selected)}
+      colors={
+        selectedType && selectedType.category !== "road" && selectedType.category !== "landscape"
+          ? {
+              current: selected.color_seed ?? null,
+              onPick: (seed) =>
+                start(async () => {
+                  const r = await setBuildingColor(selected.id, seed);
+                  if (!r.ok) say(r.error, "bad");
+                }),
+            }
+          : undefined
+      }
     />
   ) : null;
 

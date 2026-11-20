@@ -102,6 +102,8 @@ export type PlacedBuildingRow = {
   facing: "south" | "east" | "west" | "north" | null;
   /** Turned 90°: width and depth swapped. */
   rotated: boolean;
+  /** Chosen color scheme (seed for the model's palettes); null = automatic from the id. */
+  color_seed: number | null;
   created_at: string;
 };
 
@@ -218,6 +220,7 @@ export type Database = {
       complete_goal: { Args: { p_goal_id: string }; Returns: { coins: number; balance: number }[] };
       reopen_goal: { Args: { p_goal_id: string }; Returns: { coins: number; balance: number }[] };
       upgrade_building: { Args: { p_building_id: string }; Returns: { building_id: string; cost: number; balance: number }[] };
+      set_building_color: { Args: { p_building_id: string; p_seed: number | null }; Returns: undefined };
       set_building_facing: { Args: { p_building_id: string; p_facing: string | null }; Returns: undefined };
       buy_roads: { Args: { p_tiles: [number, number][] }; Returns: { built: number; cost: number; balance: number }[] };
       sell_buildings: { Args: { p_ids: string[] }; Returns: { sold: number; refund: number; balance: number }[] };

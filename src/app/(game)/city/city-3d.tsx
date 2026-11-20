@@ -340,7 +340,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
               const sideways = facing === "east" || facing === "west";
               return (
                 <group rotation-y={FACING_ROTATION[facing]}>
-                  <BuildingModel typeId={b.type_id} seed={colorSeed(b.id)} join={joins.get(b.id)} />
+                  <BuildingModel typeId={b.type_id} seed={b.color_seed ?? colorSeed(b.id)} join={joins.get(b.id)} />
                   <LotDressing typeId={b.type_id} seed={colorSeed(b.id)} lw={sideways ? b.h : b.w} ld={sideways ? b.w : b.h} />
                 </group>
               );

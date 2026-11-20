@@ -2,7 +2,7 @@
 
 export type Tile = { x: number; y: number };
 /** A placed thing on the grid: w × h tiles from (x, y) (a turned building's w and h are already swapped). */
-export type Lot = { id: string; type_id: string; x: number; y: number; w: number; h: number; facing?: Facing | null };
+export type Lot = { id: string; type_id: string; x: number; y: number; w: number; h: number; facing?: Facing | null; color_seed?: number | null };
 type Box = Pick<Lot, "x" | "y" | "w" | "h">;
 
 /** Tiles just outside each side of a footprint. */

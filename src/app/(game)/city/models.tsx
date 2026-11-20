@@ -173,6 +173,25 @@ export function pick<T>(list: readonly T[], seed: number, salt: number): T {
   return list[(h >>> 0) % list.length];
 }
 
+/**
+ * Color schemes the player can pick for a building: one per roof color, each with a different wall color (seeds for
+ * the same palettes the automatic colors use, so every model reacts). `main` / `second` show on the swatch.
+ */
+export const COLOR_CHOICES: { seed: number; main: string; second: string }[] = (() => {
+  const out: { seed: number; main: string; second: string }[] = [];
+  const roofs = new Set<string>();
+  const walls = new Set<string>();
+  for (let seed = 1; seed < 20000 && out.length < PALETTE.roofs.length; seed++) {
+    const roof = pick(PALETTE.roofs, seed, 2);
+    const wall = pick(PALETTE.walls, seed, 1);
+    if (roofs.has(roof) || walls.has(wall)) continue;
+    roofs.add(roof);
+    walls.add(wall);
+    out.push({ seed, main: wall, second: roof });
+  }
+  return out;
+})();
+
 /** Rough top height of each model, for markers floating above it. */
 export const MODEL_HEIGHT: Record<string, number> = {
   cottage: 0.75, house: 0.95, apartments: 1.75, corner_shop: 0.5, cafe: 0.5, office: 3.2, workshop: 0.8,
