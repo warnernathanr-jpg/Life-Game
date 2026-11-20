@@ -3,7 +3,8 @@
 // Models for the full building catalog. Each is centred on its footprint at y = 0, w tiles wide along x and d deep
 // along z, with its front (doors, signs) facing +z. Colors come from one small palette per building (picked by its
 // seed), so the same building always looks the same. Nothing here runs at import time (models.tsx imports this file).
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
+import * as THREE from "three";
 import { B, BOX, Cyl, PALETTE, PYRAMID, Roof, Tree, colorsFor, mat, pick } from "./models";
 
 /** A two-sided roof along x (ridge in the middle), w × d, with its eaves at height y. */
@@ -16,6 +17,131 @@ function SlopedRoof({ x, z, y, w, d, c }: { x: number; z: number; y: number; w: 
       <mesh geometry={BOX} material={mat(c)} position={[x, y + (half * Math.tan(tilt)) / 2, z - half / 2]} rotation={[-tilt, 0, 0]} scale={[w, 0.04, len]} castShadow />
       <mesh geometry={BOX} material={mat(c)} position={[x, y + (half * Math.tan(tilt)) / 2, z + half / 2]} rotation={[tilt, 0, 0]} scale={[w, 0.04, len]} castShadow />
     </>
+  );
+}
+
+/** The amusement park's arched entrance on the road side, with a sign. */
+function ParkGate({ c, accent }: { c: string; accent: string }) {
+  return (
+    <group position={[0, 0.02, 1.82]}>
+      {[-0.42, 0.42].map((x) => (
+        <group key={x}>
+          <B p={[x, 0, 0]} s={[0.1, 0.5, 0.1]} c="#f8fafc" />
+          <mesh position={[x, 0.56, 0]} castShadow>
+            <sphereGeometry args={[0.06, 10, 8]} />
+            <meshStandardMaterial color={accent} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 0.5, 0]} castShadow>
+        <torusGeometry args={[0.42, 0.04, 6, 24, Math.PI]} />
+        <meshStandardMaterial color={c} />
+      </mesh>
+      <B p={[0, 0.72, 0.03]} s={[0.5, 0.12, 0.03]} c="#facc15" />
+      <B p={[0, 0.755, 0.047]} s={[0.36, 0.04, 0.005]} c={c} />
+    </group>
+  );
+}
+
+/** A roller coaster: one continuous red track over two hills on white supports, with a small three-car train. */
+function Coaster() {
+  const { tube, posts, train } = useMemo(() => {
+    const curve = new THREE.CatmullRomCurve3(
+      [
+        [0.35, 0.28, 0.35], [0.9, 0.3, 0.55], [1.55, 0.4, 0.35], [1.75, 0.95, -0.25], [1.55, 1.15, -0.85],
+        [1.05, 0.45, -1.5], [0.55, 0.75, -1.65], [0.25, 0.95, -1.15], [0.45, 0.45, -0.55], [0.25, 0.32, -0.05],
+      ].map(([x, y, z]) => new THREE.Vector3(x, y, z)),
+      true,
+      "catmullrom",
+      0.5,
+    );
+    const tube = new THREE.TubeGeometry(curve, 160, 0.028, 6, true);
+    const posts = Array.from({ length: 26 }, (_, i) => curve.getPointAt(i / 26));
+    const train = [0.04, 0.075, 0.11].map((t) => {
+      const at = curve.getPointAt(t);
+      const ahead = curve.getTangentAt(t);
+      return { at, yaw: Math.atan2(ahead.x, ahead.z), pitch: -Math.asin(Math.max(-1, Math.min(1, ahead.y))) };
+    });
+    return { tube, posts, train };
+  }, []);
+  return (
+    <group>
+      <mesh geometry={tube} castShadow>
+        <meshStandardMaterial color="#dc2626" />
+      </mesh>
+      {posts.map((pt, i) => (
+        <mesh key={i} position={[pt.x, (pt.y + 0.02) / 2, pt.z]} scale={[0.018, pt.y - 0.02, 0.018]} castShadow>
+          <boxGeometry />
+          <meshStandardMaterial color="#f1f5f9" />
+        </mesh>
+      ))}
+      {train.map((car, i) => (
+        <group key={i} position={[car.at.x, car.at.y + 0.05, car.at.z]} rotation={[car.pitch, car.yaw, 0]} rotation-order="YXZ">
+          <mesh castShadow scale={[0.1, 0.06, 0.13]}>
+            <boxGeometry />
+            <meshStandardMaterial color={["#facc15", "#2563eb", "#facc15"][i]} />
+          </mesh>
+        </group>
+      ))}
+      {/* Station platform where the ride starts. */}
+      <B p={[0.75, 0.02, 0.62]} s={[0.6, 0.18, 0.22]} c="#f8fafc" />
+      <B p={[0.75, 0.2, 0.62]} s={[0.66, 0.04, 0.28]} c="#dc2626" />
+    </group>
+  );
+}
+
+/** A carousel: white platform, poles with horses, a striped cone roof with a scalloped trim and a gold top. */
+function Carousel({ roof, trim }: { roof: string; trim: string }) {
+  return (
+    <group position={[-1.05, 0.02, 0.95]}>
+      <Cyl p={[0, 0, 0]} r={0.46} h={0.04} c="#facc15" />
+      <Cyl p={[0, 0.04, 0]} r={0.44} h={0.03} c="#f8fafc" />
+      <Cyl p={[0, 0.07, 0]} r={0.08} h={0.34} c={trim} />
+      {Array.from({ length: 8 }, (_, i) => {
+        const a = (i / 8) * Math.PI * 2;
+        const x = Math.cos(a) * 0.32;
+        const z = Math.sin(a) * 0.32;
+        return (
+          <group key={i} position={[x, 0.07, z]} rotation-y={-a}>
+            <Cyl p={[0, 0, 0]} r={0.008} h={0.34} c="#fde68a" />
+            <B p={[0, 0.1 + (i % 2) * 0.05, 0]} s={[0.04, 0.06, 0.12]} c={i % 2 ? "#f8fafc" : "#a16207"} />
+            <B p={[0, 0.15 + (i % 2) * 0.05, 0.05]} s={[0.035, 0.06, 0.03]} c={i % 2 ? "#f8fafc" : "#a16207"} />
+          </group>
+        );
+      })}
+      {Array.from({ length: 12 }, (_, i) => (
+        <mesh key={i} position={[0, 0.53, 0]} rotation-y={(i / 12) * Math.PI * 2} castShadow>
+          <coneGeometry args={[0.52, 0.24, 2, 1, true, 0, Math.PI / 6]} />
+          <meshStandardMaterial color={i % 2 ? "#f8fafc" : roof} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.41, 0]} rotation-x={Math.PI / 2}>
+        <torusGeometry args={[0.5, 0.025, 6, 24]} />
+        <meshStandardMaterial color="#facc15" />
+      </mesh>
+      <mesh position={[0, 0.7, 0]} castShadow>
+        <sphereGeometry args={[0.05, 10, 8]} />
+        <meshStandardMaterial color="#facc15" />
+      </mesh>
+    </group>
+  );
+}
+
+/** A little snack stand with a striped awning and a counter. */
+function SnackStand({ position, stripe }: { position: [number, number, number]; stripe: string }) {
+  return (
+    <group position={position}>
+      <B p={[0, 0, 0]} s={[0.36, 0.26, 0.26]} c="#f8fafc" />
+      <B p={[0, 0.1, 0.131]} s={[0.28, 0.08, 0.01]} c="#1e293b" />
+      {Array.from({ length: 6 }, (_, i) => (
+        <mesh key={i} position={[-0.15 + i * 0.06, 0.29, 0.17]} rotation-x={0.45} castShadow>
+          <boxGeometry args={[0.06, 0.01, 0.16]} />
+          <meshStandardMaterial color={i % 2 ? "#f8fafc" : stripe} />
+        </mesh>
+      ))}
+      <B p={[0, 0.26, -0.02]} s={[0.38, 0.03, 0.28]} c={stripe} />
+      <Cyl p={[0.24, 0, 0.16]} r={0.05} h={0.12} c="#f87171" />
+    </group>
   );
 }
 
@@ -687,14 +813,20 @@ const MODELS: Record<string, Maker> = {
   ),
   amusement_park: (p) => (
     <>
-      {/* 4x4 amusement park: paths, a Ferris wheel, a roller coaster loop, a carousel, a drop tower and an entrance gate. */}
-      <B p={[0, 0, 0]} s={[3.94, 0.02, 3.94]} c="#bbf7d0" />
-      <B p={[0, 0.02, 0.6]} s={[0.4, 0.01, 2.6]} c="#e7e5e4" />
-      <B p={[0, 0.02, 0]} s={[3.4, 0.01, 0.4]} c="#e7e5e4" />
-      {/* Entrance gate on the road side. */}
-      <B p={[-0.4, 0.02, 1.85]} s={[0.1, 0.5, 0.1]} c={p.accent} />
-      <B p={[0.4, 0.02, 1.85]} s={[0.1, 0.5, 0.1]} c={p.accent} />
-      <B p={[0, 0.52, 1.85]} s={[1.0, 0.12, 0.12]} c={p.roof} />
+      {/* 4x4 amusement park: a paved plaza with flower beds, an arched entrance on the road side, the Ferris wheel, a roller
+          coaster on white supports, a carousel and a snack stand. */}
+      <B p={[0, 0, 0]} s={[3.94, 0.02, 3.94]} c="#86efac" />
+      <B p={[-0.2, 0.02, 0.5]} s={[3.2, 0.012, 2.6]} c="#e7dcc8" />
+      <B p={[0, 0.02, 1.55]} s={[0.7, 0.012, 0.9]} c="#e7dcc8" />
+      {[[-1.75, 1.7], [1.75, 1.7]].map(([x, z], i) => (
+        <group key={i} position={[x, 0.02, z]}>
+          <B p={[0, 0, 0]} s={[0.36, 0.05, 0.36]} c="#78350f" />
+          {[[-0.09, -0.09], [0.09, -0.09], [-0.09, 0.09], [0.09, 0.09], [0, 0]].map(([fx, fz], j) => (
+            <B key={j} p={[fx, 0.05, fz]} s={[0.07, 0.06, 0.07]} c={["#f472b6", "#facc15", "#f87171", "#c084fc", "#fb923c"][j]} />
+          ))}
+        </group>
+      ))}
+      <ParkGate c={p.roof} accent={p.accent} />
       {/* Ferris wheel (back left). */}
       <group position={[-1.1, 0, -1.1]}>
         <B p={[-0.12, 0.02, 0]} s={[0.04, 1.0, 0.04]} c="#94a3b8" />
@@ -716,43 +848,11 @@ const MODELS: Record<string, Maker> = {
           );
         })}
       </group>
-      {/* Roller coaster (back right): track pieces on posts going over two hills. */}
-      <group position={[1.0, 0, -1.0]}>
-        {Array.from({ length: 20 }, (_, i) => {
-          const a = (i / 20) * Math.PI * 2;
-          const x = Math.cos(a) * 0.65;
-          const z = Math.sin(a) * 0.45;
-          const h = 0.25 + Math.max(0, Math.sin(a * 2)) * 0.45;
-          return (
-            <group key={i}>
-              <B p={[x, 0.02, z]} s={[0.02, h, 0.02]} c="#64748b" />
-              <B p={[x, h + 0.02, z]} s={[0.16, 0.025, 0.16]} c="#ef4444" />
-            </group>
-          );
-        })}
-        <B p={[0.65, 0.3, 0]} s={[0.14, 0.08, 0.1]} c="#facc15" />
-      </group>
-      {/* Carousel (front left). */}
-      <group position={[-1.1, 0.02, 1.0]}>
-        <Cyl p={[0, 0, 0]} r={0.42} h={0.06} c="#f8fafc" />
-        <Cyl p={[0, 0.06, 0]} r={0.04} h={0.3} c="#facc15" />
-        {Array.from({ length: 6 }, (_, i) => {
-          const a = (i / 6) * Math.PI * 2;
-          return <B key={i} p={[Math.cos(a) * 0.3, 0.06, Math.sin(a) * 0.3]} s={[0.05, 0.12, 0.1]} c={i % 2 ? p.awning : "#f472b6"} />;
-        })}
-        <mesh position={[0, 0.48, 0]} scale={[0.95, 0.24, 0.95]} castShadow>
-          <coneGeometry args={[0.5, 1, 12]} />
-          <meshStandardMaterial color={p.roof} />
-        </mesh>
-      </group>
-      {/* Drop tower (front right). */}
-      <group position={[1.15, 0.02, 1.05]}>
-        <Cyl p={[0, 0, 0]} r={0.06} h={1.5} c="#e2e8f0" />
-        <Cyl p={[0, 0.9, 0]} r={0.14} h={0.1} c={p.accent} />
-        <Cyl p={[0, 1.5, 0]} r={0.09} h={0.08} c="#ef4444" />
-      </group>
-      {[[-1.7, 0.3], [1.7, 0.3], [-0.5, -1.7], [0.5, 1.5], [-1.7, 1.7]].map(([x, z], i) => (
-        <Tree key={i} p={[x, 0, z]} s={0.9} crown={i % 2 ? "#16a34a" : "#22c55e"} />
+      <Coaster />
+      <Carousel roof={p.roof} trim={p.awning} />
+      <SnackStand position={[0.95, 0.02, 1.25]} stripe={p.accent} />
+      {[[-1.75, -0.2], [-1.75, 0.6], [1.75, 0.9], [-0.2, -1.75]].map(([x, z], i) => (
+        <Tree key={i} p={[x, 0, z]} s={0.85} crown={i % 2 ? "#16a34a" : "#22c55e"} />
       ))}
     </>
   ),

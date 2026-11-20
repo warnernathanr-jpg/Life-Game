@@ -934,6 +934,11 @@ _Last updated: 2026-11-28_
   collect; the **Stats** tab count and the Stats / Achievements pages only cover the other badges (`coinsToCollect(rows,
   "city" | "page")`, `CITY_GROUP`).
 
+- **Amusement Park redone** (2026-11-28): kept the Ferris wheel; the rest is new: a paved plaza with flower beds, an arched
+  entrance with a sign on the road side, a roller coaster (one continuous red tube track over two hills on white supports, a
+  three-car train and a station), a carousel (striped cone roof, gold trim and top, horses on poles) and a snack stand with a
+  striped awning (`ParkGate`, `Coaster`, `Carousel`, `SnackStand` in `models-catalog.tsx`).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
