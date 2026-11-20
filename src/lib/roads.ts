@@ -49,6 +49,15 @@ export function strokePath(a: Tile, b: Tile): Tile[] {
   return out;
 }
 
+/** Every tile in the box with corners `a` and `b` (the bulldozer's drag area). */
+export function boxPath(a: Tile, b: Tile): Tile[] {
+  const out: Tile[] = [];
+  for (let y = Math.min(a.y, b.y); y <= Math.max(a.y, b.y); y++) {
+    for (let x = Math.min(a.x, b.x); x <= Math.max(a.x, b.x); x++) out.push({ x, y });
+  }
+  return out;
+}
+
 export type RoadShape = { n: boolean; e: boolean; s: boolean; w: boolean };
 
 /** Which neighbors of a road tile are also road (north = y - 1). */

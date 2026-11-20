@@ -1,8 +1,8 @@
 "use client";
 
-import { Ban, Car, Eye, EyeOff, UserPlus, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, LocateFixed, Maximize2, Minimize2, MousePointer2, Pause, Play, RotateCcw, RotateCw, X, ZoomIn, ZoomOut } from "lucide-react";
+import { Ban, Car, Eye, EyeOff, UserPlus, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, Maximize2, MousePointer2, Pause, Play, RotateCw, X } from "lucide-react";
 import dynamic from "next/dynamic";
-import { BuildingIcon, BulldozeIcon, CoinIcon } from "@/components/icons";
+import { BulldozeIcon, CoinIcon } from "@/components/icons";
 import { cityExposure, computeLayer, LAYERS, type LayerId } from "@/lib/layers";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow, RoadControlKind } from "@/lib/database.types";
@@ -14,7 +14,7 @@ import { useConfirm } from "@/components/confirm";
 import { citizensFrom, placesFrom, roleText } from "@/lib/sim";
 import { BuildOverlay } from "./build-overlay";
 import type { CitizenInfo } from "./traffic";
-import { CityName, CityStatsPanel, MilestonesPanel, SelectedPanel, Shop } from "./panels";
+import { CityName, CityStatsPanel, MilestonesPanel, SelectedPanel } from "./panels";
 
 // three.js only loads on this page, in the browser.
 const City3D = dynamic(() => import("./city-3d"), {
@@ -55,14 +55,6 @@ export type Mode =
   | { kind: "paint"; typeId: PaintType }
   | { kind: "bulldoze" }
   | { kind: "control"; control: RoadControlKind };
-
-const VIEW_BUTTONS = [
-  { action: "in", label: "Zoom in", Icon: ZoomIn },
-  { action: "out", label: "Zoom out", Icon: ZoomOut },
-  { action: "left", label: "Rotate left", Icon: RotateCcw },
-  { action: "right", label: "Rotate right", Icon: RotateCw },
-  { action: "reset", label: "Reset view", Icon: LocateFixed },
-] as const;
 
 export function CityBoard(props: {
   cityName: string;
@@ -407,6 +399,7 @@ export function CityBoard(props: {
     if (mode.kind === "bulldoze") {
       const { ids, refund } = planDemolish(tiles);
       if (ids.length === 0) return say("Nothing to demolish there.");
+      if (ids.length > MAX_STROKE_TILES) return say(`Demolish at most ${MAX_STROKE_TILES} items at a time. Drag a smaller box.`, "bad");
       const what = ids.length === 1 ? `this ${typeById.get(lots.find((l) => l.id === ids[0])!.type_id)?.name ?? "item"}` : `these ${ids.length} items`;
       void confirm({
         title: `Demolish ${what}?`,
@@ -454,16 +447,6 @@ export function CityBoard(props: {
       const r = await setFacing(b.id, next);
       if (!r.ok) return say(r.error, "bad");
     });
-  }
-
-  function viewAction(action: (typeof VIEW_BUTTONS)[number]["action"]) {
-    const c = city3d.current;
-    if (!c) return;
-    if (action === "in") c.zoom(0.75);
-    else if (action === "out") c.zoom(1.33);
-    else if (action === "left") c.rotate(-Math.PI / 4);
-    else if (action === "right") c.rotate(Math.PI / 4);
-    else c.reset();
   }
 
   /** The next upgrade for a building (if any), its price and why it can't happen yet. */
@@ -648,13 +631,6 @@ export function CityBoard(props: {
           })()
         : null;
 
-  const hint =
-    mode.kind === "paint" && paintType
-      ? `Drag with one finger to draw ${paintType.name.toLowerCase()} (${paintType.cost} coin${paintType.cost === 1 ? "" : "s"} a tile), then tap Build.${mode.kind === "paint" && isRoadType(mode.typeId) ? ` Across water it builds a bridge (${typeById.get(BRIDGE_TYPE)?.cost ?? 10} coins a tile); over another road it replaces it.` : ""} Trees in the way are cleared. Two fingers move the map.`
-      : mode.kind === "bulldoze"
-        ? "Drag over things to demolish them (you get half the price back)."
-        : null;
-
   const selectedType = selected ? typeById.get(selected.type_id) : undefined;
 
   // The confirmation bar for whatever is being previewed.
@@ -819,44 +795,8 @@ export function CityBoard(props: {
         </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
+      <div>
         <div className="min-w-0 space-y-3">
-          {(mode.kind === "paint" || mode.kind === "bulldoze") && (
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-accent-soft px-4 py-2 text-sm text-ink">
-              <span>
-                {mode.kind === "paint" && paintType ? (
-                  <>Painting <strong><BuildingIcon id={paintType.id} /> {paintType.name}</strong>.</>
-                ) : (
-                  <><strong><BulldozeIcon /> Bulldozer</strong> on.</>
-                )}
-              </span>
-              <button type="button" className="btn-secondary min-h-9 px-3 py-1" onClick={() => setMode({ kind: "idle" })}>
-                Done
-              </button>
-            </div>
-          )}
-          {(mode.kind === "place" || mode.kind === "move") && (
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-accent-soft px-4 py-2 text-sm text-ink">
-              <span>
-                {mode.kind === "place" && placingType ? (
-                  <>
-                    Placing <strong><BuildingIcon id={placingType.id} /> {placingType.name}</strong>
-                    {placingType.size > 1 ? ` (${placingType.size}×${placingType.size})` : ""}. Tap a spot next to a road to preview it, then Build here.
-                  </>
-                ) : (
-                  <>Moving. Tap where it should go, then Move here.</>
-                )}
-              </span>
-              <button
-                type="button"
-                className="btn-secondary min-h-9 px-3 py-1"
-                onClick={() => setMode(movingLot ? { kind: "selected", id: movingLot.id } : { kind: "idle" })}
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-          {hint && <p className="text-xs text-muted">{hint}</p>}
 
             <div
               ref={mapBox}
@@ -926,7 +866,6 @@ export function CityBoard(props: {
                   <EyeOff className="size-5" aria-hidden />
                 </button>
               )}
-              {citizens.length > 0 && !full && clockPill("absolute left-2 top-2")}
               {draftBar && (
                 <div
                   className={`absolute left-1/2 z-10 flex w-[min(26rem,calc(100%-1rem))] -translate-x-1/2 items-center gap-2 rounded-2xl bg-surface/95 p-2 pl-3 text-ink shadow-xl ring-1 ring-line backdrop-blur ${
@@ -1058,7 +997,7 @@ export function CityBoard(props: {
                       ) : mode.kind === "paint" && paintType ? (
                         <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">Drag to draw {paintType.name.toLowerCase()}, then Build.{isRoadType(mode.typeId) ? " Across water it builds a bridge." : ""}</p>
                       ) : mode.kind === "bulldoze" ? (
-                        <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">Drag over things to demolish them.</p>
+                        <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">Drag a box over things to demolish everything inside it.</p>
                       ) : null
                     )}
                 </div>
@@ -1088,57 +1027,18 @@ export function CityBoard(props: {
                   land={size < MAX_CITY_SIZE ? { price: landPrice(props.landPurchases), onBuy: expand } : undefined}
                 />
               )}
-              {/* Map buttons (normal view only: in full screen, drag and scroll / pinch move the map). */}
+              {/* City page: just a picture of the whole city; tapping it (or the button) opens full screen, where you build. */}
               {!full && (
-              <div className="absolute right-3 bottom-3 flex flex-col gap-1.5">
-                <button
-                  type="button"
-                  aria-label={full ? "Exit full screen" : "Full screen"}
-                  title={full ? "Exit full screen" : "Full screen"}
-                  onClick={full ? exitFull : enterFull}
-                  className="flex size-10 items-center justify-center rounded-lg bg-surface/95 text-lg font-bold text-ink shadow ring-1 ring-line hover:bg-raised"
-                >
-                  {full ? <Minimize2 className="size-5" aria-hidden /> : <Maximize2 className="size-5" aria-hidden />}
-                </button>
-                {!full && (
+                <>
+                  <button type="button" tabIndex={-1} aria-hidden onClick={enterFull} className="absolute inset-0 cursor-pointer" />
                   <button
                     type="button"
-                    aria-label="Bulldoze"
-                    title="Bulldoze"
-                    aria-pressed={mode.kind === "bulldoze"}
-                    onClick={() => {
-                      setMessage(null);
-                      setMode(mode.kind === "bulldoze" ? { kind: "idle" } : { kind: "bulldoze" });
-                    }}
-                    className={`flex size-10 items-center justify-center rounded-lg text-lg font-bold shadow ring-1 ring-line ${
-                      mode.kind === "bulldoze" ? "bg-accent text-on-accent" : "bg-surface/95 text-ink hover:bg-raised"
-                    }`}
+                    onClick={enterFull}
+                    className="absolute right-3 bottom-3 flex min-h-10 items-center gap-1.5 rounded-xl bg-surface/95 px-3 text-sm font-semibold text-ink shadow ring-1 ring-line hover:bg-raised"
                   >
-                    <BulldozeIcon className="size-5" />
+                    <Maximize2 className="size-4" aria-hidden /> Full screen
                   </button>
-                )}
-                <button
-                  type="button"
-                  aria-label="Scenic view (hide the menus and grid)"
-                  title="Scenic view"
-                  onClick={() => setScenic(true)}
-                  className="flex size-10 items-center justify-center rounded-lg bg-surface/95 text-ink shadow ring-1 ring-line hover:bg-raised"
-                >
-                  <Eye className="size-5" aria-hidden />
-                </button>
-                {VIEW_BUTTONS.map((b) => (
-                  <button
-                    key={b.action}
-                    type="button"
-                    aria-label={b.label}
-                    title={b.label}
-                    onClick={() => viewAction(b.action)}
-                    className="flex size-10 items-center justify-center rounded-lg bg-surface/95 text-lg font-bold text-ink shadow ring-1 ring-line hover:bg-raised"
-                  >
-                    <b.Icon className="size-5" aria-hidden />
-                  </button>
-                ))}
-              </div>
+                </>
               )}
               {full && layersOpen && (
                 <div
@@ -1217,40 +1117,6 @@ export function CityBoard(props: {
           />
         </div>
 
-        <div className="space-y-4">
-          {selected && !full ? (
-            selectedPanel
-          ) : (
-            <Shop
-              types={menuTypes}
-              landmarkState={landmarkState}
-              progress={progress}
-              balance={balance}
-              activeId={placingType?.id ?? (mode.kind === "paint" ? mode.typeId : mode.kind === "control" ? ROAD_CONTROLS.find((c) => c.kind === mode.control)!.typeId : undefined)}
-              onPick={pick}
-            />
-          )}
-
-          <section className="card" aria-labelledby="land-h">
-            <h2 id="land-h" className="font-semibold">Land</h2>
-            <p className="text-sm text-muted">Your city is {size}×{size} tiles.</p>
-            {size >= MAX_CITY_SIZE ? (
-              <p className="mt-2 text-sm text-good">You own all the land there is!</p>
-            ) : (
-              <button
-                type="button"
-                className="btn-secondary mt-3 w-full"
-                disabled={pending || balance < landPrice(props.landPurchases)}
-                onClick={expand}
-              >
-                Expand to {size + 2}×{size + 2} · <CoinIcon /> {formatCoins(landPrice(props.landPurchases))}
-              </button>
-            )}
-            {size < MAX_CITY_SIZE && balance < landPrice(props.landPurchases) && (
-              <p className="mt-1 text-xs text-muted">{formatCoins(landPrice(props.landPurchases) - balance)} more coins to go.</p>
-            )}
-          </section>
-        </div>
       </div>
     </div>
   );

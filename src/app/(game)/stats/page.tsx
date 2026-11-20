@@ -26,12 +26,13 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
   const [mY, mM] = month.split("-").map(Number);
   const nextMonth = mM === 12 ? `${mY + 1}-01` : `${mY}-${String(mM + 1).padStart(2, "0")}`;
   const [{ data: completions }, { count: allCheckoffs }, { data: focus }, { data: monthDone }] = await Promise.all([
-    supabase.from("task_completions").select("task_id, local_day").gte("local_day", addDays(today, -35)),
-    supabase.from("task_completions").select("id", { count: "exact", head: true }),
+    supabase.from("task_completions").select("task_id, local_day").or(NOT_GRANT).gte("local_day", addDays(today, -35)),
+    supabase.from("task_completions").select("id", { count: "exact", head: true }).or(NOT_GRANT),
     supabase.from("focus_sessions").select("minutes, local_day").eq("status", "completed"),
     supabase
       .from("task_completions")
       .select("local_day, title, area, completed_at")
+      .or(NOT_GRANT)
       .gte("local_day", `${month}-01`)
       .lt("local_day", `${nextMonth}-01`)
       .order("completed_at"),
@@ -134,6 +135,9 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
     </div>
   );
 }
+
+// Points granted by hand for testing (no task, no coins) count toward unlocks but aren't check-offs.
+const NOT_GRANT = "task_id.not.is.null,coins.gt.0";
 
 export default function StatsPage({ searchParams }: PageProps<"/stats">) {
   return (

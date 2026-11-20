@@ -10,7 +10,11 @@ import type {
 } from "./database.types";
 import { connectedIds } from "./roads";
 
-export const MAX_CITY_SIZE = 30; // public.max_city_size()
+export const MAX_CITY_SIZE = 50; // public.max_city_size()
+/** The whole world is MAX_CITY_SIZE across; your land sits in its middle (each land purchase adds a ring of one tile). */
+export function worldOffset(size: number) {
+  return Math.max(0, Math.floor((MAX_CITY_SIZE - size) / 2));
+}
 export const MAX_STROKE_TILES = 200; // public.max_stroke_tiles()
 export const REWARDS: Record<TaskDifficulty, number> = { easy: 10, medium: 25, hard: 50, epic: 100 }; // public.task_reward()
 
@@ -75,11 +79,12 @@ export const LANDMARK_IDS = new Set(["monument", "welcome_arch", "clock_tower", 
  */
 export const CITY_MILESTONES = [
   { population: 50, bonus: 100, landmark: "welcome_arch" },
-  { population: 100, bonus: 200, landmark: "clock_tower" },
-  { population: 250, bonus: 400, landmark: "fountain" },
-  { population: 500, bonus: 750, landmark: "founders_statue" },
-  { population: 1000, bonus: 1500, landmark: "observation_tower" },
-  { population: 2500, bonus: 3000, landmark: "crystal_spire" },
+  { population: 100, bonus: 200, landmark: "fountain" },
+  { population: 250, bonus: 400, landmark: "clock_tower" },
+  { population: 500, bonus: 750, landmark: "monument" },
+  { population: 1000, bonus: 1500, landmark: "founders_statue" },
+  { population: 2500, bonus: 3000, landmark: "observation_tower" },
+  { population: 5000, bonus: 6000, landmark: "crystal_spire" },
 ] as const;
 
 /** The milestone a landmark belongs to (undefined for ordinary buildings). */

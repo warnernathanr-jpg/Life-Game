@@ -28,7 +28,7 @@ select throws_ok($$ select * from public.buy_building('welcome_arch', 6, 2) $$, 
 select lives_ok($$ select * from public.place_landmark('welcome_arch', 6, 2) $$, 'place the 50-people landmark');
 select is((select price_paid from public.placed_buildings where type_id = 'welcome_arch'), 0::bigint, 'for free');
 select throws_ok($$ select * from public.place_landmark('welcome_arch', 7, 2) $$, '23505', 'already_there', 'one of each');
-select throws_ok($$ select * from public.place_landmark('clock_tower', 7, 2) $$, '22023', 'not_enough_people', 'the 100 landmark needs 100 people');
+select throws_ok($$ select * from public.place_landmark('fountain', 7, 2) $$, '22023', 'not_enough_people', 'the 100 landmark needs 100 people');
 select throws_ok($$ insert into public.city_milestones (population, coins) values (100, 200) $$, '42501', null, 'no direct writes');
 
 -- Friends.

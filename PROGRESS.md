@@ -3,7 +3,7 @@
 Where the project stands. Read with [PROJECT.md](./PROJECT.md) at the start of every session, and update this file
 when a piece of work is finished.
 
-_Last updated: 2026-11-27_
+_Last updated: 2026-11-28_
 
 ## Done
 
@@ -584,6 +584,26 @@ _Last updated: 2026-11-27_
   inside the tower. **Fountain Plaza** runs: water arcs from the spout into the top bowl and spills from its rim into the
   pool (`fountain-water.tsx`, one instanced mesh, paused with the other animations), and the pool's water now shows above
   its stone rim.
+
+### 41. A 50×50 world, clouds, City page as a picture, box bulldozer, Monument as a reward (2026-11-28)
+- **Land up to 50×50** (`max_city_size()` 50, `MAX_CITY_SIZE`). Each purchase still adds 2 tiles across, but now a ring of one tile
+  on **every side**: `buy_land()` moves everything built (and road controls) one tile right and down, so your land stays in the
+  middle of the world. Prices keep the 300 × 1.35ⁿ curve (21 purchases from 8×8; the last ones are expensive, review with the
+  economy). Migration `20261128010000_world_50.sql` (applied live); 6 pgTAP tests (`world_50.test.sql`).
+- **The world is always 50×50** (`worldOffset()` in `game.ts`): locked land around yours is forest out to the edge (trees seeded by
+  world position, so they don't jump when land grows), the ground ends in a soil edge with only sky beyond, and the camera stays
+  over the world. **Clouds** (`clouds.tsx`) circle slowly in the distant sky; only the far side of the ring is drawn, so they never
+  block the view.
+- **City page**: just the city name, the map framed on your whole city, and **Full screen** (tapping the map also opens it),
+  then City Stats and Milestones. The Build menu, Land card, pause, bulldoze, scenic and zoom/rotate buttons are only in full screen.
+- **Bulldozer drags a box**: everything inside the rectangle between where you start and where you let go (`boxPath()` in
+  `roads.ts`); at most 200 items at a time.
+- **Monument** is a population reward now (not for sale): 50 Welcome Arch, 100 Fountain Plaza, 250 Clock Tower, 500 Monument,
+  1,000 Founders' Statue, 2,500 Observation Tower, **5,000 Crystal Spire** (new milestone, 6,000 coins). Migration
+  `20261128020000_monument_milestone.sql` (applied live).
+- Stats page ignores hand-granted test points (no task, no coins) in check-off counts, the chart and the history calendar.
+- Props: café/restaurant planters only, warehouse crates and bay line clear of the doors, parking garage "P" sign on a post;
+  Clock Tower faces on all four sides; Fountain Plaza with running water (`fountain-water.tsx`).
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate

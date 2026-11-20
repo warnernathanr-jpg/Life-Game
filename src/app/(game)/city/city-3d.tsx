@@ -5,8 +5,10 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber"
 import { forwardRef, useCallback, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { MapControls as MapControlsImpl } from "three-stdlib";
-import { AVENUE_TYPE, BRIDGE_TYPE, DIRT_ROAD_TYPE, effectiveFacing, isRoadType, FACING_ROTATION, key, rowJoins, roadSet, roadShape, ROAD_TYPE, strokePath, type Lot, type Tile } from "@/lib/roads";
+import { AVENUE_TYPE, BRIDGE_TYPE, DIRT_ROAD_TYPE, effectiveFacing, isRoadType, FACING_ROTATION, key, rowJoins, roadSet, roadShape, ROAD_TYPE, strokePath, boxPath, type Lot, type Tile } from "@/lib/roads";
 import { layerColor, type LayerCell } from "@/lib/layers";
+import { MAX_CITY_SIZE, worldOffset } from "@/lib/game";
+import { Clouds } from "./clouds";
 import { Traffic, type SimProps } from "./traffic";
 import { LotDressing } from "./lot-dressing";
 import { Airplanes } from "./airplanes";
@@ -202,7 +204,10 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
       el.removeEventListener("touchcancel", onTouch);
     };
   }, [gl, endGhostDrag]);
-  const strokeTiles = useMemo(() => (stroke ? strokePath(stroke.start, stroke.end) : null), [stroke]);
+  // Roads, trees and water follow an L-shaped path; the bulldozer clears the whole box between the two corners.
+  const demolishing = props.strokeColor === "demolish";
+  const pathFor = useCallback((a: Tile, b: Tile) => (demolishing ? boxPath(a, b) : strokePath(a, b)), [demolishing]);
+  const strokeTiles = useMemo(() => (stroke ? pathFor(stroke.start, stroke.end) : null), [stroke, pathFor]);
 
   const tileFrom = useCallback(
     (e: ThreeEvent<PointerEvent | MouseEvent>): Tile | null => {
@@ -231,7 +236,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
     if (stroke && e.pointerId === stroke.pointer && t && (t.x !== stroke.end.x || t.y !== stroke.end.y)) {
       const next = { ...stroke, end: t };
       setStroke(next);
-      props.onStrokeChange(strokePath(next.start, next.end));
+      props.onStrokeChange(pathFor(next.start, next.end));
     }
   }
 
@@ -266,7 +271,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
       return;
     }
     if (!stroke || e.pointerId !== stroke.pointer || multiTouch.current) return;
-    const tiles = strokePath(stroke.start, stroke.end);
+    const tiles = pathFor(stroke.start, stroke.end);
     setStroke(null);
     props.onStrokeChange(null);
     props.onStroke(tiles);
@@ -317,6 +322,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
         {props.sim && <Traffic sim={props.sim} roads={roads} controls={props.controls} />}
         {props.overlay && <LayerOverlay cells={props.overlay} byTile={byTile} />}
         <Wilds size={size} occupied={byTile} />
+        <Clouds from={-worldOffset(size)} to={size + worldOffset(size)} moving={isMoving} />
         {buildings.map((b) => (
           <group key={b.id} position={[b.x + b.w / 2, 0, b.y + b.h / 2]} userData={{ lotId: b.id }}>
             {/* Turn the model so its front (doors, awnings) faces the road. */}
@@ -437,7 +443,7 @@ function CameraRig({
       c.target.add(move);
     };
     const settle = () => {
-      const margin = 4;
+      const margin = Math.max(4, worldOffset(size));
       const t = c.target;
       const clamped = new THREE.Vector3(THREE.MathUtils.clamp(t.x, -margin, size + margin), 0, THREE.MathUtils.clamp(t.z, -margin, size + margin));
       camera.position.add(clamped.clone().sub(t));
@@ -520,14 +526,14 @@ function CameraRig({
       screenSpacePanning={false}
       enablePan={panEnabled}
       minDistance={3}
-      maxDistance={size * 2.6 + 10}
+      maxDistance={Math.max(size * 2.6 + 10, MAX_CITY_SIZE * 1.4)}
       minPolarAngle={0.15}
       maxPolarAngle={Math.PI / 2.25}
       onChange={() => {
         // Keep the view over the city.
         const t = controls.current?.target;
         if (!t) return;
-        const margin = 4;
+        const margin = Math.max(4, worldOffset(size));
         const clamped = t.clone();
         clamped.x = THREE.MathUtils.clamp(t.x, -margin, size + margin);
         clamped.z = THREE.MathUtils.clamp(t.z, -margin, size + margin);
@@ -546,6 +552,7 @@ function CameraRig({
 // ---------------------------------------------------------------------------
 
 function Ground({ size, showGrid = true }: { size: number; showGrid?: boolean }) {
+  const off = worldOffset(size);
   const lines = useMemo(() => {
     const pts: number[] = [];
     for (let i = 0; i <= size; i++) {
@@ -558,11 +565,12 @@ function Ground({ size, showGrid = true }: { size: number; showGrid?: boolean })
   const edge = 0.08;
   return (
     <>
-      {/* Land beyond yours */}
+      {/* Land beyond yours, out to the edge of the 50×50 world, which ends in a soil edge (nothing beyond it). */}
       <mesh rotation-x={-Math.PI / 2} position={[size / 2, -0.02, size / 2]} receiveShadow>
-        <planeGeometry args={[size + 60, size + 60]} />
+        <planeGeometry args={[size + off * 2, size + off * 2]} />
         <meshStandardMaterial color="#7a9e63" />
       </mesh>
+      <mesh geometry={BOX} material={mat("#6b4f35")} position={[size / 2, -0.04 - 0.6, size / 2]} scale={[size + off * 2, 1.2, size + off * 2]} />
       {/* Your land */}
       <mesh rotation-x={-Math.PI / 2} position={[size / 2, 0, size / 2]} receiveShadow userData={{ ground: true }}>
         <planeGeometry args={[size, size]} />
@@ -1044,7 +1052,6 @@ const WILD = {
  * Anything built on a tile clears it. Drawn as instanced meshes that ignore clicks.
  */
 function Wilds({ size, occupied }: { size: number; occupied: Map<string, Lot> }) {
-  const MARGIN = 10;
   const rockRef = useRef<THREE.InstancedMesh>(null);
   const tuftRef = useRef<THREE.InstancedMesh>(null);
   const bushRef = useRef<THREE.InstancedMesh>(null);
@@ -1053,6 +1060,9 @@ function Wilds({ size, occupied }: { size: number; occupied: Map<string, Lot> })
   const pineRef = useRef<THREE.InstancedMesh>(null);
   const { invalidate } = useThree();
   const parts = useMemo(() => {
+    const MARGIN = worldOffset(size); // locked land out to the world edge
+    const h = (x: number, y: number, salt = 0) => tileHash(x + MARGIN, y + MARGIN, salt); // world position, so trees stay put as land grows
+
     const rock: THREE.Matrix4[] = [];
     const tuft: THREE.Matrix4[] = [];
     const bush: THREE.Matrix4[] = [];
@@ -1069,28 +1079,28 @@ function Wilds({ size, occupied }: { size: number; occupied: Map<string, Lot> })
           // Beyond your land: woods that thin out near the hedge, with rocks in the clearings.
           const edge = Math.min(Math.abs(x < 0 ? x + 1 : x - size), Math.abs(y < 0 ? y + 1 : y - size), MARGIN);
           const near = x >= -1 && y >= -1 && x <= size && y <= size; // the strip right outside the hedge
-          const r = tileHash(x, y, 7);
+          const r = h(x, y, 7);
           const treeChance = near ? 0.12 : 0.28 + Math.min(0.3, edge * 0.04);
           if (r < treeChance) {
-            const count = 1 + Math.floor(tileHash(x, y, 8) * 2);
+            const count = 1 + Math.floor(h(x, y, 8) * 2);
             for (let i = 0; i < count; i++) {
-              const tx = x + 0.2 + tileHash(x, y, 40 + i) * 0.6;
-              const tz = y + 0.2 + tileHash(x, y, 50 + i) * 0.6;
-              const sc = 0.8 + tileHash(x, y, 60 + i) * 0.7;
+              const tx = x + 0.2 + h(x, y, 40 + i) * 0.6;
+              const tz = y + 0.2 + h(x, y, 50 + i) * 0.6;
+              const sc = 0.8 + h(x, y, 60 + i) * 0.7;
               trunk.push(m(tx, 0.09 * sc, tz, 0.08 * sc, 0.18 * sc, 0.08 * sc));
-              if (tileHash(x, y, 70 + i) < 0.45) pine.push(m(tx, 0.42 * sc, tz, 0.34 * sc, 0.55 * sc, 0.34 * sc));
-              else crown.push(m(tx, 0.34 * sc, tz, 0.36 * sc, 0.34 * sc, 0.36 * sc, tileHash(x, y, 80 + i) * 6));
+              if (h(x, y, 70 + i) < 0.45) pine.push(m(tx, 0.42 * sc, tz, 0.34 * sc, 0.55 * sc, 0.34 * sc));
+              else crown.push(m(tx, 0.34 * sc, tz, 0.36 * sc, 0.34 * sc, 0.36 * sc, h(x, y, 80 + i) * 6));
             }
             continue;
           }
           if (r < treeChance + 0.08) {
-            const sc = 0.08 + tileHash(x, y, 3) * 0.12;
-            rock.push(m(x + 0.5, sc * 0.4, y + 0.5, sc * 1.3, sc, sc, tileHash(x, y, 4) * 6));
+            const sc = 0.08 + h(x, y, 3) * 0.12;
+            rock.push(m(x + 0.5, sc * 0.4, y + 0.5, sc * 1.3, sc, sc, h(x, y, 4) * 6));
             continue;
           }
-          const tufts = 1 + Math.floor(tileHash(x, y, 6) * 3);
+          const tufts = 1 + Math.floor(h(x, y, 6) * 3);
           for (let i = 0; i < tufts; i++) {
-            tuft.push(m(x + 0.15 + tileHash(x, y, 10 + i) * 0.7, 0.015, y + 0.15 + tileHash(x, y, 20 + i) * 0.7, 0.035, 0.08, 0.035, tileHash(x, y, 30 + i) * 6));
+            tuft.push(m(x + 0.15 + h(x, y, 10 + i) * 0.7, 0.015, y + 0.15 + h(x, y, 20 + i) * 0.7, 0.035, 0.08, 0.035, h(x, y, 30 + i) * 6));
           }
           continue;
         }
