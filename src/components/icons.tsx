@@ -34,7 +34,6 @@ import {
   Package,
   PawPrint,
   Plane,
-  Route,
   School,
   Shirt,
   ShoppingBag,
