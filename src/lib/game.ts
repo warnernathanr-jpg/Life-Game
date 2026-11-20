@@ -182,6 +182,8 @@ export function cityStats(
   placed: (Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y"> & { rotated?: boolean })[],
   types: BuildingTypeRow[],
   progress: ProgressRow | null = null,
+  /** What residents live with (from layers.ts cityExposure): pollution at their homes and traffic jams, 0 … 1. */
+  exposure?: { pollution: number; traffic: number },
 ): CityStats {
   const byId = new Map(types.map((t) => [t.id, t]));
   const lots = placed.map((b) => ({ ...b, ...footprint(byId.get(b.type_id), b.rotated) }));
@@ -247,7 +249,27 @@ export function cityStats(
   });
   if (shopsHappy !== 0) add({ key: "shops", label: "Shops & cafés", value: shopsHappy });
   if (homesHappy !== 0) add({ key: "homes", label: "Housing", value: homesHappy });
-  if (pollution !== 0) {
+  if (exposure) {
+    // Pollution and noise where people actually live (spreads from industry, gas stations and the airport).
+    const p = -Math.round(exposure.pollution * 20);
+    if (p !== 0) {
+      add({
+        key: "pollution",
+        label: "Pollution & noise near homes",
+        value: p,
+        tip: p <= -4 ? "Homes are close to factories or other noisy places. Move industry away, or put parks and trees between." : undefined,
+      });
+    }
+    const jam = -Math.round(exposure.traffic * 12);
+    if (jam !== 0) {
+      add({
+        key: "traffic",
+        label: "Traffic jams",
+        value: jam,
+        tip: jam <= -3 ? "Roads are jammed. Upgrade busy roads to 2- or 4-lane, and add more routes so traffic spreads out." : undefined,
+      });
+    }
+  } else if (pollution !== 0) {
     add({
       key: "pollution",
       label: "Industry noise & pollution",

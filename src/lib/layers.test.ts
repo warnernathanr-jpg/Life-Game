@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeLayer, layerColor } from "./layers";
+import { cityExposure, computeLayer, layerColor } from "./layers";
 import type { Lot } from "./roads";
 import { citizensFrom, placesFrom } from "./sim";
 
@@ -52,5 +52,12 @@ describe("map layers", () => {
   it("colors run green to red", () => {
     expect(layerColor(0)).toBe("#22c55e");
     expect(layerColor(1)).toBe("#ef4444");
+  });
+
+  it("homes next to a factory live with pollution; far away they don't", () => {
+    const near = [...road, L("h", "cottage", 2, 4), L("f", "factory", 0, 2, 2, 2)];
+    const far = [...road, L("h", "cottage", 11, 4), L("f", "factory", 0, 0, 2, 2)];
+    expect(cityExposure(near, types, extras(near)).pollution).toBeGreaterThan(0.5);
+    expect(cityExposure(far, types, extras(far)).pollution).toBe(0);
   });
 });

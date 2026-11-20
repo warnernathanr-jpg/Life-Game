@@ -160,3 +160,32 @@ export function layerColor(v: number): string {
       : [lerp(0xea, 0xef, (c - 0.5) * 2), lerp(0xb3, 0x44, (c - 0.5) * 2), lerp(0x08, 0x44, (c - 0.5) * 2)];
   return `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
 }
+
+/**
+ * What residents live with, for City Stats: average pollution at their homes (weighted by how many live there) and how
+ * jammed the roads they use are (busier roads count more). Both 0 (fine) … 1 (terrible).
+ */
+export function cityExposure(
+  lots: Lot[],
+  types: TypeInfo[],
+  extras: { size: number; places: Place[]; citizens: Citizen[]; connected: Set<string> },
+): { pollution: number; traffic: number } {
+  const typeOf = new Map(types.map((t) => [t.id, t]));
+  const pollutionAt = new Map(computeLayer("pollution", lots, types, extras).map((c) => [key(c.x, c.y), c.v]));
+  let weight = 0;
+  let pollution = 0;
+  for (const l of lots) {
+    const pop = typeOf.get(l.type_id)?.population ?? 0;
+    if (pop <= 0 || !extras.connected.has(l.id)) continue;
+    let sum = 0;
+    for (let dx = 0; dx < l.w; dx++) for (let dy = 0; dy < l.h; dy++) sum += pollutionAt.get(key(l.x + dx, l.y + dy)) ?? 0;
+    pollution += (sum / (l.w * l.h)) * pop;
+    weight += pop;
+  }
+  const roads = computeLayer("traffic", lots, types, extras).map((c) => c.v).filter((v) => v > 0);
+  const busy = roads.reduce((s, v) => s + v, 0);
+  return {
+    pollution: weight > 0 ? clamp(pollution / weight) : 0,
+    traffic: busy > 0 ? clamp(roads.reduce((s, v) => s + v * v, 0) / busy) : 0,
+  };
+}

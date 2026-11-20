@@ -405,6 +405,11 @@ _Last updated: 2026-11-25_
 - Migrations `20261126010000_goal_ledger_kind.sql`, `20261126010100_goal_rewards.sql`, `20261126010200_goal_tiers.sql` (applied live).
   12 pgTAP tests (`goal_rewards.test.sql`, 255 total).
 
+### 27. Pollution and traffic jams make residents unhappy (2026-11-26)
+- `cityExposure()` (`layers.ts`): average **pollution at homes** (same spread as the Pollution layer, weighted by residents) and
+  how **jammed the roads in use** are (busier roads weigh more). City Stats' happiness now has "Pollution & noise near homes"
+  (up to −20) and "Traffic jams" (up to −12) with tips, replacing the old count of industrial buildings. 1 unit test.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

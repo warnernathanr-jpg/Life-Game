@@ -3,7 +3,7 @@
 import { Ban, Car, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, LocateFixed, Maximize2, Minimize2, Moon, MousePointer2, Pause, Play, RotateCcw, RotateCw, Sun, Sunrise, Sunset, X, ZoomIn, ZoomOut } from "lucide-react";
 import dynamic from "next/dynamic";
 import { BuildingIcon, BulldozeIcon, CoinIcon } from "@/components/icons";
-import { computeLayer, LAYERS, type LayerId } from "@/lib/layers";
+import { cityExposure, computeLayer, LAYERS, type LayerId } from "@/lib/layers";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
 import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, sellRefund } from "@/lib/game";
@@ -90,7 +90,7 @@ export function CityBoard(props: {
     [placed, typeById],
   );
   const roads = useMemo(() => roadSet(lots), [lots]);
-  const stats = useMemo(() => cityStats(placed, types, progress), [placed, types, progress]);
+
   // Buildings (not roads or landscaping) without a road beside them.
   const needsRoad = useMemo(() => {
     const connected = connectedIds(lots);
@@ -136,6 +136,9 @@ export function CityBoard(props: {
   const places = useMemo(() => placesFrom(lots, types), [lots, types]);
   const citizens = useMemo(() => citizensFrom(places), [places]);
   const placeById = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
+  // Pollution at homes and traffic jams lower happiness (same models as the map layers).
+  const exposure = useMemo(() => cityExposure(lots, types, { size, places, citizens, connected: connectedIds(lots) }), [lots, types, size, places, citizens]);
+  const stats = useMemo(() => cityStats(placed, types, progress, exposure), [placed, types, progress, exposure]);
   const [paused, setPaused] = useState(false);
   const [simClock, setSimClock] = useState(7 * 60 + 15);
   const [citizenId, setCitizenId] = useState<string | null>(null);
