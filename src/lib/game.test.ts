@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BuildingTypeRow, ProgressRow } from "./database.types";
-import { cityStats, landPrice, lotFree, nextMilestone, nextUnlocks, sellRefund, pointsToUnlock } from "./game";
+import { byUnlockOrder, cityStats, landPrice, lotFree, nextMilestone, nextUnlocks, sellRefund, pointsToUnlock } from "./game";
 
 function type(p: Partial<BuildingTypeRow> & Pick<BuildingTypeRow, "id">): BuildingTypeRow {
   return {
@@ -145,5 +145,15 @@ describe("build groups", () => {
     expect(buildGroupOf({ id: "university", category: "service" })).toBe("knowledge");
     expect(buildGroupOf({ id: "clinic", category: "service" })).toBe("service");
     expect(buildGroupOf({ id: "bridge", category: "road" })).toBeNull();
+  });
+});
+
+describe("build menu order", () => {
+  it("lists what you'll reach first: landmarks by population, others by points then price", () => {
+    const t = (id: string, unlock_points: number | null, cost: number) => ({ id, unlock_points, cost });
+    const landmarks = [t("crystal_spire", 1e9, 1), t("welcome_arch", 1e9, 1), t("monument", 1e9, 1), t("fountain", 1e9, 1)];
+    expect(landmarks.sort(byUnlockOrder).map((x) => x.id)).toEqual(["welcome_arch", "fountain", "monument", "crystal_spire"]);
+    const shops = [t("mall", 500, 900), t("corner_shop", null, 60), t("cafe", 75, 120), t("grocery", 100, 200), t("restaurant", 120, 150)];
+    expect(shops.sort(byUnlockOrder).map((x) => x.id)).toEqual(["corner_shop", "cafe", "grocery", "restaurant", "mall"]);
   });
 });

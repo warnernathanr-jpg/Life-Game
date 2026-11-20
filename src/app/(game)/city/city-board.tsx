@@ -393,16 +393,17 @@ export function CityBoard(props: {
   );
   const city3d = useRef<City3DHandle>(null);
   const mapBox = useRef<HTMLDivElement>(null);
-  // A soft click for every button pressed over the full-screen map.
+  // A soft click for every button tapped over the full-screen map. "click" (not pointerdown) so starting to scroll the build
+  // menu with a finger makes no sound: only a real tap does.
   useEffect(() => {
     const box = mapBox.current;
     if (!box || !props.standalone) return;
-    const onDown = (e: PointerEvent) => {
+    const onTap = (e: MouseEvent) => {
       const b = (e.target as HTMLElement | null)?.closest("button");
       if (b && !b.disabled) playSfx("click");
     };
-    box.addEventListener("pointerdown", onDown);
-    return () => box.removeEventListener("pointerdown", onDown);
+    box.addEventListener("click", onTap, true);
+    return () => box.removeEventListener("click", onTap, true);
   }, [props.standalone]);
   // City Stats as a panel over the map in full screen.
   const [statsOpen, setStatsOpen] = useState(false);

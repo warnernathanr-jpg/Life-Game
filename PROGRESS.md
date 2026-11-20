@@ -717,6 +717,18 @@ _Last updated: 2026-11-28_
 - `brand/instagram-profile.png` (1080×1080, from `brand/instagram-profile.svg`): the app logo on full-bleed green with the shapes
   inside the circle Instagram crops to.
 
+### 52. Bottom bar locked in the home-screen app; build menu order; quieter taps (2026-11-28)
+- **Home-screen app on phones** (`display-mode: standalone`, max 767px; the owner's setup): the content scrolls inside its own
+  area (`.app-scroll` wrapper in the game layout, rules in `globals.css`) and the tab bar sits outside it, so scrolling, momentum
+  and the end-of-scroll bounce can't move the bar. The bar also sits lower there: half the home-indicator inset (`--nav-pad`)
+  instead of all of it. Safari (browser) keeps normal page scrolling so its toolbar can still hide. Emulated on an iPhone 13 with
+  the standalone rules applied (Chromium can't emulate display-mode): the bar stays put while the content scrolls to its end.
+- **Build menu order**: every group lists what you'll reach first (`byUnlockOrder()` in `game.ts`, 1 unit test): landmarks by their
+  population milestone, everything else by area points needed, then price; buildable items still come before locked ones.
+- **Button sound** plays on a real tap (`click`), not on touch-down, so swiping through the build bar is silent.
+- Owner's account: +500,000 test coins (balance 500,005).
+- Local preview note: the dev server kept serving an old `globals.css`; deleting `.next` entirely (not just `.next/cache`) fixed it.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

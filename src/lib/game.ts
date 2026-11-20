@@ -89,6 +89,19 @@ export const CITY_MILESTONES = [
 
 /** The milestone a landmark belongs to (undefined for ordinary buildings). */
 export const milestoneFor = (typeId: string) => CITY_MILESTONES.find((m) => m.landmark === typeId);
+
+/**
+ * Build menu order inside a group: the ones you'll reach first come first. Landmarks by the population that unlocks them,
+ * everything else by the area points needed, then by price.
+ */
+export function byUnlockOrder(a: Pick<BuildingTypeRow, "id" | "unlock_points" | "cost">, b: Pick<BuildingTypeRow, "id" | "unlock_points" | "cost">) {
+  const ma = milestoneFor(a.id)?.population ?? 0;
+  const mb = milestoneFor(b.id)?.population ?? 0;
+  if (ma !== mb) return ma - mb;
+  const pa = ma ? 0 : (a.unlock_points ?? 0);
+  const pb = mb ? 0 : (b.unlock_points ?? 0);
+  return pa - pb || a.cost - b.cost;
+}
 /** Schools children (and students) attend. */
 export const SCHOOL_IDS = new Set(["school", "high_school", "university"]);
 

@@ -12,6 +12,9 @@ import { tutorialActive } from "@/lib/tutorial";
 export default function GameLayout({ children }: LayoutProps<"/">) {
   return (
     <>
+      {/* .app-scroll: in the home-screen app on phones this is its own scrolling area, so the bottom bar (outside it) never
+          moves (see globals.css). Elsewhere it's just a wrapper and the page scrolls as usual. */}
+      <div className="app-scroll flex flex-1 flex-col">
       <header className="shrink-0 bg-header text-white" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
           <Link href="/city" className="flex items-center gap-1.5 font-bold">
@@ -34,12 +37,13 @@ export default function GameLayout({ children }: LayoutProps<"/">) {
         </div>
       </header>
       {/* Room at the bottom on phones for the tab bar. */}
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-[calc(7rem+var(--nav-pad,env(safe-area-inset-bottom,0px)))] md:pb-8">
         <Suspense>
           <TutorialCard />
         </Suspense>
         {children}
       </main>
+      </div>
       <BottomNav />
       <InviteRedeemer />
       <Suspense>

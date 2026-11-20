@@ -46,7 +46,7 @@ export function BottomNav() {
     <nav
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface md:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      style={{ paddingBottom: "var(--nav-pad, env(safe-area-inset-bottom, 0px))" }}
     >
       <ul className="mx-auto grid max-w-lg grid-cols-5">
         {NAV.map((l) => {

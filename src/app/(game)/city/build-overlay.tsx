@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 import { LandPlot, Lock } from "lucide-react";
 import { BuildingIcon, CoinIcon, GroupIcon } from "@/components/icons";
 import type { BuildingTypeRow, ProgressRow } from "@/lib/database.types";
-import { AREA_BY_ID, BUILD_GROUPS, buildGroupOf, controlByType, formatCoins, pointsToUnlock, sizeText, type BuildGroupId } from "@/lib/game";
+import { AREA_BY_ID, BUILD_GROUPS, buildGroupOf, byUnlockOrder, controlByType, formatCoins, pointsToUnlock, sizeText, type BuildGroupId } from "@/lib/game";
 
 type Tool = { id: string; label: string; icon: ReactNode };
 
@@ -37,7 +37,7 @@ export function BuildOverlay({
 }) {
   const [open, setOpen] = useState<BuildGroupId | null>(null);
   const group = BUILD_GROUPS.find((g) => g.id === open);
-  const items = open ? types.filter((t) => buildGroupOf(t) === open) : [];
+  const items = open ? types.filter((t) => buildGroupOf(t) === open).sort(byUnlockOrder) : [];
   const isLocked = (t: BuildingTypeRow) => landmarkState?.(t)?.locked ?? pointsToUnlock(t, progress) > 0;
   const unlocked = items.filter((t) => !isLocked(t));
   const locked = items.filter((t) => isLocked(t));
