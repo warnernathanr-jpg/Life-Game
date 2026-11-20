@@ -68,7 +68,7 @@ export function AchievementsView({ earned, timeline, tz }: { earned: EarnedBadge
           <div key={group} className="mt-5">
             <h3 className="text-sm font-semibold text-muted">{group}</h3>
             <ul className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {ACHIEVEMENTS.filter((a) => a.group === group).map((a) => {
+              {ACHIEVEMENTS.filter((a) => a.group === group).sort((x, y) => x.coins - y.coins).map((a) => {
                 const got = byId.get(a.id);
                 const Icon = ICONS[a.icon] ?? Award;
                 return (

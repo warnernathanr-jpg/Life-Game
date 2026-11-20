@@ -883,6 +883,8 @@ _Last updated: 2026-11-28_
   `20261128140000_claim_one_achievement.sql`, applied live; refuses a badge already collected, not earned, or someone else's). The
   Stats card says "N coins waiting on M badges" with **Collect them** linking to Achievements. 9 pgTAP tests (374 total).
 
+- Achievements page: badges in each group are listed by their coins, smallest first (2026-11-28).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
