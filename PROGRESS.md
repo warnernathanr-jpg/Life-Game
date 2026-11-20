@@ -790,6 +790,12 @@ _Last updated: 2026-11-28_
   awning color; the Neighborhood Park's bench and a flower bed, and the Garden Park's flowers and benches, use the family too.
   With Auto they keep their usual colors.
 
+### 58. Buses (2026-11-28)
+- `buses.tsx`: with **two or more bus stations** joined by roads, yellow buses run a loop from station to station (nearest
+  next, then back to the first), stopping 3 seconds at each; one bus per station (up to 4), spread along the loop. With **one
+  station**, its bus waits inside for 25–50 seconds (counted in real time; paused or hidden tabs don't count), then drives a
+  tour past 2–3 random far-off roads and comes back to park again. Only for show; paused with the city.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
