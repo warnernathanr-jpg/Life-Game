@@ -2,7 +2,7 @@
 
 // Side panels and small pieces of the city screen.
 import { X, ArrowUp, Briefcase, Frown, Lock, Meh, Smile, Star, TriangleAlert, Users, type LucideIcon } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { AreaIcon, BuildingIcon, CoinIcon, GroupIcon } from "@/components/icons";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
 import { AREA_BY_ID, BUILD_GROUPS, CATEGORY_BY_ID, buildGroupOf, formatCoins, sizeText, type BuildGroupId, pointsToUnlock, sellRefund, type CityStats } from "@/lib/game";
@@ -10,35 +10,68 @@ import { renameCity } from "../actions";
 
 type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid">;
 
+/** The city's name as the page heading. Tap it to type a new one (Enter or tapping away saves, Escape cancels). */
 export function CityName({ name }: { name: string }) {
   const [editing, setEditing] = useState(false);
+  const [shown, setShown] = useState(name);
   const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-  if (!editing) {
-    return (
-      <div className="flex items-center gap-2">
-        <h1 className="text-2xl font-bold">{name}</h1>
-        <button type="button" className="link text-sm" onClick={() => setEditing(true)}>Rename</button>
-      </div>
-    );
-  }
-  return (
-    <form
-      className="flex flex-wrap items-center gap-2"
-      action={(fd) =>
-        start(async () => {
-          const r = await renameCity(String(fd.get("name") ?? ""));
-          if (r.ok) setEditing(false);
-          else setError(r.error);
-        })
+  const [, start] = useTransition();
+  const done = useRef(false);
+
+  function save(value: string) {
+    if (done.current) return;
+    done.current = true;
+    setEditing(false);
+    const v = value.trim();
+    if (!v || v === shown) return;
+    const before = shown;
+    setShown(v);
+    start(async () => {
+      const r = await renameCity(v);
+      if (r.ok) setError(null);
+      else {
+        setShown(before);
+        setError(r.error);
       }
-    >
-      <label className="sr-only" htmlFor="city-name">City name</label>
-      <input id="city-name" name="name" defaultValue={name} maxLength={40} autoFocus className="input w-56" />
-      <button className="btn-primary min-h-10" disabled={pending}>Save</button>
-      <button type="button" className="btn-secondary min-h-10" onClick={() => setEditing(false)}>Cancel</button>
-      {error && <p role="alert" className="w-full text-sm text-bad">{error}</p>}
-    </form>
+    });
+  }
+
+  return (
+    <div>
+      {editing ? (
+        <input
+          aria-label="City name"
+          defaultValue={shown}
+          maxLength={40}
+          autoFocus
+          onFocus={(e) => e.currentTarget.select()}
+          onBlur={(e) => save(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") save(e.currentTarget.value);
+            if (e.key === "Escape") {
+              done.current = true;
+              setEditing(false);
+            }
+          }}
+          className="font-display w-full max-w-md rounded-md bg-transparent px-1 -mx-1 text-2xl font-bold text-ink outline-none ring-2 ring-accent"
+        />
+      ) : (
+        <h1 className="text-2xl font-bold">
+          <button
+            type="button"
+            title="Tap to rename"
+            onClick={() => {
+              done.current = false;
+              setEditing(true);
+            }}
+            className="-mx-1 rounded-md px-1 text-left hover:bg-raised focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            {shown}
+          </button>
+        </h1>
+      )}
+      {error && <p role="alert" className="text-sm text-bad">{error}</p>}
+    </div>
   );
 }
 

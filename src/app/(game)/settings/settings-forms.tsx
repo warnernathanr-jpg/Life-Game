@@ -3,6 +3,7 @@
 import { KeyRound, LogOut, RotateCcw, TriangleAlert, UserRound } from "lucide-react";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useConfirm } from "@/components/confirm";
+import { ThemeSettings } from "@/components/theme-picker";
 import { signOut } from "../../(auth)/actions";
 import { changePassword, resetProgress, type PasswordState } from "../actions";
 
@@ -32,6 +33,8 @@ export function SettingsForms({ email }: { email: string }) {
           </button>
         </form>
       </section>
+
+      <ThemeSettings />
 
       <section className="card" aria-labelledby="pw-h">
         <h2 id="pw-h" className="flex items-center gap-2 font-semibold">

@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
 import { formatCoins } from "@/lib/game";
 import { RewardPrompts } from "@/components/reward-prompts";
-import { ThemePicker } from "@/components/theme-picker";
 import { BottomNav, TopNav } from "./nav";
 
 export default function GameLayout({ children }: LayoutProps<"/">) {
@@ -21,7 +20,6 @@ export default function GameLayout({ children }: LayoutProps<"/">) {
             <Suspense fallback={<span className="h-9 w-20 rounded-full bg-white/10" />}>
               <CoinBadge />
             </Suspense>
-            <ThemePicker />
             <Link href="/settings" aria-label="Settings" className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-white/80 hover:bg-white/10">
               <Settings className="size-4" aria-hidden />
               <span className="hidden sm:inline">Settings</span>

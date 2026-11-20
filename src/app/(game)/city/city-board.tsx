@@ -262,8 +262,12 @@ export function CityBoard(props: {
   function onTile(x: number, y: number) {
     if (mode.kind === "paint") return onStroke([{ x, y }]);
     if (mode.kind === "place" || mode.kind === "move") {
+      // The preview only goes where the building fits (never on roads, water or other buildings): the tapped spot,
+      // or the nearest free spot that still covers or touches it.
+      const spot = nearestFit(x, y);
+      if (!spot) return say("That spot is taken. Pick an empty patch of grass.", "bad");
       setMessage(null);
-      setDraftSpot({ x, y });
+      setDraftSpot(spot);
       return;
     }
     if (pending) return;
@@ -271,6 +275,26 @@ export function CityBoard(props: {
     const b = occupant.get(key(x, y));
     setCitizenId(null);
     setMode(b ? { kind: "selected", id: b.id } : { kind: "idle" });
+  }
+
+  function fitsAt(x: number, y: number, dims = draftDims) {
+    return !!dims && lotFree(size, { x, y, ...dims }, lots, movingLot?.id);
+  }
+  function nearestFit(x: number, y: number, dims = draftDims): Tile | null {
+    if (!dims) return null;
+    let best: Tile | null = null;
+    let bestD = Infinity;
+    // Anchors whose footprint covers the tapped tile first, then ones a tile away.
+    for (let dy = -dims.h; dy <= 1; dy++) {
+      for (let dx = -dims.w; dx <= 1; dx++) {
+        const ax = x + dx, ay = y + dy;
+        if (!fitsAt(ax, ay, dims)) continue;
+        const cx = ax + (dims.w - 1) / 2, cy = ay + (dims.h - 1) / 2;
+        const d = Math.hypot(cx - x, cy - y);
+        if (d < bestD) { bestD = d; best = { x: ax, y: ay }; }
+      }
+    }
+    return best;
   }
 
   /** Build the previewed building (or move it) where the preview is. */
@@ -328,6 +352,8 @@ export function CityBoard(props: {
       setMessage(null);
       setDraftTiles((old) => {
         const seen = new Set(old.map((t) => key(t.x, t.y)));
+        // Tapping a single tile that's already in the preview takes it out again (to fix mistakes before Build).
+        if (tiles.length === 1 && seen.has(key(tiles[0].x, tiles[0].y))) return old.filter((t) => t.x !== tiles[0].x || t.y !== tiles[0].y);
         return [...old, ...tiles.filter((t) => !seen.has(key(t.x, t.y)))];
       });
       return;
@@ -467,9 +493,7 @@ export function CityBoard(props: {
       ? `Drag with one finger to draw ${paintType.name.toLowerCase()} (${paintType.cost} coin${paintType.cost === 1 ? "" : "s"} a tile), then tap Build.${mode.kind === "paint" && isRoadType(mode.typeId) ? ` Across water it builds a bridge (${typeById.get(BRIDGE_TYPE)?.cost ?? 10} coins a tile); over another road it replaces it.` : ""} Trees in the way are cleared. Two fingers move the map.`
       : mode.kind === "bulldoze"
         ? "Drag over things to demolish them (you get half the price back)."
-        : mode.kind === "idle" || mode.kind === "selected"
-          ? "Tap a building to select it. On a phone: drag with one finger to move the map, pinch to zoom, twist two fingers to rotate (swipe above or below the map to scroll the page). On a computer: drag to move, scroll to zoom, right-drag to rotate."
-          : null;
+        : null;
 
   const selectedType = selected ? typeById.get(selected.type_id) : undefined;
 
@@ -486,12 +510,12 @@ export function CityBoard(props: {
               draftPlan.trees > 0 && `clears ${draftPlan.trees} tree tile${draftPlan.trees === 1 ? "" : "s"}`,
             ]
               .filter(Boolean)
-              .join(" · ") || "Draw more, or confirm to build.",
+              .join(" · ") || "Draw more, tap a highlighted tile to take it out, or Build.",
           problem:
             draftPlan.fresh.length === 0
               ? "That's all there already."
               : draftPlan.blocked
-                ? "Part of it is on a building or past your land."
+                ? "Part of it is on a building or past your land. Tap those tiles to take them out."
                 : draftPlan.sideBySide
                   ? "Roads can't run side by side. Leave a tile between them."
                 : draftPlan.fresh.length > MAX_STROKE_TILES
@@ -522,7 +546,17 @@ export function CityBoard(props: {
                 confirmLabel: mode.kind === "place" ? "Build here" : "Move here",
                 onConfirm: confirmSpot,
                 onCancel: () => setDraftSpot(null),
-                onTurn: canTurn ? () => setDraftRot((r) => !r) : undefined,
+                onTurn: canTurn
+                  ? () => {
+                      const turned = draftDims ? { w: draftDims.h, h: draftDims.w } : null;
+                      if (draftSpot && turned && !fitsAt(draftSpot.x, draftSpot.y, turned)) {
+                        const spot = nearestFit(draftSpot.x, draftSpot.y, turned);
+                        if (!spot) return say("It doesn't fit here turned the other way.", "bad");
+                        setDraftSpot(spot);
+                      }
+                      setDraftRot((r) => !r);
+                    }
+                  : undefined,
               };
             })()
           : null
@@ -582,11 +616,12 @@ export function CityBoard(props: {
   return (
     <div className="space-y-4">
       {confirmDialog}
-      <CityName name={props.cityName} />
-
-      <p aria-live="polite" className={`min-h-5 text-sm ${message?.tone === "bad" ? "text-bad" : "text-good"}`}>
-        {message?.text}
-      </p>
+      <div className="-mb-1">
+        <CityName name={props.cityName} />
+        <p aria-live="polite" className={`text-sm empty:hidden ${message?.tone === "bad" ? "text-bad" : "text-good"}`}>
+          {message?.text}
+        </p>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
         <div className="min-w-0 space-y-3">
@@ -657,7 +692,7 @@ export function CityBoard(props: {
                 onStroke={onStroke}
                 onStrokeChange={setStroke}
                 ghostAt={draftSpot}
-                onGhostMove={setDraftSpot}
+                onGhostMove={(t) => { if (fitsAt(t.x, t.y)) setDraftSpot(t); }}
                 previewTiles={draftTiles}
                 previewOk={draftPlan ? draftPlan.ok : true}
                 overlay={full ? layerCells : null}

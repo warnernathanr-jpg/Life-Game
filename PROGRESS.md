@@ -3,7 +3,7 @@
 Where the project stands. Read with [PROJECT.md](./PROJECT.md) at the start of every session, and update this file
 when a piece of work is finished.
 
-_Last updated: 2026-11-25_
+_Last updated: 2026-11-27_
 
 ## Done
 
@@ -416,6 +416,18 @@ _Last updated: 2026-11-25_
   OVER')` deletes the city, tasks, check-offs, focus sessions, goals (with steps), one-time rewards and coin history, sets the
   land back to 8×8 and gives the 100-coin welcome bonus again (account, city name, time zone and notification devices stay).
 - Migration `20261126020000_reset_progress.sql` (applied live). 7 pgTAP tests (`reset_progress.test.sql`, 262 total).
+
+### 29. Placement fixes, inline city name, theme in Settings, landing screenshots (2026-11-27)
+- **Buildings only preview where they fit**: tapping a road, water or another building moves the preview to the nearest free
+  spot that covers or touches the tapped tile (or says the spot is taken); dragging the preview skips spots where it doesn't
+  fit; Turn moves it to a nearby free spot if the turned footprint doesn't fit. (The database already refused overlaps.)
+- **Road preview**: tapping a highlighted tile before Build takes it out of the preview.
+- **Dirt road corners**: the two wheel ruts turn as nested L shapes that meet cleanly instead of crossing.
+- **City page**: the city name sits right above the map; tap it to type a new name (Enter or tapping away saves, Escape
+  cancels). The Rename button and the "Tap a building…" help text are gone.
+- **Color theme** moved from the header to a card on Settings.
+- **Landing page**: no coin amounts per task; a "See what you can build" section with three screenshots of a sample city
+  (`public/landing/*.webp`: overview, build menu, land value layer).
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate

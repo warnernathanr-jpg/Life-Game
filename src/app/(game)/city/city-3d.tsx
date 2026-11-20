@@ -629,8 +629,25 @@ function Roads({ tiles, roads, variant }: { tiles: Lot[]; roads: Set<string>; va
       };
       if (variant === "dirt") {
         // Two wheel ruts along each arm (a lone tile gets a short pair).
+        const R = 0.15; // half the distance between the wheels
+        const W = 0.06; // rut width
+        if (arms.length === 2 && arms[0][0] !== -arms[1][0]) {
+          // A corner: each wheel track turns, so the two ruts form nested L shapes that meet cleanly.
+          const [a, b] = arms;
+          for (const k of [-1, 1]) {
+            const px = cx + k * R * (a[0] + b[0]);
+            const pz = cz + k * R * (a[1] + b[1]);
+            for (const [dx, dz] of [a, b]) {
+              // From the turning point (plus half a rut, so the joint is square) out to the tile edge along this arm.
+              const len = 0.5 - k * R + W / 2;
+              const mid = len / 2 - W / 2;
+              ruts.push(m(px + dx * mid, 0.032, pz + dz * mid, dx ? len : W, 0.004, dz ? len : W));
+            }
+          }
+          continue;
+        }
         const list = arms.length ? arms : [[1, 0], [-1, 0]];
-        for (const [ax, az] of list) for (const off of [-0.15, 0.15]) strip(ruts, ax, az, off, 0.5, 0.06, 0.032);
+        for (const [ax, az] of list) for (const off of [-R, R]) strip(ruts, ax, az, off, 0.5, W, 0.032);
         continue;
       }
       // Curbs on sides without a neighboring road; corner posts always (junctions read cleanly).
