@@ -70,7 +70,18 @@ export const CATEGORIES: { id: BuildingCategory; label: string; tile: string; ch
 export const PARK_IDS = new Set(["park", "court", "garden", "central_park"]);
 /** Services by menu group (all have category "service" in the database). */
 export const KNOWLEDGE_IDS = new Set(["school", "high_school", "university", "library"]);
-export const RECREATION_IDS = new Set([...PARK_IDS, "community", "gym", "pool", "stadium", "golf", "museum", "zoo"]);
+export const RECREATION_IDS = new Set([...PARK_IDS, "community", "gym", "pool", "stadium", "golf", "museum", "zoo", "soccer_field", "beach", "amusement_park"]);
+
+/** Buildings that must touch water (mirrors the placed_buildings_beach_water check in the database). */
+export const NEEDS_WATER = new Set(["beach"]);
+
+/** Does a footprint touch a water tile along one of its sides (not just a corner)? */
+export function touchesWater(lot: { x: number; y: number; w: number; h: number }, lots: { type_id: string; x: number; y: number }[]): boolean {
+  const water = new Set(lots.filter((l) => l.type_id === "water").map((l) => `${l.x},${l.y}`));
+  for (let i = 0; i < lot.w; i++) if (water.has(`${lot.x + i},${lot.y - 1}`) || water.has(`${lot.x + i},${lot.y + lot.h}`)) return true;
+  for (let j = 0; j < lot.h; j++) if (water.has(`${lot.x - 1},${lot.y + j}`) || water.has(`${lot.x + lot.w},${lot.y + j}`)) return true;
+  return false;
+}
 export const TRANSPORT_IDS = new Set(["gas_station", "bus_station", "parking", "airport"]);
 export const LANDMARK_IDS = new Set(["monument", "welcome_arch", "clock_tower", "fountain", "founders_statue", "observation_tower", "crystal_spire"]);
 

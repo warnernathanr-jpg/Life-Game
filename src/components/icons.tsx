@@ -2,6 +2,8 @@
 // Use these instead of emojis. Icons are decorative (aria-hidden) unless given a label.
 import {
   Award,
+  Umbrella,
+  FerrisWheel,
   TowerControl,
   PersonStanding,
   Signpost,
@@ -99,6 +101,16 @@ export const BasketballIcon = createLucideIcon("basketball", [
   ["path", { d: "M5 4.9c3.4 3.3 3.4 10.9 0 14.2", key: "l" }],
   ["path", { d: "M19 4.9c-3.4 3.3-3.4 10.9 0 14.2", key: "r" }],
 ]);
+/** Soccer ball: a pentagon in the middle with seams running out to the edge. */
+export const SoccerIcon = createLucideIcon("soccer-ball", [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "ball" }],
+  ["path", { d: "M12 7.5l4.3 3.1-1.6 5h-5.4l-1.6-5z", key: "pent" }],
+  ["path", { d: "M12 7.5V2.5", key: "a" }],
+  ["path", { d: "M16.3 10.6l4.6-1.7", key: "b" }],
+  ["path", { d: "M14.7 15.6l2.9 4.1", key: "c" }],
+  ["path", { d: "M9.3 15.6l-2.9 4.1", key: "d" }],
+  ["path", { d: "M7.7 10.6L3.1 8.9", key: "e" }],
+]);
 /** Traffic light: a signal head with three lamps on a pole (Lucide has no traffic light). */
 export const TrafficLightIcon = createLucideIcon("traffic-light", [
   ["rect", { x: "8", y: "2", width: "8", height: "15", rx: "2", key: "head" }],
@@ -168,6 +180,9 @@ const BUILDING: Record<string, LucideIcon> = {
   golf: LandPlot,
   museum: Frame,
   zoo: PawPrint,
+  soccer_field: SoccerIcon,
+  beach: Umbrella,
+  amusement_park: FerrisWheel,
   // Transport
   gas_station: CarTaxiFront,
   bus_station: Bus,

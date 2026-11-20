@@ -62,6 +62,8 @@ import {
   formatCoins,
   landPrice,
   lotFree,
+  NEEDS_WATER,
+  touchesWater,
   pointsToUnlock,
   roadControlTypes,
   sellRefund,
@@ -656,13 +658,11 @@ export function CityBoard(props: {
     if (mode.kind === "paint") return onStroke([{ x, y }]);
     if (mode.kind === "control") return void putControl(x, y, mode.control);
     if (mode.kind === "place" || mode.kind === "move") {
-      // The preview only goes where the building fits (never on roads, water or other buildings): the tapped spot,
-      // or the nearest free spot that still covers or touches it.
-      const spot = nearestFit(x, y);
-      if (!spot)
-        return say("That spot is taken. Pick an empty patch of grass.", "bad");
+      // The preview goes where you tap (centred on it, kept on your land), even if it doesn't fit there: it shows red, and
+      // you drag or turn it until it turns green. Build only works when it fits.
+      if (!draftDims) return;
       setMessage(null);
-      setDraftSpot(spot);
+      setDraftSpot(clampSpot(x - Math.floor((draftDims.w - 1) / 2), y - Math.floor((draftDims.h - 1) / 2)));
       return;
     }
     if (pending) return;
@@ -672,38 +672,31 @@ export function CityBoard(props: {
     setMode(b ? { kind: "selected", id: b.id } : { kind: "idle" });
   }
 
-  function fitsAt(x: number, y: number, dims = draftDims) {
+  const draftTypeId = placingType?.id ?? movingLot?.type_id ?? null;
+  /** Free of other things and inside your land. */
+  function freeAt(x: number, y: number, dims = draftDims) {
     return !!dims && lotFree(size, { x, y, ...dims }, lots, movingLot?.id);
   }
-  function nearestFit(x: number, y: number, dims = draftDims): Tile | null {
-    if (!dims) return null;
-    let best: Tile | null = null;
-    let bestD = Infinity;
-    // Anchors whose footprint covers the tapped tile first, then ones a tile away.
-    for (let dy = -dims.h; dy <= 1; dy++) {
-      for (let dx = -dims.w; dx <= 1; dx++) {
-        const ax = x + dx,
-          ay = y + dy;
-        if (!fitsAt(ax, ay, dims)) continue;
-        const cx = ax + (dims.w - 1) / 2,
-          cy = ay + (dims.h - 1) / 2;
-        const d = Math.hypot(cx - x, cy - y);
-        if (d < bestD) {
-          bestD = d;
-          best = { x: ax, y: ay };
-        }
-      }
-    }
-    return best;
+  /** Free, and beside water for a beach. */
+  function fitsAt(x: number, y: number, dims = draftDims) {
+    if (!dims || !freeAt(x, y, dims)) return false;
+    return !draftTypeId || !NEEDS_WATER.has(draftTypeId) || touchesWater({ x, y, ...dims }, lots);
   }
+  /** Keep a footprint on your land. */
+  function clampSpot(x: number, y: number, dims = draftDims): Tile {
+    const w = dims?.w ?? 1;
+    const h = dims?.h ?? 1;
+    return { x: Math.max(0, Math.min(size - w, x)), y: Math.max(0, Math.min(size - h, y)) };
+  }
+
 
   /** Build the previewed building (or move it) where the preview is. */
   function confirmSpot() {
     if (!draftSpot || pending) return;
     const { x, y } = draftSpot;
     if (mode.kind === "place" && placingType) {
-      if (!draftDims || !lotFree(size, { x, y, ...draftDims }, lots))
-        return say("That spot is taken or doesn't fit.", "bad");
+      if (!fitsAt(x, y))
+        return say("It doesn't fit there yet. Drag it until it turns green.", "bad");
       if (milestoneFor(placingType.id)) {
         start(async () => {
           const r = await placeLandmark(placingType.id, x, y, draftRot);
@@ -724,7 +717,7 @@ export function CityBoard(props: {
         if (!r.ok) return say(r.error, "bad");
         const nearRoad = connectedIds([
           ...lots,
-          { id: r.id, type_id: placingType.id, x, y, ...draftDims },
+          { id: r.id, type_id: placingType.id, x, y, ...(draftDims ?? { w: 1, h: 1 }) },
         ]).has(r.id);
         say(
           `Built a ${placingType.name} for ${formatCoins(placingType.cost)} coins.${nearRoad ? "" : " It needs a road beside it to count."}`,
@@ -737,11 +730,7 @@ export function CityBoard(props: {
       return;
     }
     if (mode.kind === "move" && movingLot) {
-      if (
-        !draftDims ||
-        !lotFree(size, { x, y, ...draftDims }, lots, movingLot.id)
-      )
-        return say("That spot is taken or doesn't fit.", "bad");
+      if (!fitsAt(x, y)) return say("It doesn't fit there yet. Drag it until it turns green.", "bad");
       start(async () => {
         const r = await moveBuilding(movingLot.id, x, y, draftRot);
         if (!r.ok) return say(r.error, "bad");
@@ -1281,12 +1270,8 @@ export function CityBoard(props: {
         ? draftSpot
           ? (() => {
               const dims = draftDims ?? { w: 1, h: 1 };
-              const fits = lotFree(
-                size,
-                { x: draftSpot.x, y: draftSpot.y, ...dims },
-                lots,
-                movingLot?.id,
-              );
+              const fits = freeAt(draftSpot.x, draftSpot.y, dims);
+              const watery = fits && !fitsAt(draftSpot.x, draftSpot.y, dims);
               const covers = lots.filter(
                 (l) =>
                   l.type_id === "tree" &&
@@ -1303,9 +1288,11 @@ export function CityBoard(props: {
                 detail:
                   covers > 0
                     ? `Clears ${covers} tree tile${covers === 1 ? "" : "s"}. Tap elsewhere to move the preview.`
-                    : "Tap elsewhere to move the preview.",
+                    : "Drag it or tap elsewhere to move it.",
                 problem: !fits
-                  ? "That spot is taken or doesn't fit."
+                  ? `Doesn't fit here.${canTurn ? " Drag it, or Turn it," : " Drag it"} to an empty spot until it turns green.`
+                  : watery
+                  ? "A beach has to touch water. Drag it right beside a pond or lake."
                   : mode.kind === "place" && balance < placingType!.cost
                     ? "Not enough coins yet."
                     : undefined,
@@ -1318,23 +1305,8 @@ export function CityBoard(props: {
                       const turned = draftDims
                         ? { w: draftDims.h, h: draftDims.w }
                         : null;
-                      if (
-                        draftSpot &&
-                        turned &&
-                        !fitsAt(draftSpot.x, draftSpot.y, turned)
-                      ) {
-                        const spot = nearestFit(
-                          draftSpot.x,
-                          draftSpot.y,
-                          turned,
-                        );
-                        if (!spot)
-                          return say(
-                            "It doesn't fit here turned the other way.",
-                            "bad",
-                          );
-                        setDraftSpot(spot);
-                      }
+                      // Turn where it is (kept on your land); it shows red until it fits.
+                      if (draftSpot && turned) setDraftSpot(clampSpot(draftSpot.x, draftSpot.y, turned));
                       setDraftRot((r) => !r);
                     }
                   : undefined,
@@ -1550,8 +1522,7 @@ export function CityBoard(props: {
               }
               ghostDims={draftDims}
               ghostOk={(x, y) =>
-                !!draftDims &&
-                lotFree(size, { x, y, ...draftDims }, lots, movingLot?.id) &&
+                fitsAt(x, y) &&
                 (!placingType || balance >= placingType.cost)
               }
               strokeOk={(tiles) =>
@@ -1571,9 +1542,7 @@ export function CityBoard(props: {
               onStrokeChange={setStroke}
               ghostAt={draftSpot}
               anchorTile={mode.kind === "paint" && isRoadType(mode.typeId) ? anchor : null}
-              onGhostMove={(t) => {
-                if (fitsAt(t.x, t.y)) setDraftSpot(t);
-              }}
+              onGhostMove={(t) => setDraftSpot(clampSpot(t.x, t.y))}
               previewTiles={
                 mode.kind === "control"
                   ? [...crossings]

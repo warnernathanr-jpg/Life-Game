@@ -624,6 +624,138 @@ const MODELS: Record<string, Maker> = {
       ))}
     </>
   ),
+  soccer_field: (p) => (
+    <>
+      {/* 3x3 pitch: striped grass, white lines, a centre circle, two goals and bleachers along the back. */}
+      <B p={[0, 0, 0]} s={[2.94, 0.02, 2.94]} c="#15803d" />
+      {Array.from({ length: 7 }, (_, i) => (
+        <B key={i} p={[-1.2 + i * 0.4, 0.02, 0.15]} s={[0.2, 0.004, 2.1]} c={i % 2 ? "#16a34a" : "#22c55e"} />
+      ))}
+      {[
+        [0, 1.2, 2.5, 0.03], [0, -0.9, 2.5, 0.03], [-1.25, 0.15, 0.03, 2.1], [1.25, 0.15, 0.03, 2.1], [0, 0.15, 0.03, 2.1],
+        [-1.05, 0.15, 0.03, 0.8], [1.05, 0.15, 0.03, 0.8], [-1.15, -0.25, 0.2, 0.03], [-1.15, 0.55, 0.2, 0.03], [1.15, -0.25, 0.2, 0.03], [1.15, 0.55, 0.2, 0.03],
+      ].map(([x, z, w, d], i) => (
+        <B key={`l${i}`} p={[x, 0.025, z]} s={[w, 0.004, d]} c="#f8fafc" />
+      ))}
+      <mesh position={[0, 0.03, 0.15]} rotation-x={-Math.PI / 2}>
+        <ringGeometry args={[0.24, 0.27, 32]} />
+        <meshStandardMaterial color="#f8fafc" />
+      </mesh>
+      {[-1, 1].map((side) => (
+        <group key={side} position={[side * 1.3, 0.02, 0.15]}>
+          <B p={[0, 0, -0.22]} s={[0.03, 0.18, 0.03]} c="#f8fafc" />
+          <B p={[0, 0, 0.22]} s={[0.03, 0.18, 0.03]} c="#f8fafc" />
+          <B p={[0, 0.18, 0]} s={[0.03, 0.03, 0.47]} c="#f8fafc" />
+          <B p={[side * 0.08, 0, 0]} s={[0.12, 0.17, 0.44]} c="#e2e8f0" />
+        </group>
+      ))}
+      {[0, 1, 2].map((r) => (
+        <B key={`s${r}`} p={[0, 0.02 + r * 0.07, -1.18 - r * 0.1]} s={[2.4, 0.07, 0.14]} c={r % 2 ? p.accent : p.trim} />
+      ))}
+      <B p={[0, 0.02, -1.4]} s={[2.5, 0.28, 0.06]} c={p.wall} />
+    </>
+  ),
+  beach: (p) => (
+    <>
+      {/* 3x1 beach: a boardwalk on the road side, sand down to wet sand at the water's edge (the back), umbrellas, towels and
+          a lifeguard tower. */}
+      <B p={[0, 0, 0]} s={[2.96, 0.03, 0.96]} c="#fde68a" />
+      <B p={[0, 0.03, -0.38]} s={[2.96, 0.005, 0.2]} c="#e7c873" />
+      <B p={[0, 0.03, 0.4]} s={[2.96, 0.03, 0.16]} c="#a16207" />
+      {Array.from({ length: 12 }, (_, i) => (
+        <B key={`b${i}`} p={[-1.38 + i * 0.25, 0.061, 0.4]} s={[0.012, 0.002, 0.16]} c="#713f12" />
+      ))}
+      {[-1.0, -0.2, 0.6].map((x, i) => (
+        <group key={x} position={[x, 0.03, -0.02]}>
+          <Cyl p={[0, 0, 0]} r={0.008} h={0.3} c="#e5e7eb" />
+          <mesh position={[0, 0.3, 0]} scale={[0.3, 0.08, 0.3]} castShadow>
+            <coneGeometry args={[0.5, 1, 8]} />
+            <meshStandardMaterial color={[p.accent, p.awning, p.roof][i]} />
+          </mesh>
+          <B p={[0.12, 0, 0.06]} s={[0.1, 0.006, 0.2]} c={[p.awning, p.roof, p.accent][i]} />
+        </group>
+      ))}
+      <group position={[1.25, 0.03, -0.05]}>
+        {[[-0.06, -0.06], [0.06, -0.06], [-0.06, 0.06], [0.06, 0.06]].map(([x, z], i) => (
+          <B key={i} p={[x, 0, z]} s={[0.015, 0.3, 0.015]} c="#f8fafc" />
+        ))}
+        <B p={[0, 0.3, 0]} s={[0.18, 0.12, 0.18]} c="#dc2626" />
+        <B p={[0, 0.42, 0]} s={[0.22, 0.02, 0.22]} c="#f8fafc" />
+      </group>
+      <Cyl p={[-1.35, 0.03, -0.25]} r={0.05} h={0.02} c="#f472b6" />
+    </>
+  ),
+  amusement_park: (p) => (
+    <>
+      {/* 4x4 amusement park: paths, a Ferris wheel, a roller coaster loop, a carousel, a drop tower and an entrance gate. */}
+      <B p={[0, 0, 0]} s={[3.94, 0.02, 3.94]} c="#bbf7d0" />
+      <B p={[0, 0.02, 0.6]} s={[0.4, 0.01, 2.6]} c="#e7e5e4" />
+      <B p={[0, 0.02, 0]} s={[3.4, 0.01, 0.4]} c="#e7e5e4" />
+      {/* Entrance gate on the road side. */}
+      <B p={[-0.4, 0.02, 1.85]} s={[0.1, 0.5, 0.1]} c={p.accent} />
+      <B p={[0.4, 0.02, 1.85]} s={[0.1, 0.5, 0.1]} c={p.accent} />
+      <B p={[0, 0.52, 1.85]} s={[1.0, 0.12, 0.12]} c={p.roof} />
+      {/* Ferris wheel (back left). */}
+      <group position={[-1.1, 0, -1.1]}>
+        <B p={[-0.12, 0.02, 0]} s={[0.04, 1.0, 0.04]} c="#94a3b8" />
+        <B p={[0.12, 0.02, 0]} s={[0.04, 1.0, 0.04]} c="#94a3b8" />
+        <mesh position={[0, 1.0, 0]} rotation-y={Math.PI / 2} castShadow>
+          <torusGeometry args={[0.65, 0.025, 6, 32]} />
+          <meshStandardMaterial color={p.accent} />
+        </mesh>
+        {Array.from({ length: 8 }, (_, i) => {
+          const a = (i / 8) * Math.PI * 2;
+          return (
+            <group key={i}>
+              <mesh position={[0, 1.0 + Math.sin(a) * 0.32, Math.cos(a) * 0.32]} rotation-x={-a} scale={[0.015, 0.015, 0.65]}>
+                <boxGeometry />
+                <meshStandardMaterial color="#cbd5e1" />
+              </mesh>
+              <B p={[0, 1.0 + Math.sin(a) * 0.65 - 0.08, Math.cos(a) * 0.65]} s={[0.12, 0.1, 0.1]} c={[p.awning, p.roof, "#facc15", p.accent][i % 4]} />
+            </group>
+          );
+        })}
+      </group>
+      {/* Roller coaster (back right): track pieces on posts going over two hills. */}
+      <group position={[1.0, 0, -1.0]}>
+        {Array.from({ length: 20 }, (_, i) => {
+          const a = (i / 20) * Math.PI * 2;
+          const x = Math.cos(a) * 0.65;
+          const z = Math.sin(a) * 0.45;
+          const h = 0.25 + Math.max(0, Math.sin(a * 2)) * 0.45;
+          return (
+            <group key={i}>
+              <B p={[x, 0.02, z]} s={[0.02, h, 0.02]} c="#64748b" />
+              <B p={[x, h + 0.02, z]} s={[0.16, 0.025, 0.16]} c="#ef4444" />
+            </group>
+          );
+        })}
+        <B p={[0.65, 0.3, 0]} s={[0.14, 0.08, 0.1]} c="#facc15" />
+      </group>
+      {/* Carousel (front left). */}
+      <group position={[-1.1, 0.02, 1.0]}>
+        <Cyl p={[0, 0, 0]} r={0.42} h={0.06} c="#f8fafc" />
+        <Cyl p={[0, 0.06, 0]} r={0.04} h={0.3} c="#facc15" />
+        {Array.from({ length: 6 }, (_, i) => {
+          const a = (i / 6) * Math.PI * 2;
+          return <B key={i} p={[Math.cos(a) * 0.3, 0.06, Math.sin(a) * 0.3]} s={[0.05, 0.12, 0.1]} c={i % 2 ? p.awning : "#f472b6"} />;
+        })}
+        <mesh position={[0, 0.48, 0]} scale={[0.95, 0.24, 0.95]} castShadow>
+          <coneGeometry args={[0.5, 1, 12]} />
+          <meshStandardMaterial color={p.roof} />
+        </mesh>
+      </group>
+      {/* Drop tower (front right). */}
+      <group position={[1.15, 0.02, 1.05]}>
+        <Cyl p={[0, 0, 0]} r={0.06} h={1.5} c="#e2e8f0" />
+        <Cyl p={[0, 0.9, 0]} r={0.14} h={0.1} c={p.accent} />
+        <Cyl p={[0, 1.5, 0]} r={0.09} h={0.08} c="#ef4444" />
+      </group>
+      {[[-1.7, 0.3], [1.7, 0.3], [-0.5, -1.7], [0.5, 1.5], [-1.7, 1.7]].map(([x, z], i) => (
+        <Tree key={i} p={[x, 0, z]} s={0.9} crown={i % 2 ? "#16a34a" : "#22c55e"} />
+      ))}
+    </>
+  ),
   zoo: (p) => (
     <>
       <B p={[0, 0, 0]} s={[3.94, 0.02, 3.94]} c="#a3e635" />
@@ -869,6 +1001,7 @@ export const CATALOG_HEIGHT: Record<string, number> = {
   police: 0.55, hospital: 1.6, city_hall: 1.9,
   school: 0.7, high_school: 0.7, university: 2.0, library: 0.7,
   community: 0.75, pool: 0.3, gym: 0.6, museum: 0.8, golf: 0.6, stadium: 1.8, zoo: 0.6,
+  soccer_field: 0.4, beach: 0.5, amusement_park: 1.6,
   welcome_arch: 0.8, clock_tower: 1.95, fountain: 0.75, founders_statue: 1.2, observation_tower: 3.9, crystal_spire: 3.5,
   gas_station: 0.6, bus_station: 0.45, parking: 0.6, airport: 1.3, monument: 1.6,
 };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BuildingTypeRow, ProgressRow } from "./database.types";
-import { byUnlockOrder, cityStats, landPrice, lotFree, nextMilestone, nextUnlocks, sellRefund, pointsToUnlock } from "./game";
+import { byUnlockOrder, touchesWater, cityStats, landPrice, lotFree, nextMilestone, nextUnlocks, sellRefund, pointsToUnlock } from "./game";
 
 function type(p: Partial<BuildingTypeRow> & Pick<BuildingTypeRow, "id">): BuildingTypeRow {
   return {
@@ -185,5 +185,15 @@ describe("build menu order", () => {
     expect(landmarks.sort(byUnlockOrder).map((x) => x.id)).toEqual(["welcome_arch", "fountain", "monument", "crystal_spire"]);
     const shops = [t("mall", 500, 900), t("corner_shop", null, 60), t("cafe", 75, 120), t("grocery", 100, 200), t("restaurant", 120, 150)];
     expect(shops.sort(byUnlockOrder).map((x) => x.id)).toEqual(["corner_shop", "cafe", "restaurant", "grocery", "mall"]);
+  });
+});
+
+describe("touchesWater", () => {
+  const water = [{ type_id: "water", x: 0, y: 0 }, { type_id: "water", x: 1, y: 0 }];
+  it("a beach beside the water fits, one a tile away or only touching a corner doesn't", () => {
+    expect(touchesWater({ x: 0, y: 1, w: 3, h: 1 }, water)).toBe(true);
+    expect(touchesWater({ x: 0, y: 2, w: 3, h: 1 }, water)).toBe(false);
+    expect(touchesWater({ x: 2, y: 1, w: 3, h: 1 }, water)).toBe(false);
+    expect(touchesWater({ x: 2, y: 0, w: 1, h: 3 }, water)).toBe(true);
   });
 });

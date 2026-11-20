@@ -910,6 +910,20 @@ _Last updated: 2026-11-28_
   `#bfdbfe` (was mint): `src/app/icon.svg` (browser tab), `public/icons/*` (home-screen icons, redrawn from SVG: rounded 192/512,
   full-bleed 180 for iPhone, maskable 512 with the shapes at 78% in the safe zone) and `brand/instagram-profile.*`.
 
+### 65. Soccer field, beach, amusement park; place anywhere then drag until it fits (2026-11-28)
+- **New recreation buildings** (migration `20261128170000_recreation_more.sql`, applied live): **Soccer Field** 3×3 (600 coins,
+  +10 happiness, 6 jobs, 300 Health points), **Beach** 3×1 (400, +12, 4 jobs, 200 Personal) and **Amusement Park** 4×4 (2,000, +24,
+  40 jobs, 900 Personal). 3D models (striped pitch with lines, goals and bleachers; sand with a boardwalk on the road side, wet sand
+  at the water's edge, umbrellas, towels and a lifeguard tower; park with an entrance gate, Ferris wheel, roller coaster, carousel
+  and drop tower), icons (a drawn soccer ball, umbrella, Ferris wheel); citizens visit them (`RECREATION_IDS`).
+- **A beach must touch water** along a side: a deferred constraint trigger (`private.beach_by_water()`, checked at the end of the
+  transaction so moving the whole city still works) refuses `needs_water`; the app's preview (`touchesWater()` / `NEEDS_WATER` in
+  `game.ts`, 1 unit test) shows red with "A beach has to touch water…". 7 pgTAP tests (`recreation_more.test.sql`, 389 total).
+- **Placing**: the preview now goes exactly where you tap (centred on it, kept on your land) even over a road or another building;
+  it shows red with "Doesn't fit here. Drag it, or Turn it, to an empty spot until it turns green." Dragging and Turn move it freely;
+  **Build here** only works when it's green. (Before, a tap jumped the preview to the nearest free spot and dragging skipped spots
+  that didn't fit.)
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
