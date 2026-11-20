@@ -116,12 +116,26 @@ export function BuildOverlay({
             tile={g.tile}
             expanded={open === g.id}
             active={open === g.id || (!open && !!activeGroup && buildGroupOf(activeGroup) === g.id)}
-            onClick={() => setOpen(open === g.id ? null : g.id)}
+            onClick={() => {
+              // Tapping the group you're building from again (menu closed) goes back to plain Select.
+              if (!open && activeGroup && buildGroupOf(activeGroup) === g.id) return onTool(tools[0].id);
+              setOpen(open === g.id ? null : g.id);
+            }}
           />
         ))}
         <span className="mx-0.5 w-px shrink-0 bg-line" aria-hidden />
         {tools.slice(1).map((t) => (
-          <BarButton key={t.id} icon={t.icon} label={t.label} active={activeTool === t.id && !open} onClick={() => { setOpen(null); onTool(t.id); }} />
+          <BarButton
+            key={t.id}
+            icon={t.icon}
+            label={t.label}
+            active={activeTool === t.id && !open}
+            onClick={() => {
+              setOpen(null);
+              // Tapping an active tool again goes back to plain Select.
+              onTool(activeTool === t.id ? tools[0].id : t.id);
+            }}
+          />
         ))}
       </div>
     </div>

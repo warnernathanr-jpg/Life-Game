@@ -50,6 +50,10 @@ export type GoalRow = {
   target_date: string;
   completed_at: string | null;
   created_at: string;
+  /** Same tiers as tasks; reaching it pays ten times the tier (goal_reward()). */
+  difficulty: TaskDifficulty;
+  /** Bonus paid when reached (null: not reached). */
+  reward_coins: number | null;
 };
 
 export type GoalStepRow = {
@@ -60,6 +64,10 @@ export type GoalStepRow = {
   position: number;
   done_at: string | null;
   created_at: string;
+  /** Coins paid for checking it off (0 when not done). */
+  coins: number;
+  /** Pays what a task of this tier pays. */
+  difficulty: TaskDifficulty;
 };
 
 export type BuildingTypeRow = {
@@ -163,13 +171,13 @@ export type Database = {
       >;
       goals: Table<
         GoalRow,
-        Pick<GoalRow, "title" | "target_date"> & Partial<Pick<GoalRow, "notes" | "area" | "icon">>,
-        Partial<Pick<GoalRow, "title" | "notes" | "area" | "icon" | "target_date" | "completed_at">>
+        Pick<GoalRow, "title" | "target_date"> & Partial<Pick<GoalRow, "notes" | "area" | "icon" | "difficulty">>,
+        Partial<Pick<GoalRow, "title" | "notes" | "area" | "icon" | "target_date" | "difficulty">>
       >;
       goal_steps: Table<
         GoalStepRow,
-        Pick<GoalStepRow, "goal_id" | "title"> & Partial<Pick<GoalStepRow, "position">>,
-        Partial<Pick<GoalStepRow, "title" | "position" | "done_at">>
+        Pick<GoalStepRow, "goal_id" | "title"> & Partial<Pick<GoalStepRow, "position" | "difficulty">>,
+        Partial<Pick<GoalStepRow, "title" | "position" | "difficulty">>
       >;
       task_completions: Table<{
         id: string;
@@ -200,6 +208,11 @@ export type Database = {
       buy_tiles: { Args: { p_type_id: string; p_tiles: [number, number][] }; Returns: { built: number; cost: number; balance: number }[] };
       claim_reward: { Args: { p_reward: string }; Returns: { coins: number; balance: number }[] };
       save_push_subscription: { Args: { p_endpoint: string; p_p256dh: string; p_auth: string; p_user_agent?: string | null }; Returns: undefined };
+      complete_goal_step: { Args: { p_step_id: string }; Returns: { coins: number; balance: number }[] };
+      undo_goal_step: { Args: { p_step_id: string }; Returns: { coins: number; balance: number }[] };
+      delete_goal_step: { Args: { p_step_id: string }; Returns: { coins: number; balance: number }[] };
+      complete_goal: { Args: { p_goal_id: string }; Returns: { coins: number; balance: number }[] };
+      reopen_goal: { Args: { p_goal_id: string }; Returns: { coins: number; balance: number }[] };
       upgrade_building: { Args: { p_building_id: string }; Returns: { building_id: string; cost: number; balance: number }[] };
       set_building_facing: { Args: { p_building_id: string; p_facing: string | null }; Returns: undefined };
       buy_roads: { Args: { p_tiles: [number, number][] }; Returns: { built: number; cost: number; balance: number }[] };

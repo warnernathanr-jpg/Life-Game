@@ -387,10 +387,23 @@ _Last updated: 2026-11-25_
   - **Health care**: clinic (7) or hospital (14) coverage for each home.
   - **Pollution & noise**: from factories, warehouses, distribution, gas stations and the airport, fading over 6 tiles, on every
     land tile. **Land value**: parks/recreation, landmarks, water and trees raise it, pollution lowers it.
-  - **Road access**: connected or not.
   Buildings get a see-through colored box as tall as the model; land and roads get flat tinted patches (`LayerOverlay`, instanced).
 - City Stats: the close button sits in the header row (it covered the "Thriving" label); the happiness face no longer collapses.
 - 5 unit tests (`layers.test.ts`).
+
+### 26. Goals and steps earn coins; tap again for Select (2026-11-26)
+- **Goals use the task tiers** (Easy / Medium / Hard / Epic). Each **step** has its own tier and pays like a task (10 / 25 / 50 / 100);
+  reaching a **goal** pays ten times its tier (100 / 250 / 500 / 1,000), but only if it was set at least 3 days earlier (goals
+  should take real time). Unchecking a step, deleting a checked step or reopening a goal takes its coins back; only the first 20
+  steps of a goal pay; a reached goal's steps are closed. The economy will be reviewed later.
+- All through functions with ledger rows (kind `goal`): `complete_goal_step`, `undo_goal_step`, `delete_goal_step`, `complete_goal`,
+  `reopen_goal`; `goal_reward(difficulty)` = `task_reward × 10`, `goal_min_days()` = 3. Owners can't check off or delete steps or
+  complete goals directly any more (column grants: titles, notes, dates, icon, area, difficulty only).
+- Goals page: difficulty picker with the bonus, step tier picker with its coins, "+N" on each step, the bonus on "Mark goal
+  reached" (from day 3), "+N coins!" after each change.
+- Full screen: tapping the active tool or the group you're building from again goes back to Select. The Road access layer is gone.
+- Migrations `20261126010000_goal_ledger_kind.sql`, `20261126010100_goal_rewards.sql`, `20261126010200_goal_tiers.sql` (applied live).
+  12 pgTAP tests (`goal_rewards.test.sql`, 255 total).
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate

@@ -1,14 +1,20 @@
 "use client";
 
 import { CalendarClock, Check, ChevronDown, Plus, RotateCcw, Trash2, Trophy } from "lucide-react";
+import { CoinIcon } from "@/components/icons";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useConfirm } from "@/components/confirm";
 import { IconPicker } from "@/components/icon-picker";
 import { AreaIcon, ItemIcon } from "@/components/icons";
-import type { GoalRow, GoalStepRow } from "@/lib/database.types";
-import { AREA_BY_ID, AREAS } from "@/lib/game";
+import type { GoalRow, GoalStepRow, TaskDifficulty } from "@/lib/database.types";
+import { AREA_BY_ID, AREAS, DIFFICULTIES, REWARDS } from "@/lib/game";
 import { addDays } from "@/lib/habits";
 import { addGoal, addGoalStep, deleteGoal, deleteGoalStep, setGoalDone, setGoalStepDone, type AddGoalState } from "../actions";
+
+/** Mirrors the database: a step pays its tier like a task (task_reward), a goal ten times its tier (goal_reward), and
+ *  only goals set at least MIN_DAYS earlier pay their bonus (goal_min_days). The database decides. */
+const goalBonus = (d: TaskDifficulty) => REWARDS[d] * 10;
+const MIN_DAYS = 3;
 
 /** Whole days from `from` to `to` (YYYY-MM-DD). */
 function daysBetween(from: string, to: string) {
@@ -68,15 +74,22 @@ function GoalCard({ goal, steps, today }: { goal: GoalRow; steps: GoalStepRow[];
   const [open, setOpen] = useState(!goal.completed_at);
   const [newStep, setNewStep] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const doneSteps = steps.filter((s) => s.done_at).length;
   const pct = steps.length ? Math.round((doneSteps / steps.length) * 100) : goal.completed_at ? 100 : 0;
   const due = dueText(goal.target_date, today);
   const isDone = !!goal.completed_at;
-  const run = (fn: () => Promise<{ ok: boolean; error?: string }>) =>
+  const run = (fn: () => Promise<{ ok: boolean; error?: string; coins?: number }>) =>
     start(async () => {
       const r = await fn();
       setError(r.ok ? null : (r.error ?? "Something went wrong."));
+      if (r.ok && typeof r.coins === "number" && r.coins !== 0) setNote(r.coins > 0 ? `+${r.coins} coins!` : `${r.coins} coins`);
+      else if (r.ok) setNote(null);
     });
+  const ageDays = daysBetween(goal.created_at.slice(0, 10), today);
+  const bonus = goalBonus(goal.difficulty);
+  const [stepTier, setStepTier] = useState<TaskDifficulty>("easy");
+  const paidSteps = steps.filter((st) => st.coins > 0).length;
 
   return (
     <section className={`card ${isDone ? "opacity-80" : ""}`} aria-label={goal.title}>
@@ -97,7 +110,17 @@ function GoalCard({ goal, steps, today }: { goal: GoalRow; steps: GoalStepRow[];
               <CalendarClock className="size-3.5" aria-hidden /> {dateFmt.format(new Date(`${goal.target_date}T00:00:00Z`))}
               {!isDone && ` · ${due.text}`}
             </span>
-            {isDone && <span className="text-good">Done {dateFmt.format(new Date(goal.completed_at!))}</span>}
+            {isDone && (
+              <span className="text-good">
+                Done {dateFmt.format(new Date(goal.completed_at!))}
+                {goal.reward_coins ? ` · +${goal.reward_coins} coins` : ""}
+              </span>
+            )}
+            {!isDone && (
+              <span className="text-coin">
+                <CoinIcon className="size-3.5" /> {bonus} when reached{ageDays < MIN_DAYS ? ` (from day ${MIN_DAYS})` : ""}
+              </span>
+            )}
           </p>
         </div>
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={open ? "Hide steps" : "Show steps"} className="flex size-9 items-center justify-center rounded-lg text-muted hover:bg-raised">
@@ -133,6 +156,11 @@ function GoalCard({ goal, steps, today }: { goal: GoalRow; steps: GoalStepRow[];
                     {s.done_at && <Check className="size-4" strokeWidth={3} aria-hidden />}
                   </button>
                   <span className={`min-w-0 flex-1 text-sm break-words ${s.done_at ? "text-muted line-through" : ""}`}>{s.title}</span>
+                  {(s.coins > 0 || (!s.done_at && !isDone && paidSteps < 20)) && (
+                    <span className={`flex shrink-0 items-center gap-0.5 text-xs font-semibold ${s.done_at ? "text-good" : "text-coin"}`}>
+                      +{s.coins || REWARDS[s.difficulty]} <CoinIcon className="size-3.5" />
+                    </span>
+                  )}
                   <button type="button" disabled={pending} onClick={() => run(() => deleteGoalStep(s.id))} aria-label={`Delete step “${s.title}”`} className="flex size-8 items-center justify-center rounded-lg text-faint hover:bg-raised hover:text-ink">
                     <Trash2 className="size-4" aria-hidden />
                   </button>
@@ -147,16 +175,22 @@ function GoalCard({ goal, steps, today }: { goal: GoalRow; steps: GoalStepRow[];
                 e.preventDefault();
                 const title = newStep;
                 setNewStep("");
-                run(() => addGoalStep(goal.id, title));
+                run(() => addGoalStep(goal.id, title, stepTier));
               }}
             >
-              <input value={newStep} onChange={(e) => setNewStep(e.target.value)} maxLength={120} placeholder="Add a step" className="input flex-1" aria-label="New step" />
+              <input value={newStep} onChange={(e) => setNewStep(e.target.value)} maxLength={120} placeholder="Add a step" className="input min-w-0 flex-1" aria-label="New step" />
+              <select value={stepTier} onChange={(e) => setStepTier(e.target.value as TaskDifficulty)} className="input w-auto" aria-label="Step difficulty">
+                {DIFFICULTIES.map((d) => (
+                  <option key={d.id} value={d.id}>{d.label} +{REWARDS[d.id]}</option>
+                ))}
+              </select>
               <button type="submit" disabled={pending || !newStep.trim()} className="btn-secondary px-3" aria-label="Add step">
                 <Plus className="size-4" aria-hidden />
               </button>
             </form>
           )}
           {error && <p role="alert" className="text-sm text-bad">{error}</p>}
+          {note && !error && <p role="status" className="text-sm font-semibold text-good">{note}</p>}
           <div className="flex flex-wrap gap-2">
             {isDone ? (
               <button type="button" disabled={pending} onClick={() => run(() => setGoalDone(goal.id, false))} className="btn-secondary">
@@ -165,6 +199,11 @@ function GoalCard({ goal, steps, today }: { goal: GoalRow; steps: GoalStepRow[];
             ) : (
               <button type="button" disabled={pending} onClick={() => run(() => setGoalDone(goal.id, true))} className="btn-primary">
                 <Trophy className="size-4" aria-hidden /> Mark goal reached
+                {ageDays >= MIN_DAYS && (
+                  <span className="flex items-center gap-0.5">
+                    · +{bonus} <CoinIcon className="size-4 text-on-accent" />
+                  </span>
+                )}
               </button>
             )}
             <button
@@ -214,12 +253,29 @@ function AddGoalForm({ today }: { today: string }) {
           </select>
         </label>
       </div>
+      <fieldset>
+        <legend className="text-sm font-medium">Difficulty</legend>
+        <div className="mt-1 grid grid-cols-4 gap-1.5">
+          {DIFFICULTIES.map((d) => (
+            <label key={d.id} className="flex cursor-pointer flex-col items-center rounded-xl border border-line px-1 py-2 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent-soft">
+              <input type="radio" name="difficulty" value={d.id} defaultChecked={d.id === "medium"} className="sr-only" />
+              <span className="font-semibold">{d.label}</span>
+              <span className="flex items-center gap-0.5 text-xs text-coin">
+                +{goalBonus(d.id)} <CoinIcon className="size-3" />
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted">
+          Paid when you reach the goal, if you set it at least {MIN_DAYS} days before. Steps pay like tasks (easy +{REWARDS.easy} … epic +{REWARDS.epic}); choose each step&apos;s difficulty as you add it.
+        </p>
+      </fieldset>
       <label className="block">
         <span className="text-sm font-medium">Reach it by</span>
         <input type="date" name="target_date" required min={today} defaultValue={addDays(today, 30)} className="input mt-1" />
       </label>
       <label className="block">
-        <span className="text-sm font-medium">Steps <span className="font-normal text-muted">(one per line, optional)</span></span>
+        <span className="text-sm font-medium">Steps <span className="font-normal text-muted">(one per line, optional; easy +{REWARDS.easy} each, change later)</span></span>
         <textarea name="steps" rows={4} placeholder={"Run 1 km without stopping\nRun 3 km\nSign up for a race"} className="input mt-1" />
       </label>
       <label className="block">

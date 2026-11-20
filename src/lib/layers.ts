@@ -6,7 +6,7 @@ import { RECREATION_IDS } from "./game";
 import { isRoadType, key, type Lot, type Tile } from "./roads";
 import { roadPath, type Citizen, type Place } from "./sim";
 
-export type LayerId = "traffic" | "fire" | "crime" | "education" | "health" | "pollution" | "land_value" | "roads";
+export type LayerId = "traffic" | "fire" | "crime" | "education" | "health" | "pollution" | "land_value";
 
 export const LAYERS: { id: LayerId; label: string; good: string; bad: string; about: string }[] = [
   { id: "traffic", label: "Traffic", good: "Quiet", bad: "Jammed", about: "How busy each road is: daily trips compared with what the road can carry. Wider roads carry more." },
@@ -16,7 +16,6 @@ export const LAYERS: { id: LayerId; label: string; good: string; bad: string; ab
   { id: "health", label: "Health care", good: "Close by", bad: "Far away", about: "How close each home is to a clinic or hospital." },
   { id: "pollution", label: "Pollution & noise", good: "Clean", bad: "Polluted", about: "Spreads from factories, warehouses, gas stations and the airport, fading with distance." },
   { id: "land_value", label: "Land value", good: "High", bad: "Low", about: "Parks, water, trees and landmarks raise it; pollution lowers it." },
-  { id: "roads", label: "Road access", good: "Connected", bad: "No road", about: "Buildings only work when they touch a road." },
 ];
 
 /** One colored patch: a w × h area at (x, y) with value v (0 good … 1 bad). `raise` lifts it over a building. */
@@ -61,9 +60,6 @@ export function computeLayer(
   const cell = (l: Lot, v: number): LayerCell => ({ x: l.x, y: l.y, w: l.w, h: l.h, v: clamp(v), raise: true });
 
   switch (layer) {
-    case "roads":
-      return buildings.map((l) => cell(l, extras.connected.has(l.id) ? 0 : 1));
-
     case "fire": {
       const stations = ofTypes(["fire_station"]);
       return buildings.map((l) => {

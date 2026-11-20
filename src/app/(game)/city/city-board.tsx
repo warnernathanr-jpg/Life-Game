@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Car, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, Route as RouteIcon, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, LocateFixed, Maximize2, Minimize2, Moon, MousePointer2, Pause, Play, RotateCcw, RotateCw, Sun, Sunrise, Sunset, X, ZoomIn, ZoomOut } from "lucide-react";
+import { Ban, Car, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, LocateFixed, Maximize2, Minimize2, Moon, MousePointer2, Pause, Play, RotateCcw, RotateCw, Sun, Sunrise, Sunset, X, ZoomIn, ZoomOut } from "lucide-react";
 import dynamic from "next/dynamic";
 import { BuildingIcon, BulldozeIcon, CoinIcon } from "@/components/icons";
 import { computeLayer, LAYERS, type LayerId } from "@/lib/layers";
@@ -38,7 +38,6 @@ function LayerIcon({ id }: { id: LayerId | null }) {
     : id === "health" ? HeartPulse
     : id === "pollution" ? FactoryIcon
     : id === "land_value" ? GemIcon
-    : id === "roads" ? RouteIcon
     : Ban;
   return <Icon className="inline size-4 shrink-0" aria-hidden />;
 }

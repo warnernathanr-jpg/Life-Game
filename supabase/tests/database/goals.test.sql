@@ -10,7 +10,7 @@ select set_config('request.jwt.claims', '{"sub":"d1111111-1111-1111-1111-1111111
 
 select lives_ok($$ insert into public.goals (id, title, area, icon, target_date) values ('e1111111-1111-1111-1111-111111111111', 'Run a 5K', 'health', 'footprints', current_date + 60) $$, 'add a goal');
 select lives_ok($$ insert into public.goal_steps (goal_id, title, position) values ('e1111111-1111-1111-1111-111111111111', 'Run 1 km', 0), ('e1111111-1111-1111-1111-111111111111', 'Run 3 km', 1) $$, 'add steps');
-select lives_ok($$ update public.goal_steps set done_at = now() where title = 'Run 1 km' $$, 'check off a step');
+select results_eq($$ select coins from public.complete_goal_step((select id from public.goal_steps where title = 'Run 1 km')) $$, $$ values (10) $$, 'checking off an easy step pays 10');
 select throws_ok($$ insert into public.goals (title, target_date, icon) values ('Bad', current_date, 'Not An Icon!') $$, '23514', null, 'icons must be icon names');
 select lives_ok($$ insert into public.tasks (title, area, difficulty, repeat, icon) values ('Stretch', 'health', 'easy', 'daily', 'dumbbell') $$, 'tasks take an icon');
 select is((select icon from public.my_tasks() where title = 'Stretch'), 'dumbbell', 'my_tasks returns the icon');

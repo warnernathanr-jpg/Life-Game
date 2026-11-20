@@ -311,6 +311,7 @@ const goalSchema = z.object({
   notes: z.string().trim().max(1000, "Keep notes under 1,000 characters.").optional(),
   steps: z.string().max(4000).optional(),
   icon: z.string().optional(),
+  difficulty: z.enum(["easy", "medium", "hard", "epic"]).optional(),
 });
 
 export async function addGoal(prev: AddGoalState, formData: FormData): Promise<AddGoalState> {
@@ -321,6 +322,7 @@ export async function addGoal(prev: AddGoalState, formData: FormData): Promise<A
     notes: formData.get("notes") ?? "",
     steps: formData.get("steps") ?? "",
     icon: formData.get("icon") ?? undefined,
+    difficulty: formData.get("difficulty") ?? undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message, added: prev.added };
   const v = parsed.data;
@@ -333,6 +335,7 @@ export async function addGoal(prev: AddGoalState, formData: FormData): Promise<A
       area: v.area ? v.area : null,
       notes: v.notes ? v.notes : null,
       icon: isIconName(v.icon) ? v.icon : null,
+      difficulty: v.difficulty ?? "medium",
     })
     .select("id")
     .single();
@@ -355,42 +358,46 @@ export async function addGoal(prev: AddGoalState, formData: FormData): Promise<A
   return { added: (prev.added ?? 0) + 1 };
 }
 
-export async function addGoalStep(goalId: string, title: string): Promise<ActionResult> {
+export async function addGoalStep(goalId: string, title: string, difficulty: "easy" | "medium" | "hard" | "epic" = "easy"): Promise<ActionResult> {
   const clean = title.trim().slice(0, 120);
   if (!uuid.safeParse(goalId).success || !clean) return { ok: false, error: "Write the step first." };
+  if (!["easy", "medium", "hard", "epic"].includes(difficulty)) return { ok: false, error: gameError(null) };
   const { supabase } = await requireUser();
   const { count } = await supabase.from("goal_steps").select("id", { count: "exact", head: true }).eq("goal_id", goalId);
-  const { error } = await supabase.from("goal_steps").insert({ goal_id: goalId, title: clean, position: count ?? 0 });
+  const { error } = await supabase.from("goal_steps").insert({ goal_id: goalId, title: clean, position: count ?? 0, difficulty });
   if (error) return { ok: false, error: "Couldn't add the step." };
   refresh();
   return { ok: true };
 }
 
-export async function setGoalStepDone(stepId: string, done: boolean): Promise<ActionResult> {
+/** Check a step off (+coins) or uncheck it (coins taken back). */
+export async function setGoalStepDone(stepId: string, done: boolean): Promise<ActionResult<{ coins: number }>> {
   if (!uuid.safeParse(stepId).success) return { ok: false, error: gameError(null) };
   const { supabase } = await requireUser();
-  const { error } = await supabase.from("goal_steps").update({ done_at: done ? new Date().toISOString() : null }).eq("id", stepId);
-  if (error) return { ok: false, error: "Couldn't update the step." };
+  const { data, error } = await supabase.rpc(done ? "complete_goal_step" : "undo_goal_step", { p_step_id: stepId }).single();
+  if (error || !data) return { ok: false, error: gameError(error) };
   refresh();
-  return { ok: true };
+  return { ok: true, coins: Number(data.coins) };
 }
 
-export async function deleteGoalStep(stepId: string): Promise<ActionResult> {
+/** Delete a step (a checked step's coins are taken back). */
+export async function deleteGoalStep(stepId: string): Promise<ActionResult<{ coins: number }>> {
   if (!uuid.safeParse(stepId).success) return { ok: false, error: gameError(null) };
   const { supabase } = await requireUser();
-  const { error } = await supabase.from("goal_steps").delete().eq("id", stepId);
-  if (error) return { ok: false, error: "Couldn't delete the step." };
+  const { data, error } = await supabase.rpc("delete_goal_step", { p_step_id: stepId }).single();
+  if (error || !data) return { ok: false, error: gameError(error) };
   refresh();
-  return { ok: true };
+  return { ok: true, coins: Number(data.coins) };
 }
 
-export async function setGoalDone(goalId: string, done: boolean): Promise<ActionResult> {
+/** Mark a goal reached (+its bonus) or reopen it (bonus taken back). */
+export async function setGoalDone(goalId: string, done: boolean): Promise<ActionResult<{ coins: number }>> {
   if (!uuid.safeParse(goalId).success) return { ok: false, error: gameError(null) };
   const { supabase } = await requireUser();
-  const { error } = await supabase.from("goals").update({ completed_at: done ? new Date().toISOString() : null }).eq("id", goalId);
-  if (error) return { ok: false, error: "Couldn't update the goal." };
+  const { data, error } = await supabase.rpc(done ? "complete_goal" : "reopen_goal", { p_goal_id: goalId }).single();
+  if (error || !data) return { ok: false, error: gameError(error) };
   refresh();
-  return { ok: true };
+  return { ok: true, coins: Number(data.coins) };
 }
 
 export async function deleteGoal(goalId: string): Promise<ActionResult> {
