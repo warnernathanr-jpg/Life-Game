@@ -9,7 +9,7 @@ import * as THREE from "three";
 import { key, type Tile } from "@/lib/roads";
 import { roadPath, type Place } from "@/lib/sim";
 import { BOX, mat } from "./models";
-import { pointAt } from "./traffic";
+import { lotTileBy, pointAt } from "./traffic";
 import { busPositions, carPositions, isAhead, near } from "./vehicles";
 
 const SPEED = 1.8; // tiles a second
@@ -56,42 +56,58 @@ function reachableTiles(roads: Set<string>, from: Tile): Tile[] {
   return queue;
 }
 
-/** A tour for a lone station's bus: out to 2–3 random far-off road tiles and back to the station. */
-export function busTour(roads: Set<string>, home: Tile, random = Math.random): Leg[] {
+/** Every leg runs from just inside one station's lot to just inside the next (so buses pull out of and turn into it). */
+const START_U = 0.7;
+const legEnd = (leg: Leg) => leg.path.length - 0.7;
+
+/** Join road paths end to end (dropping the repeated tile where they meet). */
+function joined(parts: Tile[][]): Tile[] {
+  const out: Tile[] = [];
+  for (const p of parts) out.push(...(out.length ? p.slice(1) : p));
+  return out;
+}
+
+/** A tour for a lone station's bus: out past 2–3 random far-off roads and back into the station, as one path. */
+export function busTour(roads: Set<string>, station: Place, random = Math.random): Leg[] {
+  const home = station.entrance;
+  if (!home) return [];
   const tiles = reachableTiles(roads, home);
   const far = tiles.slice(Math.floor(tiles.length / 2));
   if (far.length < 2) return [];
   const stops = Array.from({ length: 2 + Math.floor(random() * 2) }, () => far[Math.floor(random() * far.length)]);
   const points = [home, ...stops, home];
-  const legs: Leg[] = [];
+  const parts: Tile[][] = [];
   for (let i = 0; i + 1 < points.length; i++) {
     const path = roadPath(roads, points[i], points[i + 1]);
-    if (path && path.length > 1) legs.push({ path, stop: false });
+    if (path && path.length > 1) parts.push(path);
   }
-  return legs;
+  if (!parts.length) return [];
+  const lot = lotTileBy(station, home);
+  return [{ path: [lot, ...joined(parts), lot], stop: true }];
 }
 
 /** The loop's legs: station to station (nearest unvisited next) and back to the first. */
 export function busRoute(places: Place[], roads: Set<string>): Leg[] {
-  const stations = places.filter((p) => p.typeId === "bus_station" && p.entrance).map((p) => p.entrance!);
+  const stations = places.filter((p) => p.typeId === "bus_station" && p.entrance);
   if (!stations.length) return [];
   const first = stations[0];
-  const reachable = stations.filter((s, i) => i === 0 || roadPath(roads, first, s));
+  const reachable = stations.filter((s, i) => i === 0 || roadPath(roads, first.entrance!, s.entrance!));
   if (reachable.length === 1) return []; // one station: tours instead (see busTour)
   const order = [first];
   const left = reachable.slice(1);
+  const dist = (a: Place, b: Place) => Math.abs(a.entrance!.x - b.entrance!.x) + Math.abs(a.entrance!.y - b.entrance!.y);
   while (left.length) {
     const at = order[order.length - 1];
     let best = 0;
-    for (let i = 1; i < left.length; i++) {
-      if (Math.abs(left[i].x - at.x) + Math.abs(left[i].y - at.y) < Math.abs(left[best].x - at.x) + Math.abs(left[best].y - at.y)) best = i;
-    }
+    for (let i = 1; i < left.length; i++) if (dist(left[i], at) < dist(left[best], at)) best = i;
     order.push(left.splice(best, 1)[0]);
   }
   const legs: Leg[] = [];
   for (let i = 0; i < order.length; i++) {
-    const path = roadPath(roads, order[i], order[(i + 1) % order.length]);
-    if (path && path.length > 1) legs.push({ path, stop: true });
+    const a = order[i];
+    const b = order[(i + 1) % order.length];
+    const road = roadPath(roads, a.entrance!, b.entrance!);
+    if (road) legs.push({ path: [lotTileBy(a, a.entrance!), ...road, lotTileBy(b, b.entrance!)], stop: true });
   }
   return legs;
 }
@@ -106,13 +122,14 @@ export function Buses({ places, roads, paused }: { places: Place[]; roads: Set<s
   const legs = useMemo(() => busRoute(places, roads), [places, roads]);
   const home = useMemo(() => {
     const st = places.filter((p) => p.typeId === "bus_station" && p.entrance);
-    return st.length >= 1 && legs.length === 0 ? st[0].entrance : null;
+    return st.length >= 1 && legs.length === 0 ? st[0] : null;
   }, [places, legs]);
   const count = legs.length ? Math.min(MAX_BUSES, places.filter((p) => p.typeId === "bus_station").length) : home ? 1 : 0;
+  /** Each bus: which leg, how far along it, seconds left inside a station (hidden), seconds held up by traffic. */
   const state = useRef<{ leg: number; u: number; wait: number; held: number }[]>([]);
-  const tour = useRef<{ legs: Leg[]; leg: number; u: number; wait: number; held: number }>({ legs: [], leg: 0, u: 0, wait: 0, held: 0 });
+  /** The lone station's bus: its current tour (empty = parked inside) and the countdown to the next one. */
+  const tour = useRef<{ legs: Leg[]; u: number; wait: number; held: number }>({ legs: [], u: START_U, wait: 0, held: 0 });
   const refs = useRef<(THREE.Group | null)[]>([]);
-  const ticker = useRef<number | null>(null);
   const pausedRef = useRef(paused);
   useLayoutEffect(() => {
     pausedRef.current = paused;
@@ -120,88 +137,89 @@ export function Buses({ places, roads, paused }: { places: Place[]; roads: Set<s
 
   // One station: the bus waits inside, then sets off on a tour (counted in real seconds, so an idle map isn't kept busy).
   useLayoutEffect(() => {
-    tour.current = { legs: [], leg: 0, u: 0, wait: 8 + Math.random() * 10, held: 0 };
+    tour.current = { legs: [], u: START_U, wait: 8 + Math.random() * 10, held: 0 };
     if (!home) return;
-    ticker.current = window.setInterval(() => {
+    const id = window.setInterval(() => {
       const t = tour.current;
       if (t.legs.length || pausedRef.current || document.hidden) return;
       t.wait -= 1;
       if (t.wait > 0) return;
       t.legs = busTour(roads, home);
-      t.leg = 0;
-      t.u = 0;
+      t.u = START_U;
       if (!t.legs.length) t.wait = 25 + Math.random() * 25;
       invalidate();
     }, 1000);
-    return () => {
-      if (ticker.current) window.clearInterval(ticker.current);
-    };
+    return () => window.clearInterval(id);
   }, [home, roads, invalidate]);
 
-  // A new route: spread the buses out along it.
+  // A new loop: spread the buses out along it.
   useLayoutEffect(() => {
-    state.current = Array.from({ length: count }, (_, i) => ({ leg: Math.floor((i * legs.length) / Math.max(1, count)) % Math.max(1, legs.length), u: 0, wait: i === 0 ? DWELL : 0, held: 0 }));
     busPositions.clear();
+    state.current = Array.from({ length: legs.length ? count : 0 }, (_, i) => ({
+      leg: Math.floor((i * legs.length) / Math.max(1, count)) % legs.length,
+      u: START_U,
+      wait: 1 + i * 1.5,
+      held: 0,
+    }));
     invalidate();
   }, [legs, count, invalidate]);
 
   useLayoutEffect(() => () => busPositions.clear(), []);
 
+  /** Place a bus on its leg (or hide it inside the station) and share where it is. */
+  const show = (i: number, leg: Leg | null, u: number) => {
+    const g = refs.current[i];
+    if (!g) return;
+    g.visible = !!leg;
+    if (!leg) {
+      busPositions.delete(i);
+      return;
+    }
+    const p = pointAt(leg.path, Math.min(u, leg.path.length - 1), LANE);
+    g.position.set(p.x, 0, p.z);
+    g.rotation.y = p.heading;
+    busPositions.set(i, { x: p.x, z: p.z, hx: Math.sin(p.heading), hz: Math.cos(p.heading) });
+  };
+
   useFrame((_, delta) => {
     const dt = paused ? 0 : Math.min(delta, 0.1);
     if (home) {
       const t = tour.current;
-      const g = refs.current[0];
-      if (g) g.visible = t.legs.length > 0;
-      if (!t.legs.length || !g) {
-        busPositions.delete(0);
-        return;
-      }
-      if (dt > 0 && clearAhead(t.legs[t.leg].path, t.u, 0, roads, t.held)) {
+      const leg = t.legs[0];
+      if (!leg) return show(0, null, 0);
+      if (dt > 0 && clearAhead(leg.path, t.u, 0, roads, t.held)) {
         t.u += dt * SPEED;
         t.held = 0;
       } else t.held += dt;
-      if (t.u >= t.legs[t.leg].path.length - 1) {
-        t.u = 0;
-        t.leg += 1;
-        if (t.leg >= t.legs.length) {
-          // Back at the station: park inside until the next tour.
-          t.legs = [];
-          t.wait = 25 + Math.random() * 25;
-          g.visible = false;
-          busPositions.delete(0);
-          return;
-        }
+      if (t.u >= legEnd(leg)) {
+        // Back inside the station: park until the next tour.
+        t.legs = [];
+        t.wait = 25 + Math.random() * 25;
+        return show(0, null, 0);
       }
-      const leg = t.legs[t.leg];
-      const p = pointAt(leg.path, Math.min(t.u, leg.path.length - 1), LANE);
-      g.position.set(p.x, 0, p.z);
-      g.rotation.y = p.heading;
-      busPositions.set(0, { x: p.x, z: p.z, hx: Math.sin(p.heading), hz: Math.cos(p.heading) });
+      show(0, leg, t.u);
       if (!paused) invalidate();
       return;
     }
     if (!legs.length) return;
     state.current.forEach((b, i) => {
+      if (b.wait > 0) {
+        // Stopped inside a station (hidden), letting people on and off.
+        b.wait -= dt;
+        return show(i, null, 0);
+      }
       const leg = legs[b.leg % legs.length];
-      if (b.wait > 0) b.wait -= dt;
-      else if (dt > 0 && !clearAhead(leg.path, b.u, i, roads, b.held)) b.held += dt;
-      else {
+      if (dt > 0 && clearAhead(leg.path, b.u, i, roads, b.held)) {
         b.u += dt * SPEED;
         b.held = 0;
-        if (b.u >= leg.path.length - 1) {
-          b.u = 0;
-          b.leg = (b.leg + 1) % legs.length;
-          b.wait = leg.stop ? DWELL : 0;
-        }
+      } else b.held += dt;
+      if (b.u >= legEnd(leg)) {
+        b.leg = (b.leg + 1) % legs.length;
+        b.u = START_U;
+        b.wait = DWELL;
+        return show(i, null, 0);
       }
-      const g = refs.current[i];
-      const at = legs[b.leg % legs.length];
-      if (!g) return;
-      const p = pointAt(at.path, Math.min(b.u, at.path.length - 1), LANE);
-      g.position.set(p.x, 0, p.z);
-      g.rotation.y = p.heading;
-      busPositions.set(i, { x: p.x, z: p.z, hx: Math.sin(p.heading), hz: Math.cos(p.heading) });
+      show(i, leg, b.u);
     });
     if (!paused) invalidate();
   });

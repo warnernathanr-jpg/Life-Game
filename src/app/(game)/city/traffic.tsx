@@ -84,7 +84,7 @@ const START_U = 0.7;
 const tripEnd = (path: Tile[]) => path.length - 0.7;
 
 /** The building's tile right next to its road entrance. */
-function lotTileBy(p: Place, ent: Tile): Tile {
+export function lotTileBy(p: Place, ent: Tile): Tile {
   for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
     const x = ent.x + dx;
     const y = ent.y + dy;

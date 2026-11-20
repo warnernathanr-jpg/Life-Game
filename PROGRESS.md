@@ -804,6 +804,11 @@ _Last updated: 2026-11-28_
   (`lotTileBy()` in `traffic.tsx`), so cars pull out of the building onto the road, and at the end turn off the road toward
   the building and disappear just past its edge (walkers too).
 
+- **Buses enter the station** (2026-11-28): each leg now starts and ends one tile inside a station's lot, so a bus turns off the
+  road into the station, is hidden during its 3-second stop, and pulls back out (before, the next leg started in the opposite
+  lane, so the bus seemed to jump across the street). A lone station's tour is one continuous path out of the station and back
+  in. Checked per frame for 40 s: no jumps (largest step 0.24 tiles at ~6 fps), buses seen inside the station lots.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
