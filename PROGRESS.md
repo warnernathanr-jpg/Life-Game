@@ -365,6 +365,17 @@ _Last updated: 2026-11-25_
 - Live test (throwaway account, deleted): 5 tabs, new heading font, /play fills the screen with Stats and Exit, a task with the
   dumbbell icon, a goal with 3 steps (1 checked → 33%), Stats tiles.
 
+### 24. Road icons, traffic that yields and turns smoothly (2026-11-26)
+- **Road icons** drawn in Lucide's style (`createLucideIcon` in `icons.tsx`): Dirt Road (slightly uneven edges + pebbles), 2-Lane
+  (dashed centre line), 4-Lane (double centre line + lane dashes), Bridge (deck over water). The Roads group uses the 2-lane icon.
+- **Traffic** (`traffic.tsx`): each trip has its own progress `u` (tiles) instead of a fixed timetable. `pointAt()` keeps right and
+  crosses each tile edge to edge, **curving through corners** (quadratic curve through the lane's corner). Cars **keep their
+  distance** (stop when a car is < 0.42 tiles ahead in their lane; two cars on the same spot: one waits), **take turns at
+  intersections** (tiles where 3+ roads meet are held by one car at a time; others wait at the edge; a 4-second timeout prevents
+  gridlock), and **don't pull out** onto a car at their starting point. Arrival times are estimated from the remaining distance.
+- Browser check on a 3×3 street grid with ~25 cars for 15 s: 0 overlapping pairs (closest 0.22 tiles; 37 overlaps before the
+  tie-break and departure check), cars caught mid-turn in 54 of 60 samples.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

@@ -47,7 +47,8 @@ export type SimProps = {
   onClock: (minutes: number) => void;
 };
 
-type Trip = { purpose: Purpose; fromId: string; toId: string; path: Tile[]; mode: "car" | "walk"; start: number };
+/** u: progress along the path in tiles (0 … path.length); waited: real seconds spent held at an intersection. */
+type Trip = { purpose: Purpose; fromId: string; toId: string; path: Tile[]; mode: "car" | "walk"; start: number; u: number; waited: number };
 type State = { at: string; until: number; trip: null } | { at: null; until: number; trip: Trip };
 
 /** The game starts at 7:15 AM on day 1, just as the morning commute begins. */
@@ -60,8 +61,54 @@ const SPEED = { car: 2.2, walk: 0.6 };
 /** Game clock shared across remounts (so changing the city doesn't send everyone back to 7:15). */
 const clock = { t: START };
 
-function tripMinutes(trip: Trip) {
-  return (Math.max(1, trip.path.length - 1) / SPEED[trip.mode]) * SIM_MINUTES_PER_SECOND;
+/** Game minutes still to go on a trip (for "arrives about"). */
+function minutesLeft(trip: Trip) {
+  return (Math.max(0, trip.path.length - trip.u) / SPEED[trip.mode]) * SIM_MINUTES_PER_SECOND;
+}
+
+/** How far right of the road's centre line people keep: cars in their lane, walkers on the sidewalk. */
+const SIDE = { car: 0.2, walk: 0.43 };
+/** A car stops when another car is this close ahead in its lane (tiles). */
+const GAP = 0.42;
+/** Give up waiting at an intersection after this many real seconds (avoids gridlock). */
+const MAX_WAIT = 4;
+
+type Dir = { x: number; z: number };
+const dirOf = (a: Tile, b: Tile): Dir => ({ x: Math.sign(b.x - a.x), z: Math.sign(b.y - a.y) });
+
+/**
+ * Where someone is at progress u along a path, keeping to the right. Each tile is crossed from its entry edge to its
+ * exit edge; on a turn tile the line curves (a quadratic curve through the lane's corner), so cars turn smoothly.
+ * The first and last tiles run from / to the tile's middle. Returns position and heading.
+ */
+function pointAt(path: Tile[], u: number, side: number) {
+  const n = path.length - 1;
+  if (n <= 0) return { x: path[0].x + 0.5, z: path[0].y + 0.5, heading: 0 };
+  const k = Math.max(0, Math.min(n, Math.floor(u)));
+  const f = Math.max(0, Math.min(1, u - k));
+  const dIn = dirOf(path[Math.max(0, k - 1)], path[Math.max(1, k)]);
+  const dOut = k < n ? dirOf(path[k], path[k + 1]) : dirOf(path[n - 1], path[n]);
+  const right = (d: Dir) => ({ x: -d.z * side, z: d.x * side });
+  const c = { x: path[k].x + 0.5, z: path[k].y + 0.5 };
+  const rIn = right(dIn);
+  const rOut = right(dOut);
+  const entry = k === 0 ? { x: c.x + rOut.x, z: c.z + rOut.z } : { x: c.x - dIn.x * 0.5 + rIn.x, z: c.z - dIn.z * 0.5 + rIn.z };
+  const exit = k === n ? { x: c.x + rIn.x, z: c.z + rIn.z } : { x: c.x + dOut.x * 0.5 + rOut.x, z: c.z + dOut.z * 0.5 + rOut.z };
+  const turning = k > 0 && k < n && (dIn.x !== dOut.x || dIn.z !== dOut.z) && !(dIn.x === -dOut.x && dIn.z === -dOut.z);
+  if (!turning) {
+    const dx = exit.x - entry.x;
+    const dz = exit.z - entry.z;
+    const d = k === 0 ? dOut : dIn;
+    return { x: entry.x + dx * f, z: entry.z + dz * f, heading: Math.atan2(dx || d.x, dz || d.z) };
+  }
+  // The lane's corner: along the incoming direction from the entry, across from the exit.
+  const ctrl = dIn.x !== 0 ? { x: exit.x, z: entry.z } : { x: entry.x, z: exit.z };
+  const g = 1 - f;
+  const x = g * g * entry.x + 2 * g * f * ctrl.x + f * f * exit.x;
+  const z = g * g * entry.z + 2 * g * f * ctrl.z + f * f * exit.z;
+  const tx = 2 * g * (ctrl.x - entry.x) + 2 * f * (exit.x - ctrl.x);
+  const tz = 2 * g * (ctrl.z - entry.z) + 2 * f * (exit.z - ctrl.z);
+  return { x, z, heading: Math.atan2(tx, tz) };
 }
 
 export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
@@ -102,21 +149,6 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
   const lastInfoKey = useRef("");
   const lastClock = useRef(-1);
 
-  /** Where someone on a trip is right now: position and heading. */
-  const placeOnPath = (trip: Trip, t: number, out: THREE.Vector3) => {
-    const p = Math.min(trip.path.length - 1, ((t - trip.start) / SIM_MINUTES_PER_SECOND) * SPEED[trip.mode]);
-    const i = Math.min(Math.floor(p), Math.max(0, trip.path.length - 2));
-    const a = trip.path[i];
-    const b = trip.path[Math.min(i + 1, trip.path.length - 1)];
-    const f = trip.path.length > 1 ? p - i : 0;
-    const dx = b.x - a.x;
-    const dz = b.y - a.y;
-    // Keep right: cars in their lane, people on the sidewalk by the curb.
-    const side = trip.mode === "car" ? 0.2 : 0.43; // walkers on the sidewalk by the curb
-    out.set(a.x + 0.5 + dx * f - dz * side, 0, a.y + 0.5 + dz * f + dx * side);
-    return Math.atan2(dx, dz);
-  };
-
   const describe = (c: Citizen, t: number): CitizenInfo => {
     const s = states.current.get(c.id);
     const base = { id: c.id, name: c.name, age: c.age, role: roleText(c, places) };
@@ -129,7 +161,7 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
       return {
         ...base,
         status: `${verb} ${where}`,
-        detail: `From ${s.trip.fromId === c.homeId ? "home" : (from?.name ?? "somewhere")} · arrives about ${clockText(s.trip.start + tripMinutes(s.trip))}`,
+        detail: `From ${s.trip.fromId === c.homeId ? "home" : (from?.name ?? "somewhere")} · arrives about ${clockText(t + minutesLeft(s.trip))}`,
         mode: s.trip.mode,
         placeId: s.trip.toId,
       };
@@ -141,11 +173,18 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
     return { ...base, status: label, detail, mode: "inside", placeId: s.at };
   };
 
-  const v = useMemo(() => new THREE.Vector3(), []);
+  // Which car is crossing each intersection tile right now.
+  const reservations = useRef(new Map<string, string>());
+  const isJunction = (tile: Tile) => {
+    let n = 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (roads.has(key(tile.x + dx, tile.y + dy))) n++;
+    return n >= 3;
+  };
 
   useFrame((_, delta) => {
     const t0 = clock.t;
-    if (!sim.paused) clock.t += Math.min(delta, 0.1) * SIM_MINUTES_PER_SECOND;
+    const dt = sim.paused ? 0 : Math.min(delta, 0.1);
+    clock.t += dt * SIM_MINUTES_PER_SECOND;
     const t = clock.t;
     let active = 0;
     for (const s of states.current.values()) if (s.trip) active++;
@@ -155,7 +194,7 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
         const s = states.current.get(c.id);
         if (!s) continue;
         if (s.trip) {
-          if (t >= s.trip.start + tripMinutes(s.trip)) {
+          if (s.trip.u >= s.trip.path.length) {
             const purpose = s.trip.purpose;
             const linger = purpose === "home" ? 30 : dwellMinutes(purpose, random.current);
             states.current.set(c.id, { at: s.trip.toId, until: t + linger, trip: null });
@@ -181,8 +220,82 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
           continue;
         }
         const mode = travelMode(path.length, plan.purpose, c.age);
-        states.current.set(c.id, { at: null, until: 0, trip: { purpose: plan.purpose, fromId: s.at, toId: plan.toId, path, mode, start: t } });
+        // Don't pull out on top of another car: wait a moment until the start of the road is clear.
+        if (mode === "car") {
+          const start = pointAt(path, 0, SIDE.car);
+          const crowded = [...states.current.values()].some((o) => {
+            if (!o.trip || o.trip.mode !== "car") return false;
+            const q = pointAt(o.trip.path, o.trip.u, SIDE.car);
+            return Math.hypot(q.x - start.x, q.z - start.z) < GAP;
+          });
+          if (crowded) {
+            s.until = t + 2;
+            continue;
+          }
+        }
+        states.current.set(c.id, { at: null, until: 0, trip: { purpose: plan.purpose, fromId: s.at, toId: plan.toId, path, mode, start: t, u: 0, waited: 0 } });
         active++;
+      }
+    }
+
+    // Move everyone who's out. Walkers just walk; cars keep their distance and take turns at intersections.
+    if (dt > 0) {
+      const travelling: { id: string; trip: Trip; x: number; z: number; hx: number; hz: number }[] = [];
+      for (const c of sim.citizens) {
+        const s = states.current.get(c.id);
+        if (!s?.trip || s.trip.mode !== "car") continue;
+        const p = pointAt(s.trip.path, s.trip.u, SIDE.car);
+        travelling.push({ id: c.id, trip: s.trip, x: p.x, z: p.z, hx: Math.sin(p.heading), hz: Math.cos(p.heading) });
+      }
+      const holds = reservations.current;
+      // Forget holds by cars that are no longer driving.
+      const driving = new Set(travelling.map((a) => a.id));
+      for (const [k, id] of holds) if (!driving.has(id)) holds.delete(k);
+      for (const c of sim.citizens) {
+        const s = states.current.get(c.id);
+        if (!s?.trip) continue;
+        const trip = s.trip;
+        const step = dt * SPEED[trip.mode];
+        if (trip.mode === "walk") {
+          trip.u += step;
+          continue;
+        }
+        const me = travelling.find((a) => a.id === c.id)!;
+        // 1. Following: someone just ahead in the same direction → wait.
+        const blocked = travelling.some((o) => {
+          if (o.id === c.id) return false;
+          const dx = o.x - me.x;
+          const dz = o.z - me.z;
+          const ahead = dx * me.hx + dz * me.hz;
+          const sideways = Math.abs(dx * me.hz - dz * me.hx);
+          const sameWay = o.hx * me.hx + o.hz * me.hz > 0.3;
+          if (!sameWay || sideways >= 0.18) return false;
+          // Right on top of each other (e.g. two cars that just left the same place): one waits.
+          if (Math.abs(ahead) <= 0.05) return o.id < c.id;
+          return ahead > 0 && ahead < GAP;
+        });
+        // 2. Intersections (3+ roads meet): only one car inside at a time; others wait at the edge.
+        const k = Math.floor(trip.u);
+        const next = trip.path[k + 1];
+        let mayGo = !blocked;
+        if (mayGo && next && trip.u - k > 0.55 && isJunction(next)) {
+          const nk = key(next.x, next.y);
+          const holder = holds.get(nk);
+          if (holder && holder !== c.id && trip.waited < MAX_WAIT) mayGo = false;
+          else holds.set(nk, c.id);
+        }
+        if (mayGo) {
+          const before = Math.floor(trip.u);
+          trip.u = Math.min(trip.u + step, trip.path.length);
+          trip.waited = 0;
+          // Left a tile: let go of it.
+          if (Math.floor(trip.u) !== before) {
+            const left = trip.path[before];
+            if (left && holds.get(key(left.x, left.y)) === c.id) holds.delete(key(left.x, left.y));
+          }
+        } else {
+          trip.waited += dt;
+        }
       }
     }
 
@@ -199,10 +312,10 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
       if (slot >= (isCar ? CAR_SLOTS : WALK_SLOTS)) continue;
       const g = (isCar ? carRefs : walkRefs).current[slot];
       if (!g) continue;
-      const heading = placeOnPath(s.trip, t, v);
+      const pt = pointAt(s.trip.path, s.trip.u, SIDE[s.trip.mode]);
       g.visible = true;
-      g.position.set(v.x, isCar ? 0.03 : 0.065 + Math.abs(Math.sin(t * 9 + c.seed)) * 0.012, v.z); // walkers stand on the sidewalk
-      g.rotation.y = heading;
+      g.position.set(pt.x, isCar ? 0.03 : 0.065 + Math.abs(Math.sin(t * 9 + c.seed)) * 0.012, pt.z); // walkers stand on the sidewalk
+      g.rotation.y = pt.heading;
       const list = isCar ? owners.car : owners.walk;
       if (list[slot] !== c.id) {
         list[slot] = c.id;
@@ -276,7 +389,7 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
         for (const g of refs.current) {
           if (!g?.visible) continue;
           const p = g.position.clone().setY(0.08).project(camera);
-          out.push({ kind, x: r.left + ((p.x + 1) / 2) * r.width, y: r.top + ((1 - p.y) / 2) * r.height });
+          out.push({ kind, x: r.left + ((p.x + 1) / 2) * r.width, y: r.top + ((1 - p.y) / 2) * r.height, wx: g.position.x, wz: g.position.z, h: g.rotation.y } as never);
         }
       }
       return out;

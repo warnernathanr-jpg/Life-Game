@@ -89,9 +89,44 @@ import {
   Sun,
   Target,
   Wallet,
+  createLucideIcon,
   type LucideIcon,
   type LucideProps,
 } from "lucide-react";
+
+// Road icons drawn in Lucide's style (24×24, 2px round strokes), seen from above, so each kind is easy to tell apart.
+/** Dirt road: slightly uneven edges and a few pebbles, no markings. */
+export const DirtRoadIcon = createLucideIcon("dirt-road", [
+  ["path", { d: "M6 2l.6 7-.6 6 .4 7", key: "l" }],
+  ["path", { d: "M18 2l-.4 6 .6 7-.6 7", key: "r" }],
+  ["circle", { cx: "11", cy: "6", r: ".6", key: "p1" }],
+  ["circle", { cx: "13.5", cy: "12", r: ".6", key: "p2" }],
+  ["circle", { cx: "10.5", cy: "17.5", r: ".6", key: "p3" }],
+]);
+/** 2-lane road: straight edges and a dashed centre line. */
+export const TwoLaneRoadIcon = createLucideIcon("two-lane-road", [
+  ["path", { d: "M5 2v20", key: "l" }],
+  ["path", { d: "M19 2v20", key: "r" }],
+  ["path", { d: "M12 3v3", key: "d1" }],
+  ["path", { d: "M12 10.5v3", key: "d2" }],
+  ["path", { d: "M12 18v3", key: "d3" }],
+]);
+/** 4-lane road: wide, with a double centre line and dashed lane lines on each side. */
+export const FourLaneRoadIcon = createLucideIcon("four-lane-road", [
+  ["path", { d: "M2 2v20", key: "l" }],
+  ["path", { d: "M22 2v20", key: "r" }],
+  ["path", { d: "M10.5 2v20", key: "c1" }],
+  ["path", { d: "M13.5 2v20", key: "c2" }],
+  ["path", { d: "M6.25 3.5v3M6.25 10.5v3M6.25 17.5v3", key: "dl" }],
+  ["path", { d: "M17.75 3.5v3M17.75 10.5v3M17.75 17.5v3", key: "dr" }],
+]);
+/** Bridge: a road deck over water. */
+export const BridgeRoadIcon = createLucideIcon("bridge-road", [
+  ["path", { d: "M2 10h20", key: "deck" }],
+  ["path", { d: "M2 14h20", key: "deck2" }],
+  ["path", { d: "M6 14v4M18 14v4", key: "piers" }],
+  ["path", { d: "M2 21c2-1.3 4-1.3 6 0s4 1.3 6 0 4-1.3 6 0", key: "water" }],
+]);
 import type { IconName } from "@/lib/task-icons";
 
 /** The icons a task or goal can have (names in src/lib/task-icons.ts). */
@@ -164,10 +199,10 @@ const BUILDING: Record<string, LucideIcon> = {
   // Landmarks
   monument: Award,
   // Roads and landscape
-  dirt_road: Route,
-  road: Route,
-  avenue: Route,
-  bridge: Route,
+  dirt_road: DirtRoadIcon,
+  road: TwoLaneRoadIcon,
+  avenue: FourLaneRoadIcon,
+  bridge: BridgeRoadIcon,
   tree: TreePine,
   water: Droplets,
 };
@@ -181,7 +216,7 @@ const GROUP: Record<string, LucideIcon> = {
   recreation: Trees,
   transport: Bus,
   landmark: Flag,
-  road: Route,
+  road: TwoLaneRoadIcon,
   landscape: TreePine,
 };
 
