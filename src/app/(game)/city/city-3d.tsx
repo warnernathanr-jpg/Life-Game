@@ -9,6 +9,8 @@ import { AVENUE_TYPE, BRIDGE_TYPE, DIRT_ROAD_TYPE, effectiveFacing, isRoadType, 
 import { layerColor, type LayerCell } from "@/lib/layers";
 import { Traffic, type SimProps } from "./traffic";
 import { LotDressing } from "./lot-dressing";
+import { Airplanes } from "./airplanes";
+import { palFor } from "./models-catalog";
 import { DayNight, GRID_MAT, StreetLights } from "./day-night";
 import { RoadControls } from "./road-controls";
 import type { RoadControlKind } from "@/lib/database.types";
@@ -320,6 +322,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
                 <group rotation-y={FACING_ROTATION[facing]}>
                   <BuildingModel typeId={b.type_id} seed={b.color_seed ?? colorSeed(b.id)} join={joins.get(b.id)} />
                   <LotDressing typeId={b.type_id} seed={colorSeed(b.id)} lw={sideways ? b.h : b.w} ld={sideways ? b.w : b.h} />
+                  {b.type_id === "airport" && <Airplanes seed={colorSeed(b.id)} accent={palFor(b.color_seed ?? colorSeed(b.id)).accent} />}
                 </group>
               );
             })()}

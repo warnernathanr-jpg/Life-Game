@@ -545,6 +545,9 @@ _Last updated: 2026-11-27_
   an entrance canopy, a flag pole and a playground with a slide and swings (the old windows floated past the building).
 - **Football Stadium** (was Sports Stadium): striped field with yard lines, end zones in the team color, goal posts, three-tier stands
   on both long sides, end stands, a scoreboard and light towers. Migration `20261127040000_football_stadium.sql` (applied live).
+- **Airplanes** (`airplanes.tsx`): every 25 seconds a jet (in the airport's color) lines up at the end of each airport's runway,
+  rolls down it speeding up, lifts off nose-up and climbs away over the city, then disappears; airports are offset so they don't
+  take off together. The renderer only runs continuously while a plane is in the air.
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
