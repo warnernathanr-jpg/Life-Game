@@ -1,7 +1,7 @@
 "use client";
 
 // Side panels and small pieces of the city screen.
-import { X, ArrowUp, Briefcase, Frown, Lock, Meh, Smile, Star, TriangleAlert, Users, type LucideIcon } from "lucide-react";
+import { X, ArrowUp, RotateCw, Briefcase, Frown, Lock, Meh, Smile, Star, TriangleAlert, Users, type LucideIcon } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { AreaIcon, BuildingIcon, CoinIcon, GroupIcon } from "@/components/icons";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
@@ -192,6 +192,8 @@ export function SelectedPanel({
   onUpgrade,
   canMove,
   onMove,
+  canTurn,
+  onTurn,
   onSell,
   onClose,
   people,
@@ -210,6 +212,9 @@ export function SelectedPanel({
   onUpgrade: () => void;
   canMove: boolean;
   onMove: () => void;
+  /** Rectangles: turn 90° where it stands. */
+  canTurn?: boolean;
+  onTurn?: () => void;
   onSell: () => void;
   onClose: () => void;
   /** Residents, staff or students of this building (from the city simulation). */
@@ -368,6 +373,11 @@ export function SelectedPanel({
         {canRotate && (
           <button type="button" className="btn-secondary col-span-2" disabled={pending} onClick={onRotate}>
             ⟳ Rotate to face the other road
+          </button>
+        )}
+        {canTurn && (
+          <button type="button" className="btn-secondary col-span-2" disabled={pending} onClick={onTurn}>
+            <RotateCw className="size-4" aria-hidden /> Turn 90°
           </button>
         )}
         {canMove && <button type="button" className="btn-secondary" disabled={pending} onClick={onMove}>Move</button>}

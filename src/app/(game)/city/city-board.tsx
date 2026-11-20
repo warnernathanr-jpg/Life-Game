@@ -468,6 +468,24 @@ export function CityBoard(props: {
     });
   }
 
+  /** Turn a rectangular building 90° where it stands (shifted by a tile if that's what it takes to fit). Free. */
+  function turnInPlace(lot: Lot & { rotated?: boolean }) {
+    const t = typeById.get(lot.type_id);
+    if (!t) return;
+    const rotated = !(lot as { rotated?: boolean }).rotated;
+    const dims = footprint(t, rotated);
+    // Anchors whose turned footprint still covers part of the old one, nearest first.
+    const options: Tile[] = [];
+    for (let dy = -(dims.h - 1); dy <= lot.h - 1; dy++) for (let dx = -(dims.w - 1); dx <= lot.w - 1; dx++) options.push({ x: lot.x + dx, y: lot.y + dy });
+    options.sort((a, b) => Math.abs(a.x - lot.x) + Math.abs(a.y - lot.y) - (Math.abs(b.x - lot.x) + Math.abs(b.y - lot.y)));
+    const spot = options.find((o) => lotFree(size, { x: o.x, y: o.y, ...dims }, lots, lot.id));
+    if (!spot) return say("There isn't room to turn it here. Move it somewhere with more space.", "bad");
+    start(async () => {
+      const r = await moveBuilding(lot.id, spot.x, spot.y, rotated);
+      if (!r.ok) return say(r.error, "bad");
+    });
+  }
+
   /** Put a stop sign or traffic light on a crossing (with a confirm). */
   async function putControl(x: number, y: number, kind: RoadControlKind) {
     const info = ROAD_CONTROLS.find((c) => c.kind === kind)!;
@@ -693,6 +711,8 @@ export function CityBoard(props: {
       upgrade={upgradeInfo(selected)}
       onUpgrade={() => upgrade(selected)}
       canMove={selectedType?.category !== "road" && selectedType?.category !== "landscape"}
+      canTurn={!!selectedType && selectedType.w !== selectedType.d && selectedType.category !== "road" && selectedType.category !== "landscape"}
+      onTurn={() => turnInPlace(selected)}
       onMove={() => setMode({ kind: "move", id: selected.id })}
       onSell={() => sell(selected)}
       people={people}

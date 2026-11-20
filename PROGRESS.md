@@ -548,6 +548,9 @@ _Last updated: 2026-11-27_
 - **Airplanes** (`airplanes.tsx`): every 25 seconds a jet (in the airport's color) lines up at the end of each airport's runway,
   rolls down it speeding up, lifts off nose-up and climbs away over the city, then disappears; airports are offset so they don't
   take off together. The renderer only runs continuously while a plane is in the air.
+- **Turn 90°** on placed rectangular buildings (2×1, 3×1, 4×3…): the selected-building panel turns it where it stands, shifted by a
+  tile if needed so the turned footprint still covers part of the old one and fits (`turnInPlace()` in `city-board.tsx`, via
+  `move_building` with `rotated`); free. Before, turning meant Move → Turn → Move here.
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
