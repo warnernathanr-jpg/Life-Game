@@ -30,6 +30,7 @@ const taskSchema = z
     weekdays: z.array(z.coerce.number().int().min(1).max(7)),
     times: z.string().optional(),
     icon: z.string().optional(),
+    due: z.string().optional(),
   })
   .transform((v, ctx) => {
     const out = {
@@ -40,7 +41,15 @@ const taskSchema = z
       weekdays: null as number[] | null,
       times_per_period: null as number | null,
       icon: isIconName(v.icon) ? v.icon : null,
+      due_date: null as string | null,
     };
+    if (v.repeat === "once" && v.due) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v.due) || Number.isNaN(Date.parse(`${v.due}T12:00:00Z`))) {
+        ctx.addIssue({ code: "custom", message: "Pick a valid due date." });
+        return z.NEVER;
+      }
+      out.due_date = v.due;
+    }
     if (v.repeat === "days") {
       if (v.weekdays.length === 0) {
         ctx.addIssue({ code: "custom", message: "Pick at least one day." });
@@ -69,6 +78,7 @@ export async function addTask(prev: AddTaskState, formData: FormData): Promise<A
     weekdays: formData.getAll("weekdays"),
     times: formData.get("times") ?? undefined,
     icon: formData.get("icon") ?? undefined,
+    due: formData.get("due") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message, added: prev.added };
   const { supabase } = await requireUser();

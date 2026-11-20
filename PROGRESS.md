@@ -429,6 +429,19 @@ _Last updated: 2026-11-27_
 - **Landing page**: no coin amounts per task; a "See what you can build" section with three screenshots of a sample city
   (`public/landing/*.webp`: overview, build menu, land value layer).
 
+### 30. Tasks calendar and due dates (2026-11-27)
+- **Due dates** for one-off tasks (optional, on the add form). Today's list shows "Due today" / "Due tomorrow" / "Overdue (Nov 18)"
+  (amber, never red); one-offs due later wait under **Coming up** (they can still be checked off early) and move to To do on
+  their day. Migration `20261127000000_task_due_date.sql` (applied live): `tasks.due_date` (one-offs only, by constraint),
+  `my_tasks()` returns it. 5 pgTAP tests (`task_due_date.test.sql`, 267 total).
+- **Calendar** on the Tasks page (`?view=day|week|month&date=YYYY-MM-DD`): Day / Week / Month tabs, ‹ › to flip
+  (Tomorrow, Sat Nov 22…, next week, next month) and a Today button. Day view for today is the usual checkable list; other
+  days list what's on them (done ones ticked; future ones "planned"). Week: seven day cards (stacked on phones). Month: a
+  grid with task titles (dots on phones, green when done); tapping a day opens it. Daily tasks show every day from when
+  they were added, certain-days tasks on their weekdays, one-offs on their due date (undated ones on today), and weekly /
+  monthly / N-times tasks in an "Any day this week/month" list with how often they were done. Check-offs still only happen
+  on today's list. `src/lib/task-calendar.ts` (4 unit tests), `src/app/(game)/tasks/calendar.tsx`.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

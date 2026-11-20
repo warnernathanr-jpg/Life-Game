@@ -9,10 +9,13 @@ import { addDays, isHabit, summarizeHabit, type HabitSummary } from "@/lib/habit
 import { daysUntilNext } from "@/lib/tasks";
 import { AddTaskForm } from "./add-task-form";
 import { TaskList } from "./task-list";
+import { CalendarBar, DayView, MonthView, WeekView, viewRange } from "./calendar";
+import type { CalendarView } from "@/lib/task-calendar";
 
 export const metadata: Metadata = { title: "Tasks · Life City" };
 
-async function TasksPageContent() {
+async function TasksPageContent({ searchParams }: { searchParams: PageProps<"/tasks">["searchParams"] }) {
+  const sp = await searchParams;
   const { supabase } = await requireUser();
   const [{ data: tasks }, { data: progress }, { data: types }, { data: profile }] = await Promise.all([
     supabase.rpc("my_tasks"),
@@ -26,14 +29,28 @@ async function TasksPageContent() {
     .from("task_completions")
     .select("task_id, local_day")
     .gte("local_day", addDays(today, -35));
+  const view: CalendarView = sp.view === "week" || sp.view === "month" ? sp.view : "day";
+  const date = typeof sp.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) && !Number.isNaN(Date.parse(sp.date)) ? sp.date : today;
+  const calendarOn = !(view === "day" && date === today);
+  const done = new Map<string, Set<string>>();
+  if (calendarOn) {
+    const [from, to] = viewRange(view, date);
+    const { data: rows } = await supabase.from("task_completions").select("task_id, local_day").gte("local_day", from).lte("local_day", to);
+    for (const r of rows ?? []) if (r.task_id) done.set(r.task_id, (done.get(r.task_id) ?? new Set()).add(r.local_day));
+  }
   const daysByTask = new Map<string, string[]>();
   for (const c of recent ?? []) if (c.task_id) daysByTask.set(c.task_id, [...(daysByTask.get(c.task_id) ?? []), c.local_day]);
 
   const all = tasks ?? [];
   const active = all.filter((t) => !t.archived_at);
   // To do: on today and still needs doing. Done: checked off today, or done earlier this week/month/quarter/year.
-  const todo = active.filter((t) => t.scheduled_today && !t.done && !t.done_today);
-  const done = active.filter((t) => t.done_today || (t.done && !["once", "daily", "days"].includes(t.repeat)));
+  // One-offs due on a later day wait under "Coming up" (they can still be done early).
+  const later = (t: (typeof active)[number]) => t.repeat === "once" && !!t.due_date && t.due_date > today && !t.done;
+  const todo = active
+    .filter((t) => t.scheduled_today && !t.done && !t.done_today && !later(t))
+    .sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"));
+  const upcoming = active.filter(later).sort((a, b) => a.due_date!.localeCompare(b.due_date!));
+  const doneList = active.filter((t) => t.done_today || (t.done && !["once", "daily", "days"].includes(t.repeat)));
   const otherDays = active
     .filter((t) => !t.scheduled_today && !t.done_today)
     .sort((a, b) => daysUntilNext(a.weekdays ?? [], a.today) - daysUntilNext(b.weekdays ?? [], b.today));
@@ -50,13 +67,25 @@ async function TasksPageContent() {
             {profile?.display_name ? `Hi, ${profile.display_name}` : "Today"}
           </h1>
           <p className="text-sm text-muted">
-            {todo.length === 0 && active.length > 0
+            {calendarOn
+              ? "Tap a day to see it on its own. Check tasks off on today's list."
+              : todo.length === 0 && active.length > 0
               ? "Everything's done. Go build something!"
-              : `${todo.length} to do · ${done.length} done`}
+              : `${todo.length} to do · ${doneList.length} done`}
           </p>
         </div>
 
-        <TaskList todo={todo} done={done} otherDays={otherDays} habits={habits} />
+        <CalendarBar view={view} date={date} today={today} />
+
+        {!calendarOn ? (
+          <TaskList todo={todo} done={doneList} otherDays={otherDays} upcoming={upcoming} habits={habits} />
+        ) : view === "day" ? (
+          <DayView tasks={active} date={date} today={today} done={done} />
+        ) : view === "week" ? (
+          <WeekView tasks={active} date={date} today={today} done={done} />
+        ) : (
+          <MonthView tasks={active} date={date} today={today} done={done} />
+        )}
 
         <section className="card" aria-labelledby="add-task">
           <h2 id="add-task" className="mb-3 font-semibold">Add a task</h2>
@@ -84,10 +113,10 @@ async function TasksPageContent() {
   );
 }
 
-export default function TasksPage() {
+export default function TasksPage({ searchParams }: PageProps<"/tasks">) {
   return (
     <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
-      <TasksPageContent />
+      <TasksPageContent searchParams={searchParams} />
     </Suspense>
   );
 }

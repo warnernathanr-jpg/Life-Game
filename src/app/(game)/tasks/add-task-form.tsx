@@ -87,6 +87,13 @@ export function AddTaskForm() {
           </div>
         </fieldset>
       )}
+      {repeat === "once" && (
+        <label className="block">
+          <span className="text-sm font-medium text-ink">Due date <span className="font-normal text-muted">(optional)</span></span>
+          <input key={state.added ?? 0} name="due" type="date" className="input mt-1" />
+          <span className="mt-1 block text-xs text-muted">Shows on that day in the calendar.</span>
+        </label>
+      )}
       {(repeat === "times_per_week" || repeat === "times_per_month") && (
         <label className="block">
           <span className="text-sm font-medium text-ink">How many times a {repeat === "times_per_week" ? "week" : "month"}?</span>

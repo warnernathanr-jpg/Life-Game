@@ -38,6 +38,8 @@ export type TaskRow = {
   created_at: string;
   /** A Lucide icon name from src/lib/task-icons.ts (null: the life area's icon). */
   icon: string | null;
+  /** One-off tasks only: the day it's due (YYYY-MM-DD), or null. */
+  due_date: string | null;
 };
 
 export type GoalRow = {
@@ -134,6 +136,7 @@ export type MyTaskRow = {
   total_completions: number;
   today: string;
   icon: string | null;
+  due_date: string | null;
 };
 
 export type FocusSessionRow = {
@@ -166,8 +169,8 @@ export type Database = {
       profiles: Table<ProfileRow, Partial<ProfileRow>, Partial<Pick<ProfileRow, "display_name" | "timezone" | "city_name">>>;
       tasks: Table<
         TaskRow,
-        Pick<TaskRow, "title" | "area"> & Partial<Pick<TaskRow, "difficulty" | "repeat" | "user_id" | "weekdays" | "times_per_period" | "icon">>,
-        Partial<Pick<TaskRow, "title" | "area" | "difficulty" | "repeat" | "archived_at" | "weekdays" | "times_per_period" | "icon">>
+        Pick<TaskRow, "title" | "area"> & Partial<Pick<TaskRow, "difficulty" | "repeat" | "user_id" | "weekdays" | "times_per_period" | "icon" | "due_date">>,
+        Partial<Pick<TaskRow, "title" | "area" | "difficulty" | "repeat" | "archived_at" | "weekdays" | "times_per_period" | "icon" | "due_date">>
       >;
       goals: Table<
         GoalRow,

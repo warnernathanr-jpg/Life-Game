@@ -12,23 +12,27 @@ import type { MyTaskRow } from "@/lib/database.types";
 import { AREA_BY_ID, nextMilestone } from "@/lib/game";
 import { rateWords, type HabitSummary } from "@/lib/habits";
 import { describeNext, describeProgress, describeSchedule } from "@/lib/tasks";
+import { describeDue } from "@/lib/task-calendar";
 import { completeTask, removeTask, undoTask } from "../actions";
 
 export function TaskList({
   todo,
   done,
   otherDays,
+  upcoming,
   habits,
 }: {
   todo: MyTaskRow[];
   done: MyTaskRow[];
   otherDays: MyTaskRow[];
+  /** One-offs due on a later day (can be done early). */
+  upcoming: MyTaskRow[];
   habits: Record<string, HabitSummary>;
 }) {
   const [message, setMessage] = useState<{ text: string; tone: "good" | "bad" } | null>(null);
   const [pop, setPop] = useState<{ id: string; coins: number; key: number } | null>(null);
 
-  if (todo.length + done.length + otherDays.length === 0) {
+  if (todo.length + done.length + otherDays.length + upcoming.length === 0) {
     return (
       <div className="card text-center">
         <Sprout className="mx-auto size-10 text-good" aria-hidden />
@@ -60,6 +64,16 @@ export function TaskList({
           <h2 id="done-h" className="px-4 pt-4 font-semibold sm:px-5">Done</h2>
           <ul className="divide-y divide-line">
             {done.map((t) => (
+              <TaskRow key={t.id} task={t} habit={habits[t.id]} pop={pop} setPop={setPop} setMessage={setMessage} />
+            ))}
+          </ul>
+        </section>
+      )}
+      {upcoming.length > 0 && (
+        <section className="card p-0 sm:p-0" aria-labelledby="up-h">
+          <h2 id="up-h" className="px-4 pt-4 font-semibold sm:px-5">Coming up</h2>
+          <ul className="divide-y divide-line">
+            {upcoming.map((t) => (
               <TaskRow key={t.id} task={t} habit={habits[t.id]} pop={pop} setPop={setPop} setMessage={setMessage} />
             ))}
           </ul>
@@ -162,6 +176,11 @@ function TaskRow({
         <p className="flex flex-wrap gap-x-2 text-xs text-muted">
           <span><AreaIcon area={area.id} className="size-3.5" /> {area.label}</span>
           <span>· {describeSchedule(task)}</span>
+          {task.repeat === "once" && task.due_date && !task.done && (
+            <span className={task.due_date < task.today ? "font-medium text-coin" : task.due_date === task.today ? "font-medium text-accent-text" : ""}>
+              · {describeDue(task.due_date, task.today)}
+            </span>
+          )}
           {progress && <span className={task.done ? "" : "font-medium text-good"}>· {progress}</span>}
           {task.total_completions > 0 && <span>· {task.total_completions}× total</span>}
         </p>
