@@ -77,6 +77,7 @@ import {
   type Tile,
 } from "@/lib/roads";
 import { startMusic, stopMusic } from "@/lib/music";
+import { playSfx, type Sfx } from "@/lib/sfx";
 import type { TutorialState } from "@/lib/tutorial";
 import { TutorialCoach } from "./tutorial-coach";
 import {
@@ -392,6 +393,17 @@ export function CityBoard(props: {
   );
   const city3d = useRef<City3DHandle>(null);
   const mapBox = useRef<HTMLDivElement>(null);
+  // A soft click for every button pressed over the full-screen map.
+  useEffect(() => {
+    const box = mapBox.current;
+    if (!box || !props.standalone) return;
+    const onDown = (e: PointerEvent) => {
+      const b = (e.target as HTMLElement | null)?.closest("button");
+      if (b && !b.disabled) playSfx("click");
+    };
+    box.addEventListener("pointerdown", onDown);
+    return () => box.removeEventListener("pointerdown", onDown);
+  }, [props.standalone]);
   // City Stats as a panel over the map in full screen.
   const [statsOpen, setStatsOpen] = useState(false);
   // Full screen is its own page (/play) showing only the map, so it opens the same way every time.
@@ -516,8 +528,9 @@ export function CityBoard(props: {
     return () => window.removeEventListener("keydown", onKey);
   }, [mode.kind, shift]);
 
-  function say(text: string, tone: "good" | "bad" = "good") {
+  function say(text: string, tone: "good" | "bad" = "good", sound?: Sfx) {
     setMessage({ text, tone });
+    if (sound) playSfx(sound);
   }
 
   /** Paint stroke: tiles that would be added (tiles already of that type are skipped), and whether it can be done. */
@@ -669,6 +682,7 @@ export function CityBoard(props: {
           say(
             `${placingType.name} built. Congratulations on your city!`,
             "good",
+            "fanfare",
           );
           setMode({ kind: "idle" });
         });
@@ -686,6 +700,7 @@ export function CityBoard(props: {
         say(
           `Built a ${placingType.name} for ${formatCoins(placingType.cost)} coins.${nearRoad ? "" : " It needs a road beside it to count."}`,
           "good",
+          "build",
         );
         // One building per pick: back to looking around (no Cancel needed).
         setMode({ kind: "idle" });
@@ -701,7 +716,7 @@ export function CityBoard(props: {
       start(async () => {
         const r = await moveBuilding(movingLot.id, x, y, draftRot);
         if (!r.ok) return say(r.error, "bad");
-        say("Moved.", "good");
+        say("Moved.", "good", "build");
         setMode({ kind: "selected", id: movingLot.id });
       });
     }
@@ -754,6 +769,7 @@ export function CityBoard(props: {
       say(
         `${what}${notes.length ? ` (${notes.join(", ")})` : ""} for ${formatCoins(r.cost)} coins.`,
         "good",
+        "build",
       );
     });
   }
@@ -800,6 +816,7 @@ export function CityBoard(props: {
           say(
             `Demolished ${r.sold} item${r.sold === 1 ? "" : "s"}. +${formatCoins(r.refund)} coins back.`,
             "good",
+            "demolish",
           );
         });
       });
@@ -832,7 +849,11 @@ export function CityBoard(props: {
     start(async () => {
       const r = await sellBuilding(b.id);
       if (!r.ok) return say(r.error, "bad");
-      say(`Demolished. +${formatCoins(r.refund)} coins back.`, "good");
+      say(
+        `Demolished. +${formatCoins(r.refund)} coins back.`,
+        "good",
+        "demolish",
+      );
       setMode({ kind: "idle" });
     });
   }
@@ -887,6 +908,7 @@ export function CityBoard(props: {
       say(
         `Upgraded to ${info.to.name} for ${formatCoins(r.cost)} coins.`,
         "good",
+        "build",
       );
     });
   }
@@ -933,10 +955,7 @@ export function CityBoard(props: {
     if (placedTypes.has(t.id))
       return { locked: true, note: "Already in your city" };
     // Once a milestone has been claimed its landmark stays unlocked, even if the population drops again.
-    if (
-      stats.population < m.population &&
-      !(props.claimedMilestones ?? []).includes(m.population)
-    )
+    if (stats.population < m.population && !(props.claimedMilestones ?? []).includes(m.population))
       return {
         locked: true,
         note: `Reach ${formatCoins(m.population)} people`,
@@ -954,6 +973,7 @@ export function CityBoard(props: {
           ? `+${formatCoins(r.coins)} coins for reaching ${formatCoins(population)} people!`
           : r.error,
         r.ok ? "good" : "bad",
+        r.ok ? "fanfare" : undefined,
       );
     });
   }
@@ -983,7 +1003,11 @@ export function CityBoard(props: {
     start(async () => {
       const r = await placeRoadControl(x, y, kind);
       if (!r.ok) return say(r.error, "bad");
-      say(`${info.name} built for ${formatCoins(r.cost)} coins.`, "good");
+      say(
+        `${info.name} built for ${formatCoins(r.cost)} coins.`,
+        "good",
+        "build",
+      );
       setMode({ kind: "idle" });
     });
   }
@@ -1001,7 +1025,7 @@ export function CityBoard(props: {
     start(async () => {
       const r = await removeRoadControl(x, y);
       if (!r.ok) return say(r.error, "bad");
-      say(`Removed. +${formatCoins(r.refund)} coins back.`, "good");
+      say(`Removed. +${formatCoins(r.refund)} coins back.`, "good", "demolish");
     });
   }
 
@@ -1028,6 +1052,7 @@ export function CityBoard(props: {
       say(
         `Changed ${r.built} tile${r.built === 1 ? "" : "s"} to ${to.name} for ${formatCoins(r.cost)} coins.`,
         "good",
+        "build",
       );
       setMode({ kind: "idle" });
     });
@@ -1087,7 +1112,7 @@ export function CityBoard(props: {
     start(async () => {
       const r = await buyLand();
       if (!r.ok) return say(r.error, "bad");
-      say(`Your city is now ${r.size}×${r.size}!`, "good");
+      say(`Your city is now ${r.size}×${r.size}!`, "good", "fanfare");
     });
   }
 
@@ -1723,8 +1748,7 @@ export function CityBoard(props: {
                     >
                       {message.text}
                     </p>
-                  ) : (mode.kind === "place" && placingType) ||
-                    mode.kind === "move" ? (
+                  ) : (mode.kind === "place" && placingType) || mode.kind === "move" ? (
                     // How-to line with its own Cancel (kept out of the top row, where it squeezed the city name).
                     <p className="flex items-center gap-2 rounded-full bg-surface/95 py-1 pr-1 pl-3 text-xs text-ink shadow ring-1 ring-line">
                       <span>
@@ -1735,13 +1759,7 @@ export function CityBoard(props: {
                       <button
                         type="button"
                         className="shrink-0 rounded-full bg-raised px-3 py-1 font-semibold hover:bg-accent-soft"
-                        onClick={() =>
-                          setMode(
-                            movingLot
-                              ? { kind: "selected", id: movingLot.id }
-                              : { kind: "idle" },
-                          )
-                        }
+                        onClick={() => setMode(movingLot ? { kind: "selected", id: movingLot.id } : { kind: "idle" })}
                       >
                         Cancel
                       </button>
@@ -1762,12 +1780,7 @@ export function CityBoard(props: {
                 {props.tutorial && !props.visit && (
                   <TutorialCoach
                     state={props.tutorial}
-                    onReward={(coins) =>
-                      say(
-                        `+${coins} coins for finishing Getting started!`,
-                        "good",
-                      )
-                    }
+                    onReward={(coins) => say(`+${coins} coins for finishing Getting started!`, "good", "fanfare")}
                   />
                 )}
               </div>

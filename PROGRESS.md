@@ -708,9 +708,12 @@ _Last updated: 2026-11-28_
 - Placing or moving in full screen: the Cancel button moved from the top row (it squeezed the city name and coins) to the end of
   the "Placing … / Moving …" line under it.
 
-### 51. Sound effects removed; Instagram profile picture (2026-11-28)
-- The button / build / demolish sounds and their Settings switch are gone (`src/lib/sfx.ts` deleted) at the owner's request; the
-  full-screen music stays.
+### 51. New sound effects; Instagram profile picture (2026-11-28)
+- The first sound effects were replaced (the owner wanted different ones, not none): `src/lib/sfx.ts` now makes soft, musical
+  sounds in the music's key (C major pentatonic): a wooden tap for buttons over the full-screen map, a two-note marimba "pling"
+  for building, a soft filtered-noise "poof" with a low falling note for demolishing, and a music-box C–E–G–C chime for land,
+  the first building and milestones; a short room echo, peak about 1/8 of full scale. Settings → Sounds still switches them off.
+  `playSfx(kind, delay)` (delay used to render a preview sample).
 - `brand/instagram-profile.png` (1080×1080, from `brand/instagram-profile.svg`): the app logo on full-bleed green with the shapes
   inside the circle Instagram crops to.
 
