@@ -359,6 +359,15 @@ export async function claimReward(reward: "home_screen" | "notifications" | "tut
   return { ok: true, coins: data.coins };
 }
 
+/** Collect the coins of every earned badge not collected yet. */
+export async function claimAchievements(): Promise<ActionResult<{ coins: number }>> {
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("claim_achievements").single();
+  if (error || !data) return { ok: false, error: gameError(error) };
+  refresh();
+  return { ok: true, coins: data.coins };
+}
+
 /** Clear the "New" labels on earned badges (no page refresh: they stay visible until the next visit). */
 export async function markAchievementsSeen(): Promise<ActionResult> {
   const { supabase } = await requireUser();

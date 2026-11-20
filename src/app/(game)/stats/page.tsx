@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Award, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
-import { ACHIEVEMENTS } from "@/lib/achievements";
+import { ACHIEVEMENTS, coinsToCollect } from "@/lib/achievements";
+import { CollectButton } from "../achievements/collect-button";
 import { requireUser } from "@/lib/auth";
 import { formatCoins } from "@/lib/game";
 import { addDays, isHabit, rateWords, summarizeHabit } from "@/lib/habits";
@@ -29,7 +30,8 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
   const [mY, mM] = month.split("-").map(Number);
   const nextMonth = mM === 12 ? `${mY + 1}-01` : `${mY}-${String(mM + 1).padStart(2, "0")}`;
   await supabase.rpc("sync_achievements"); // save any badge earned since the last visit
-  const { data: badges } = await supabase.from("achievements").select("id, seen");
+  const { data: badges } = await supabase.from("achievements").select("id, seen, claimed_at");
+  const toCollect = coinsToCollect(badges ?? []);
   const badgeCount = (badges ?? []).filter((b) => ACHIEVEMENTS.some((a) => a.id === b.id)).length;
   const newBadges = (badges ?? []).filter((b) => !b.seen).length;
   const [{ data: completions }, { count: allCheckoffs }, { data: focus }, { data: monthDone }] = await Promise.all([
@@ -85,7 +87,8 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
         <p className="text-sm text-muted">How you&apos;re doing with your tasks, habits, focus and goals. (Your city&apos;s numbers are on the City page.)</p>
       </div>
 
-      <Link href="/achievements" className="card flex items-center gap-3 hover:border-accent/60">
+      <div className={`card ${toCollect.coins > 0 ? "border-coin/70" : ""}`}>
+      <Link href="/achievements" className="flex items-center gap-3 rounded-lg hover:opacity-90">
         <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-full bg-coin text-on-coin">
           <Award className="size-6" />
         </span>
@@ -94,10 +97,19 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
             Achievements
             {newBadges > 0 && <span className="ml-2 rounded-full bg-coin px-2 py-0.5 text-xs font-bold text-on-coin">{newBadges} new</span>}
           </span>
-          <span className="block text-sm text-muted">{badgeCount} of {ACHIEVEMENTS.length} badges earned · see your timeline</span>
+          <span className="block text-sm text-muted">
+            {badgeCount} of {ACHIEVEMENTS.length} badges earned · each badge pays coins · see your timeline
+          </span>
         </span>
         <ChevronRight className="size-5 shrink-0 text-muted" aria-hidden />
       </Link>
+      {toCollect.coins > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+          <p className="text-sm">You have coins waiting from your badges.</p>
+          <CollectButton coins={toCollect.coins} badges={toCollect.badges} />
+        </div>
+      )}
+      </div>
 
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {tiles.map((t) => (

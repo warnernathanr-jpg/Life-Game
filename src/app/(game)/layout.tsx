@@ -1,6 +1,6 @@
 import { Building2, Coins, Settings, Users } from "lucide-react";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
 import { requireUser } from "@/lib/auth";
 import { formatCoins } from "@/lib/game";
 import { RewardPrompts } from "@/components/reward-prompts";
@@ -8,6 +8,7 @@ import { BottomNav, TopNav } from "./nav";
 import { InviteRedeemer } from "@/components/invite";
 import { GettingStarted } from "@/components/getting-started";
 import { tutorialActive } from "@/lib/tutorial";
+import { todoToday } from "@/lib/tasks";
 
 export default function GameLayout({ children }: LayoutProps<"/">) {
   return (
@@ -21,7 +22,7 @@ export default function GameLayout({ children }: LayoutProps<"/">) {
             <Building2 className="size-5" aria-hidden />
             <span>LifeCity</span>
           </Link>
-          <TopNav />
+          <TopNav badges={navBadges()} />
           <div className="ml-auto flex items-center gap-2">
             <Suspense fallback={<span className="h-9 w-20 rounded-full bg-white/10" />}>
               <CoinBadge />
@@ -44,13 +45,66 @@ export default function GameLayout({ children }: LayoutProps<"/">) {
         {children}
       </main>
       </div>
-      <BottomNav />
+      <BottomNav badges={navBadges()} />
       <InviteRedeemer />
       <Suspense>
         <Rewards />
       </Suspense>
     </>
   );
+}
+
+// Tab badges: tasks still to do today (red) and badges with coins to collect (gold). Each is fetched once per request.
+const tasksDue = cache(async () => {
+  const { supabase } = await requireUser();
+  const { data } = await supabase.rpc("my_tasks");
+  const rows = data ?? [];
+  return rows.length ? todoToday(rows, rows[0].today).length : 0;
+});
+const achievementCoins = cache(async () => {
+  const { supabase } = await requireUser();
+  const { data } = await supabase.rpc("my_achievement_coins").maybeSingle();
+  return data ?? { badges: 0, coins: 0 };
+});
+
+function Count({ n, tone, label }: { n: number; tone: "red" | "gold"; label: string }) {
+  if (n <= 0) return null;
+  return (
+    <span
+      role="status"
+      aria-label={label}
+      className={`ml-1 inline-flex min-w-4.5 items-center justify-center rounded-full px-1 text-[11px] leading-[18px] font-bold ${
+        tone === "red" ? "bg-red-600 text-white" : "bg-coin text-on-coin"
+      }`}
+    >
+      {n}
+    </span>
+  );
+}
+
+async function TasksDue() {
+  const n = await tasksDue();
+  return <Count n={n} tone="red" label={`${n} task${n === 1 ? "" : "s"} to do today`} />;
+}
+
+async function CoinsToCollect() {
+  const { badges, coins } = await achievementCoins();
+  return <Count n={badges} tone="gold" label={`${formatCoins(coins)} coins to collect from achievements`} />;
+}
+
+function navBadges() {
+  return {
+    "/tasks": (
+      <Suspense fallback={null}>
+        <TasksDue />
+      </Suspense>
+    ),
+    "/stats": (
+      <Suspense fallback={null}>
+        <CoinsToCollect />
+      </Suspense>
+    ),
+  };
 }
 
 async function CoinBadge() {

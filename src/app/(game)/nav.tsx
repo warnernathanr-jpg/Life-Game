@@ -2,6 +2,7 @@
 
 import { ChartColumn, ListChecks, Map, Target, Timer } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 export const NAV = [
@@ -17,8 +18,11 @@ function useActive() {
   return (href: string) => pathname === href || pathname.startsWith(href + "/");
 }
 
+/** Small counts shown on tabs (e.g. tasks due today, coins to collect), rendered on the server. */
+export type NavBadges = Partial<Record<string, ReactNode>>;
+
 /** Links in the header on wide screens. */
-export function TopNav() {
+export function TopNav({ badges }: { badges?: NavBadges }) {
   const isActive = useActive();
   return (
     <nav aria-label="Main" className="hidden gap-1 md:flex">
@@ -33,6 +37,7 @@ export function TopNav() {
         >
           <l.Icon className="size-4" aria-hidden />
           {l.label}
+          {badges?.[l.href]}
         </Link>
       ))}
     </nav>
@@ -40,7 +45,7 @@ export function TopNav() {
 }
 
 /** Fixed tab bar at the bottom on phones. */
-export function BottomNav() {
+export function BottomNav({ badges }: { badges?: NavBadges }) {
   const isActive = useActive();
   return (
     <nav
@@ -60,7 +65,10 @@ export function BottomNav() {
                   active ? "text-accent-text" : "text-muted"
                 }`}
               >
-                <l.Icon className="size-6" strokeWidth={active ? 2.25 : 1.75} aria-hidden />
+                <span className="relative">
+                  <l.Icon className="size-6" strokeWidth={active ? 2.25 : 1.75} aria-hidden />
+                  {badges?.[l.href] && <span className="absolute -top-1.5 left-4">{badges[l.href]}</span>}
+                </span>
                 {l.label}
                 <span aria-hidden className={`mt-0.5 h-0.5 w-6 rounded-full ${active ? "bg-accent" : "bg-transparent"}`} />
               </Link>

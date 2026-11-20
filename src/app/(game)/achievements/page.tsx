@@ -10,7 +10,7 @@ async function Content() {
   const { supabase } = await requireUser();
   await supabase.rpc("sync_achievements"); // save anything newly earned first
   const [{ data: earned }, { data: timeline }, { data: profile }] = await Promise.all([
-    supabase.from("achievements").select("id, achieved_at, seen"),
+    supabase.from("achievements").select("id, achieved_at, seen, claimed_at"),
     supabase.rpc("my_timeline"),
     supabase.from("profiles").select("timezone").maybeSingle(),
   ]);

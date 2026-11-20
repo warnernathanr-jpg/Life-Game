@@ -864,6 +864,20 @@ _Last updated: 2026-11-28_
   8 shop jobs; any goods-selling shop without enough industry gets them. The penalty grows with the town's shopping:
   `15 × (1 − goods/shop jobs) × min(1, shop jobs/12)` (a lone Convenience Store with no industry: −5; 12+ shop jobs: up to −15).
 
+### 62. Achievements pay coins; badges on the Tasks and Stats tabs (2026-11-28)
+- **Every badge pays coins**, collected once: first check-off 25, 100 check-offs 150, 1,000 check-offs 750, 30-day habit 100, 100-day
+  habit 300, Well-rounded 250, first goal reached 100, 5 goals 300, first focus 25, 10 focus hours 200, Getting started 25, first
+  building 25, 50 buildings 200, 100 people 100, 1,000 people 400, first land 50, first friend 50 (`private.achievement_reward()`,
+  mirrored by `coins` in `src/lib/achievements.ts`). **Two new badges**: "Planner" (add 10 tasks, 50) and "Aim high" (add a goal, 25).
+- **Collect**: a gold "Collect N coins (M badges)" button on the Stats page's Achievements card (the card gets a gold border) and on
+  the Achievements page; each badge shows "N coins", "N to collect" or "N collected". `claim_achievements()` pays every earned,
+  uncollected badge (a ledger row each, kind `bonus`) and marks it (`achievements.claimed_at`); badges earned before this count too.
+- **Tab badges**: a red count on **Tasks** of what's still to do today (same rule as the To do list, `todoToday()` in
+  `src/lib/tasks.ts`), and a gold count on **Stats** of badges with coins to collect (`my_achievement_coins()`, which saves newly
+  earned badges first). Bottom bar and header; fetched once per request (`cache`).
+- Migration `20261128130000_achievement_rewards.sql` (applied live). 8 pgTAP tests (`achievement_rewards.test.sql`, 373 total).
+- Times of day (Morning / Afternoon / Night) are labels only: any of them can be checked off at any time that day.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

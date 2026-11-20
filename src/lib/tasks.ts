@@ -100,3 +100,16 @@ export const TIMES_OF_DAY: { id: TimeOfDay; label: string; Icon: typeof Sun }[] 
   { id: "afternoon", label: "Afternoon", Icon: Sun },
   { id: "night", label: "Night", Icon: Moon },
 ];
+
+/** A task's fields that decide whether it's on today's To do list (rows from my_tasks()). */
+type TodoFields = { archived_at: string | null; scheduled_today: boolean; done: boolean; done_today: boolean; times_of_day: string[] | null; repeat: string; due_date: string | null };
+
+/** One-offs due on a later day wait under "Coming up" instead of To do. */
+export const dueLater = (t: TodoFields, today: string) => t.repeat === "once" && !!t.due_date && t.due_date > today && !t.done;
+
+/** Today's To do: on today and still needs doing (a task with times of day stays until every time is done). */
+export function todoToday<T extends TodoFields>(tasks: T[], today: string): T[] {
+  return tasks.filter(
+    (t) => !t.archived_at && t.scheduled_today && !t.done && (!t.done_today || (t.times_of_day?.length ?? 0) > 0) && !dueLater(t, today),
+  );
+}

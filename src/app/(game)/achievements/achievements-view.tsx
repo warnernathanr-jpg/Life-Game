@@ -1,13 +1,14 @@
 // The Achievements page's badges and timeline (data comes from the page; kept separate so it can be previewed).
-import { Award, Building2, CalendarCheck, Check, Compass, Flag, Hammer, Handshake, Hourglass, Landmark, LandPlot, ListChecks, Lock, Medal, Repeat, Rocket, Sprout, Target, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
-import { ACHIEVEMENTS, ACHIEVEMENT_BY_ID, ACHIEVEMENT_GROUPS } from "@/lib/achievements";
+import { Award, Building2, CalendarCheck, Check, Coins, Compass, Flag, Hammer, Handshake, Hourglass, Landmark, LandPlot, ListChecks, ListPlus, Lock, Medal, Repeat, Rocket, Sprout, Target, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
+import { ACHIEVEMENTS, ACHIEVEMENT_BY_ID, ACHIEVEMENT_GROUPS, coinsToCollect } from "@/lib/achievements";
+import { CollectButton } from "./collect-button";
 import { formatCoins } from "@/lib/game";
 import { MarkSeen } from "./mark-seen";
 
 const ICONS: Record<string, LucideIcon> = {
   check: Check, "list-checks": ListChecks, rocket: Rocket, "calendar-check": CalendarCheck, repeat: Repeat, compass: Compass,
   target: Target, trophy: Trophy, timer: Timer, hourglass: Hourglass, sprout: Sprout, hammer: Hammer, "building-2": Building2,
-  users: Users, landmark: Landmark, "land-plot": LandPlot, handshake: Handshake,
+  users: Users, landmark: Landmark, "land-plot": LandPlot, handshake: Handshake, "list-plus": ListPlus, flag: Flag,
 };
 
 export type TimelineRow = { at: string; kind: string; title: string; detail: string | null };
@@ -29,7 +30,7 @@ function timelineText(r: TimelineRow): { Icon: LucideIcon; text: string } {
   }
 }
 
-export type EarnedBadge = { id: string; achieved_at: string; seen: boolean };
+export type EarnedBadge = { id: string; achieved_at: string; seen: boolean; claimed_at?: string | null };
 
 /** The badges and the timeline (also used to preview the page with sample data). */
 export function AchievementsView({ earned, timeline, tz }: { earned: EarnedBadge[]; timeline: TimelineRow[]; tz: string }) {
@@ -37,6 +38,7 @@ export function AchievementsView({ earned, timeline, tz }: { earned: EarnedBadge
   const month = (iso: string) => new Date(iso).toLocaleDateString("en-US", { timeZone: tz, month: "long", year: "numeric" });
   const byId = new Map(earned.map((e) => [e.id, e]));
   const count = ACHIEVEMENTS.filter((a) => byId.has(a.id)).length;
+  const toCollect = coinsToCollect(earned.map((e) => ({ id: e.id, claimed_at: e.claimed_at ?? null })));
   const rows = timeline;
   const months: { label: string; rows: TimelineRow[] }[] = [];
   for (const r of rows) {
@@ -53,7 +55,12 @@ export function AchievementsView({ earned, timeline, tz }: { earned: EarnedBadge
           <h2 id="badges-h" className="font-semibold">Badges</h2>
           <p className="text-sm text-muted">{count} of {ACHIEVEMENTS.length} earned</p>
         </div>
-        <div className="mt-1 h-1.5 rounded-full bg-raised" aria-hidden>
+        {toCollect.coins > 0 && (
+          <div className="mt-2">
+            <CollectButton coins={toCollect.coins} badges={toCollect.badges} />
+          </div>
+        )}
+        <div className="mt-2 h-1.5 rounded-full bg-raised" aria-hidden>
           <div className="h-full rounded-full bg-coin" style={{ width: `${(count / ACHIEVEMENTS.length) * 100}%` }} />
         </div>
         {ACHIEVEMENT_GROUPS.map((group) => (
@@ -71,7 +78,11 @@ export function AchievementsView({ earned, timeline, tz }: { earned: EarnedBadge
                     </span>
                     <p className={`mt-2 text-sm font-semibold break-words ${got ? "" : "text-muted"}`}>{a.title}</p>
                     <p className="text-xs break-words text-muted">{a.description}</p>
-                    {got && <p className="mt-1 text-[11px] text-coin">Earned {date(got.achieved_at)}</p>}
+                    <p className={`mt-1 flex items-center gap-1 text-[11px] font-semibold ${got && !got.claimed_at ? "text-coin" : "text-muted"}`}>
+                      <Coins className="size-3" aria-hidden />
+                      {got ? (got.claimed_at ? `${formatCoins(a.coins)} collected` : `${formatCoins(a.coins)} to collect`) : `${formatCoins(a.coins)} coins`}
+                    </p>
+                    {got && <p className="text-[11px] text-coin">Earned {date(got.achieved_at)}</p>}
                     <span className="sr-only">{got ? "Earned" : "Not earned yet"}</span>
                   </li>
                 );

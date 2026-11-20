@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { formatCoins, nextUnlocks } from "@/lib/game";
 import { AreaPoints } from "@/components/area-points";
 import { addDays, isHabit, summarizeHabit, type HabitSummary } from "@/lib/habits";
-import { daysUntilNext } from "@/lib/tasks";
+import { daysUntilNext, dueLater, todoToday } from "@/lib/tasks";
 import { ScrollToHash } from "./scroll-to-hash";
 import { AddTaskForm } from "./add-task-form";
 import { TaskList } from "./task-list";
@@ -47,9 +47,8 @@ async function TasksPageContent({ searchParams }: { searchParams: PageProps<"/ta
   const active = all.filter((t) => !t.archived_at);
   // To do: on today and still needs doing. Done: checked off today, or done earlier this week/month/quarter/year.
   // One-offs due on a later day wait under "Coming up" (they can still be done early).
-  const later = (t: (typeof active)[number]) => t.repeat === "once" && !!t.due_date && t.due_date > today && !t.done;
-  const todo = active
-    .filter((t) => t.scheduled_today && !t.done && (!t.done_today || (t.times_of_day?.length ?? 0) > 0) && !later(t))
+  const later = (t: (typeof active)[number]) => dueLater(t, today);
+  const todo = todoToday(active, today)
     .sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"));
   const upcoming = active.filter(later).sort((a, b) => a.due_date!.localeCompare(b.due_date!));
   const hasSlots = (t: (typeof active)[number]) => (t.times_of_day?.length ?? 0) > 0;
