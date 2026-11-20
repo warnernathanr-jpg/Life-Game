@@ -29,6 +29,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Pause,
+  Siren,
   Play,
   RotateCw,
   X,
@@ -330,6 +331,14 @@ export function CityBoard(props: {
     [placed, types, progress, exposure],
   );
   const [paused, setPaused] = useState(false);
+  // Fires and break-ins (emergencies.tsx): the latest line, cleared after a while.
+  const [news, setNews] = useState<string | null>(null);
+  const newsTimer = useRef<number | null>(null);
+  const onNews = useCallback((text: string | null) => {
+    setNews(text);
+    if (newsTimer.current) window.clearTimeout(newsTimer.current);
+    if (text) newsTimer.current = window.setTimeout(() => setNews(null), 9000);
+  }, []);
   // Background music in full screen: off until turned on; the choice is remembered on this device.
   const [music, setMusic] = useState(false);
   useEffect(() => {
@@ -399,8 +408,9 @@ export function CityBoard(props: {
       },
       onInfo: setCitizenInfo,
       onClock: () => {}, // the clock runs inside the simulation only; it isn't shown
+      onNews,
     }),
-    [places, citizens, paused, citizenId],
+    [places, citizens, paused, citizenId, onNews],
   );
   const city3d = useRef<City3DHandle>(null);
   const mapBox = useRef<HTMLDivElement>(null);
@@ -1452,6 +1462,16 @@ export function CityBoard(props: {
           <Pause className="size-4" aria-hidden />
         )}
       </button>
+      {news && (
+        <span role="status" className="flex min-w-0 items-center gap-1.5 whitespace-normal px-2 text-xs font-medium text-ink">
+          {/fire/i.test(news) ? (
+            <Flame className="size-3.5 shrink-0 text-bad" aria-hidden />
+          ) : (
+            <Siren className="size-3.5 shrink-0 text-accent-text" aria-hidden />
+          )}
+          {news}
+        </span>
+      )}
     </div>
   );
 

@@ -52,6 +52,8 @@ export type SimProps = {
   onSelect: (id: string | null) => void;
   onInfo: (info: CitizenInfo | null) => void;
   onClock: (minutes: number) => void;
+  /** A line about a fire or break-in (null clears it). */
+  onNews?: (text: string | null) => void;
 };
 
 /** u: progress along the path in tiles (0 … path.length); waited: real seconds spent held at an intersection. */
@@ -98,7 +100,7 @@ const dirOf = (a: Tile, b: Tile): Dir => ({ x: Math.sign(b.x - a.x), z: Math.sig
  * exit edge; on a turn tile the line curves (a quadratic curve through the lane's corner), so cars turn smoothly.
  * The first and last tiles run from / to the tile's middle. Returns position and heading.
  */
-function pointAt(path: Tile[], u: number, side: number) {
+export function pointAt(path: Tile[], u: number, side: number) {
   const n = path.length - 1;
   if (n <= 0) return { x: path[0].x + 0.5, z: path[0].y + 0.5, heading: 0 };
   const k = Math.max(0, Math.min(n, Math.floor(u)));

@@ -100,7 +100,7 @@ export function BuildOverlay({
                         {(t.category === "road" || t.category === "landscape") && !controlByType(t.id) ? " / tile" : ""}
                       </span>
                     )}
-                    {t.size > 1 && <span className="text-[11px] text-muted">{sizeText(t)}</span>}
+                    {t.category !== "road" && t.category !== "landscape" && !controlByType(t.id) && <span className="text-[11px] text-muted">{sizeText(t)}</span>}
                   </button>
                 </li>
               );

@@ -81,7 +81,7 @@ export function Effects({ t }: { t: BuildingTypeRow }) {
   if (t.population) parts.push({ text: `+${t.population}`, Icon: Users, label: "residents" });
   if (t.jobs) parts.push({ text: `+${t.jobs}`, Icon: Briefcase, label: "jobs" });
   if (t.happiness) parts.push({ text: `${t.happiness > 0 ? "+" : "−"}${Math.abs(t.happiness)}`, Icon: Smile, label: "happiness", bad: t.happiness < 0 });
-  if (t.w > 1 || t.d > 1) parts.push({ text: sizeText(t), label: "lot size" });
+  if (t.category !== "road" && t.category !== "landscape" && !controlByType(t.id)) parts.push({ text: sizeText(t), label: "lot size" });
   return (
     <span className="flex flex-wrap gap-1">
       {parts.map((p) => (

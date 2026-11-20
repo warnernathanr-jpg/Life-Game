@@ -758,6 +758,19 @@ _Last updated: 2026-11-28_
 - Clinic and community center follow a picked family too. **Bank, museum, police, hospital, fire station, pool and Founders'
   Statue** keep their own colors and don't show the Colors menu (`FIXED_COLOR_IDS`).
 
+### 56. Fires and break-ins with fire trucks and police cars; sizes for 1x1 buildings (2026-11-28)
+- **Random events** (`emergencies.tsx`, in the browser only): about every 45–95 seconds (first after 20–35; paused cities and hidden
+  tabs don't count down) a **fire** or a **break-in** starts at a building, riskier ones more often (industry, shops, dense
+  housing; same idea as the Fire hazard / Crime layers) and ones within about 9 tiles of a fire station / police station up to
+  70% less often. Fires show flickering flames and rising smoke on the roof; break-ins a pulsing red ring and a masked figure by
+  the door. The nearest station's **fire truck** (red, ladder, red/white lights) or **police car** (black and white, red/blue
+  lights) drives the shortest road route with lights flashing, stays 6 seconds (the fire shrinks out / the burglar is caught),
+  then drives back. With no station or no road to one, the event fades after 18 seconds. One fire and one break-in at most at a
+  time. Only for show: nothing is damaged and no coins change. A line beside the pause button tells what's happening ("Fire at
+  Corner Shop! A fire truck is on the way.", "Build a fire station on the roads so a truck can come.", "The police caught the
+  burglar at …"), cleared after 9 seconds. `pointAt()` is exported from `traffic.tsx` for the vehicles.
+- The build menu and building cards show the size of 1x1 buildings too (not of roads, landscaping or road controls).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
