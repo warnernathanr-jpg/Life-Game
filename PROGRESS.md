@@ -636,6 +636,9 @@ _Last updated: 2026-11-28_
 - **New players' city name** is "Click Here to Name City" (column default; migration `20261128050000_default_city_name.sql`,
   applied live). Existing "My City" names were left as they are.
 - **Roads** is the first group in the build bar (`BUILD_GROUPS`).
+- **Bottom menu really stays put on phones**: the game layout is a fixed frame on small screens (header, a scrolling content area,
+  then the tab bar as a normal part of the frame), so neither the browser bar hiding nor the end-of-scroll bounce can move the
+  menu. Wide screens scroll the page as before. The 3D view's pause-while-scrolling check listens for scrolling inside the frame.
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate

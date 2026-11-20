@@ -103,12 +103,12 @@ function MotionGate() {
         update();
       }, 250);
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true, capture: true }); // capture: also scrolling inside the app frame
     document.addEventListener("visibilitychange", update);
     return () => {
       io.disconnect();
       clearTimeout(timer);
-      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scroll", onScroll, { capture: true });
       document.removeEventListener("visibilitychange", update);
       motion.on = true;
     };

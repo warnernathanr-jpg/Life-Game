@@ -9,8 +9,10 @@ import { InviteRedeemer } from "@/components/invite";
 
 export default function GameLayout({ children }: LayoutProps<"/">) {
   return (
-    <>
-      <header className="bg-header text-white" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+    // On phones the app is a fixed frame: header and bottom menu stay put and only the content between them scrolls, so the
+    // browser bar hiding or the bounce at the end of a scroll can't move the menu. Wide screens scroll the page as usual.
+    <div className="fixed inset-0 flex flex-col md:static md:flex-1">
+      <header className="shrink-0 bg-header text-white" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
           <Link href="/city" className="flex items-center gap-1.5 font-bold">
             <Building2 className="size-5" aria-hidden />
@@ -31,14 +33,15 @@ export default function GameLayout({ children }: LayoutProps<"/">) {
           </div>
         </div>
       </header>
-      {/* Room at the bottom on phones for the tab bar. */}
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-28 md:pb-8">{children}</main>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain md:overflow-visible">
+        <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-8">{children}</main>
+      </div>
       <BottomNav />
       <InviteRedeemer />
       <Suspense>
         <Rewards />
       </Suspense>
-    </>
+    </div>
   );
 }
 
