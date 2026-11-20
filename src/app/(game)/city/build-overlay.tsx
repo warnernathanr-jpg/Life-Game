@@ -20,6 +20,7 @@ export function BuildOverlay({
   onTool,
   onPick,
   land,
+  landmarkState,
 }: {
   types: BuildingTypeRow[];
   progress: ProgressRow | null;
@@ -32,12 +33,14 @@ export function BuildOverlay({
   onPick: (t: BuildingTypeRow) => void;
   /** Buy more land (hidden once the city is as big as it gets). */
   land?: { price: number; onBuy: () => void };
+  landmarkState?: (t: BuildingTypeRow) => { locked: boolean; note: string } | null;
 }) {
   const [open, setOpen] = useState<BuildGroupId | null>(null);
   const group = BUILD_GROUPS.find((g) => g.id === open);
   const items = open ? types.filter((t) => buildGroupOf(t) === open) : [];
-  const unlocked = items.filter((t) => pointsToUnlock(t, progress) === 0);
-  const locked = items.filter((t) => pointsToUnlock(t, progress) > 0);
+  const isLocked = (t: BuildingTypeRow) => landmarkState?.(t)?.locked ?? pointsToUnlock(t, progress) > 0;
+  const unlocked = items.filter((t) => !isLocked(t));
+  const locked = items.filter((t) => isLocked(t));
   const activeGroup = types.find((t) => t.id === activeId);
 
   return (
@@ -59,8 +62,9 @@ export function BuildOverlay({
           <ul className="grid max-h-[38dvh] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4">
             {[...unlocked, ...locked].map((t) => {
               const remaining = pointsToUnlock(t, progress);
-              const isLocked = remaining > 0;
-              const short = balance < t.cost;
+              const special = landmarkState?.(t) ?? null;
+              const isLocked = special ? special.locked : remaining > 0;
+              const short = !special && balance < t.cost;
               return (
                 <li key={t.id}>
                   <button
@@ -71,9 +75,11 @@ export function BuildOverlay({
                       setOpen(null);
                     }}
                     aria-label={
-                      isLocked
-                        ? `${t.name}, locked: ${remaining} more ${AREA_BY_ID[t.unlock_area!].label} points`
-                        : `${t.name}, ${t.cost} coins${short ? ", not enough coins" : ""}`
+                      special
+                        ? `${t.name}, ${special.note}`
+                        : isLocked
+                          ? `${t.name}, locked: ${remaining} more ${AREA_BY_ID[t.unlock_area!].label} points`
+                          : `${t.name}, ${t.cost} coins${short ? ", not enough coins" : ""}`
                     }
                     className={`flex h-full w-full flex-col items-center gap-1 rounded-xl border p-2.5 text-center ${
                       activeId === t.id ? "border-accent bg-accent-soft ring-2 ring-accent" : "border-line hover:bg-raised"
@@ -83,7 +89,11 @@ export function BuildOverlay({
                       <BuildingIcon id={t.id} className="size-6" strokeWidth={1.75} />
                     </span>
                     <span className="text-sm leading-tight font-semibold">{t.name}</span>
-                    {isLocked ? (
+                    {special ? (
+                      <span className={`text-[11px] ${special.locked ? "text-muted" : "font-bold text-good"}`}>
+                        {special.locked && <Lock className="inline size-3" aria-hidden />} {special.locked ? special.note : "Free"}
+                      </span>
+                    ) : isLocked ? (
                       <span className="text-[11px] text-muted">
                         <Lock className="inline size-3" aria-hidden /> {remaining} {AREA_BY_ID[t.unlock_area!].label} pts
                       </span>

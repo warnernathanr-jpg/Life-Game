@@ -34,6 +34,11 @@ const MESSAGES: Record<string, string> = {
   not_a_crossing: "Stop signs and traffic lights go on crossings, where three or four roads meet.",
   already_there: "There's already one here.",
   pick_a_time: "Pick which time of day you did it.",
+  not_enough_people: "Your city needs more people for that.",
+  unknown_milestone: "That milestone doesn't exist.",
+  unknown_city_code: "No city has that code. Check it and try again.",
+  own_city_code: "That's your own city's code.",
+  not_a_friend: "Add this city as a friend first.",
 };
 
 export function gameError(error: { message?: string } | null | undefined): string {

@@ -510,4 +510,4 @@ export function WorkerMarker({ y }: { y: number }) {
   );
 }
 
-export { BOX, CROWN, OCTA, CYLINDER, DISC, TENT, PINE };
+export { BOX, PYRAMID, CROWN, OCTA, CYLINDER, DISC, TENT, PINE };

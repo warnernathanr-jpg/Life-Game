@@ -1,11 +1,11 @@
 "use client";
 
 // Side panels and small pieces of the city screen.
-import { X, ArrowUp, RotateCw, Briefcase, Frown, Lock, Meh, Smile, Star, TriangleAlert, Users, type LucideIcon } from "lucide-react";
+import { X, ArrowUp, RotateCw, Trophy, Briefcase, Frown, Lock, Meh, Smile, Star, TriangleAlert, Users, type LucideIcon } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { AreaIcon, BuildingIcon, CoinIcon, GroupIcon } from "@/components/icons";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
-import { AREA_BY_ID, BUILD_GROUPS, CATEGORY_BY_ID, buildGroupOf, controlByType, formatCoins, sizeText, type BuildGroupId, pointsToUnlock, sellRefund, type CityStats } from "@/lib/game";
+import { AREA_BY_ID, BUILD_GROUPS, CATEGORY_BY_ID, CITY_MILESTONES, buildGroupOf, controlByType, formatCoins, sizeText, type BuildGroupId, pointsToUnlock, sellRefund, type CityStats } from "@/lib/game";
 import { renameCity } from "../actions";
 import { COLOR_CHOICES } from "./models";
 
@@ -94,24 +94,31 @@ export function Effects({ t }: { t: BuildingTypeRow }) {
   );
 }
 
+/** A milestone landmark's state in the build lists. */
+export type LandmarkState = { locked: boolean; note: string };
+
 export function Shop({
   types,
   progress,
   balance,
   activeId,
   onPick,
+  landmarkState,
 }: {
   types: BuildingTypeRow[];
   progress: ProgressRow | null;
   balance: number;
   activeId?: string;
   onPick: (t: BuildingTypeRow) => void;
+  /** Milestone landmarks: whether one can be placed now, and why not ("Reach 250 people", "Already in your city"). */
+  landmarkState?: (t: BuildingTypeRow) => LandmarkState | null;
 }) {
   const [tab, setTab] = useState<BuildGroupId | "all">("all");
+  const isLocked = (t: BuildingTypeRow) => landmarkState?.(t)?.locked ?? pointsToUnlock(t, progress) > 0;
   // Buildable first, then locked ones (each in catalog order), so what you can build is at the top.
   const inTab = types.filter((t) => buildGroupOf(t) !== null && (tab === "all" || buildGroupOf(t) === tab));
-  const unlocked = inTab.filter((t) => pointsToUnlock(t, progress) === 0);
-  const locked = inTab.filter((t) => pointsToUnlock(t, progress) > 0);
+  const unlocked = inTab.filter((t) => !isLocked(t));
+  const locked = inTab.filter((t) => isLocked(t));
   const shown = [...unlocked, ...locked];
   return (
     <section className="card" aria-labelledby="shop-h">
@@ -133,8 +140,9 @@ export function Shop({
       <ul className="mt-3 max-h-[28rem] space-y-2 overflow-y-auto pr-1">
         {shown.map((t, i) => {
           const remaining = pointsToUnlock(t, progress);
-          const locked = remaining > 0;
-          const short = balance < t.cost;
+          const special = landmarkState?.(t) ?? null;
+          const locked = special ? special.locked : remaining > 0;
+          const short = !special && balance < t.cost;
           return (
             <li key={t.id}>
               {locked && i === unlocked.length && (
@@ -145,9 +153,11 @@ export function Shop({
                 disabled={locked}
                 onClick={() => onPick(t)}
                 aria-label={
-                  locked
-                    ? `${t.name}, locked: ${remaining} more ${AREA_BY_ID[t.unlock_area!].label} points`
-                    : `${t.name}, ${t.cost} coins${short ? ", not enough coins" : ""}`
+                  special
+                    ? `${t.name}, ${special.note}`
+                    : locked
+                      ? `${t.name}, locked: ${remaining} more ${AREA_BY_ID[t.unlock_area!].label} points`
+                      : `${t.name}, ${t.cost} coins${short ? ", not enough coins" : ""}`
                 }
                 className={`flex w-full items-start gap-3 rounded-xl border p-2.5 text-left transition ${
                   activeId === t.id ? "border-accent bg-accent-soft ring-2 ring-accent" : "border-line hover:border-accent/60 hover:bg-raised"
@@ -159,11 +169,19 @@ export function Shop({
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
                     <span className="font-medium">{t.name}</span>
-                    <span className={`shrink-0 text-sm font-bold ${short && !locked ? "text-bad" : "text-coin"}`}>
-                      <CoinIcon className="size-3.5" /> {formatCoins(t.cost)}{t.category === "road" && !controlByType(t.id) ? <span className="font-normal"> / tile</span> : null}
-                    </span>
+                    {special ? (
+                      <span className="shrink-0 text-sm font-bold text-good">Free</span>
+                    ) : (
+                      <span className={`shrink-0 text-sm font-bold ${short && !locked ? "text-bad" : "text-coin"}`}>
+                        <CoinIcon className="size-3.5" /> {formatCoins(t.cost)}{t.category === "road" && !controlByType(t.id) ? <span className="font-normal"> / tile</span> : null}
+                      </span>
+                    )}
                   </span>
-                  {locked ? (
+                  {special ? (
+                    <span className="mt-0.5 block text-xs text-muted">
+                      {special.locked && <Lock className="inline size-3" aria-hidden />} {special.note}
+                    </span>
+                  ) : locked ? (
                     <span className="mt-0.5 block text-xs text-muted">
                       <Lock className="inline size-3" aria-hidden /> {remaining} more <AreaIcon area={t.unlock_area!} className="size-3" /> {AREA_BY_ID[t.unlock_area!].label} points to unlock
                     </span>
@@ -485,6 +503,73 @@ export function CityStatsPanel({ stats, onClose }: { stats: CityStats; onClose?:
           )}
         </div>
       </div>
+    </section>
+  );
+}
+
+/** Population milestones: progress to each, a Claim button for the coin bonus, and the landmark it unlocks. */
+export function MilestonesPanel({
+  population,
+  claimed,
+  placed,
+  names,
+  pending,
+  onClaim,
+}: {
+  population: number;
+  claimed: number[];
+  /** Landmark type ids already in the city. */
+  placed: Set<string>;
+  names: Map<string, string>;
+  pending: boolean;
+  onClaim: (population: number) => void;
+}) {
+  const next = CITY_MILESTONES.find((m) => population < m.population);
+  return (
+    <section className="card" aria-labelledby="milestones-h">
+      <h2 id="milestones-h" className="flex items-center gap-2 font-semibold">
+        <Trophy className="size-4 text-coin" aria-hidden /> City milestones
+      </h2>
+      <p className="text-sm text-muted">
+        {next
+          ? `${formatCoins(next.population - population)} more people for the next one. Each pays a bonus and unlocks a landmark you can't buy.`
+          : "Every milestone reached. What a city!"}
+      </p>
+      <ul className="mt-3 space-y-2">
+        {CITY_MILESTONES.map((m) => {
+          const reached = population >= m.population;
+          const isClaimed = claimed.includes(m.population);
+          const landmark = names.get(m.landmark) ?? m.landmark;
+          return (
+            <li key={m.population} className={`rounded-xl border p-3 ${reached ? "border-good/40 bg-good/5" : "border-line"}`}>
+              <div className="flex items-center gap-3">
+                <span className={`flex size-10 shrink-0 items-center justify-center rounded-lg border-2 ${reached ? "border-coin bg-coin-soft" : "border-line bg-raised grayscale"}`} aria-hidden>
+                  <BuildingIcon id={m.landmark} className="size-5 text-ink" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{formatCoins(m.population)} people · {landmark}</p>
+                  {reached ? (
+                    <p className="text-xs text-muted">{placed.has(m.landmark) ? "Landmark built." : "Landmark ready: find it free in Landmarks."}</p>
+                  ) : (
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-raised" aria-hidden>
+                      <div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, (population / m.population) * 100)}%` }} />
+                    </div>
+                  )}
+                </div>
+                {isClaimed ? (
+                  <span className="shrink-0 text-xs font-semibold text-good">+{formatCoins(m.bonus)} claimed</span>
+                ) : reached ? (
+                  <button type="button" className="btn-primary min-h-9 shrink-0 px-3 py-1 text-sm" disabled={pending} onClick={() => onClaim(m.population)}>
+                    Claim <CoinIcon className="size-3.5" /> {formatCoins(m.bonus)}
+                  </button>
+                ) : (
+                  <span className="shrink-0 text-xs text-muted"><CoinIcon className="size-3" /> {formatCoins(m.bonus)}</span>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

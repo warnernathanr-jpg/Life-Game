@@ -24,6 +24,8 @@ export type ProfileRow = {
   city_size: number;
   land_purchases: number;
   created_at: string;
+  /** Six-character code friends use to add this city. */
+  city_code: string;
 };
 
 export type TaskRow = {
@@ -93,6 +95,8 @@ export type BuildingTypeRow = {
   unlock_points: number | null;
   upgrades_to: string | null;
   sort_order: number;
+  /** Milestone landmarks: the population that makes it available (free, can't be bought). */
+  milestone_population?: number | null;
 };
 
 export type PlacedBuildingRow = {
@@ -211,6 +215,8 @@ export type Database = {
       placed_buildings: Table<PlacedBuildingRow, never, never>;
       focus_sessions: Table<FocusSessionRow, never, never>;
       road_controls: Table<RoadControlRow, never, never>;
+      city_milestones: Table<{ user_id: string; population: number; coins: number; claimed_at: string }, never, never>;
+      friendships: Table<{ user_id: string; friend_id: string; created_at: string }, never, never>;
       user_rewards: Table<{ user_id: string; reward: "home_screen" | "notifications"; coins: number; claimed_at: string }, never, never>;
     };
     Views: Record<string, never>;
@@ -232,6 +238,12 @@ export type Database = {
       upgrade_building: { Args: { p_building_id: string }; Returns: { building_id: string; cost: number; balance: number }[] };
       place_road_control: { Args: { p_x: number; p_y: number; p_kind: RoadControlKind }; Returns: { cost: number; balance: number }[] };
       remove_road_control: { Args: { p_x: number; p_y: number }; Returns: { refund: number; balance: number }[] };
+      claim_city_milestone: { Args: { p_population: number }; Returns: { coins: number; balance: number }[] };
+      place_landmark: { Args: { p_type_id: string; p_x: number; p_y: number; p_rotated?: boolean }; Returns: { building_id: string }[] };
+      my_city_population: { Args: Record<string, never>; Returns: number };
+      add_friend: { Args: { p_code: string }; Returns: { friend_id: string; city_name: string }[] };
+      my_friends: { Args: Record<string, never>; Returns: { friend_id: string; city_name: string; city_code: string; city_size: number; population: number; buildings: number; display_name: string | null }[] };
+      friend_city: { Args: { p_friend: string }; Returns: unknown };
       set_building_color: { Args: { p_building_id: string; p_seed: number | null }; Returns: undefined };
       set_building_facing: { Args: { p_building_id: string; p_facing: string | null }; Returns: undefined };
       buy_roads: { Args: { p_tiles: [number, number][] }; Returns: { built: number; cost: number; balance: number }[] };

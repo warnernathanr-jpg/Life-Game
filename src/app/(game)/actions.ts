@@ -224,6 +224,26 @@ export async function removeRoadControl(x: number, y: number): Promise<ActionRes
   return { ok: true, refund: Number(data.refund) };
 }
 
+/** Collect a population milestone's one-time bonus. */
+export async function claimCityMilestone(population: number): Promise<ActionResult<{ coins: number }>> {
+  if (![50, 100, 250, 500, 1000, 2500].includes(population)) return { ok: false, error: gameError(null) };
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("claim_city_milestone", { p_population: population }).single();
+  if (error || !data) return { ok: false, error: gameError(error) };
+  refresh();
+  return { ok: true, coins: Number(data.coins) };
+}
+
+/** Place a milestone landmark (free, one each). */
+export async function placeLandmark(typeId: string, x: number, y: number, rotated = false): Promise<ActionResult<{ id: string }>> {
+  if (!/^[a-z_]{1,40}$/.test(typeId) || !coord.safeParse(x).success || !coord.safeParse(y).success) return { ok: false, error: gameError(null) };
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("place_landmark", { p_type_id: typeId, p_x: x, p_y: y, p_rotated: rotated }).single();
+  if (error || !data) return { ok: false, error: gameError(error) };
+  refresh();
+  return { ok: true, id: String(data.building_id) };
+}
+
 /** Pick a building's color scheme (a seed for its palettes), or null for its automatic colors. Free. */
 export async function setBuildingColor(buildingId: string, seed: number | null): Promise<ActionResult> {
   if (!uuid.safeParse(buildingId).success || (seed !== null && (!Number.isInteger(seed) || seed < 0 || seed > 4294967295))) {

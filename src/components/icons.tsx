@@ -2,6 +2,9 @@
 // Use these instead of emojis. Icons are decorative (aria-hidden) unless given a label.
 import {
   Award,
+  TowerControl,
+  PersonStanding,
+  Signpost,
   OctagonMinus,
   Backpack,
   BookOpen,
@@ -213,6 +216,12 @@ const BUILDING: Record<string, LucideIcon> = {
   airport: Plane,
   // Landmarks
   monument: Award,
+  welcome_arch: Signpost,
+  clock_tower: Clock,
+  fountain: Droplets,
+  founders_statue: PersonStanding,
+  observation_tower: TowerControl,
+  crystal_spire: Gem,
   // Roads and landscape
   dirt_road: DirtRoadIcon,
   road: TwoLaneRoadIcon,

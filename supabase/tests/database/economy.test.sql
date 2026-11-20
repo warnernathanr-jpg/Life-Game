@@ -124,7 +124,7 @@ select results_eq($$ select refund, balance from public.sell_building((select id
   $$ values (140::bigint, 285::bigint) $$, 'selling refunds half the price');
 
 -- Land.
-select is(array[public.land_price(0), public.land_price(1), public.land_price(2)], array[300, 480, 770]::bigint[],
+select is(array[public.land_price(0), public.land_price(1), public.land_price(2)], array[300, 410, 550]::bigint[],
   'land gets more expensive each time');
 select throws_ok($$ select * from public.buy_land() $$, '22023', 'not_enough_coins', 'land costs coins');
 reset role;
@@ -134,7 +134,7 @@ set local role authenticated;
 select results_eq($$ select city_size, balance from public.buy_land() $$,
   $$ values (10, 985::bigint) $$, 'first expansion: 8 -> 10 for 300');
 select results_eq($$ select city_size, balance from public.buy_land() $$,
-  $$ values (12, 505::bigint) $$, 'second expansion: 10 -> 12 for 480');
+  $$ values (12, 575::bigint) $$, 'second expansion: 10 -> 12 for 410');
 select lives_ok($$ select * from public.buy_building('cottage', 11, 11) $$, 'can build on the new land');
 select throws_ok($$ update public.profiles set city_size = 30 $$, '42501', null, 'cannot grow the city directly');
 select throws_ok($$ insert into public.coin_ledger (user_id, amount, kind, reason) values (auth.uid(), 5000, 'bonus', 'cheat') $$,

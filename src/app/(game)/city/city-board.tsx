@@ -6,15 +6,15 @@ import { BuildingIcon, BulldozeIcon, CoinIcon } from "@/components/icons";
 import { cityExposure, computeLayer, LAYERS, type LayerId } from "@/lib/layers";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow, RoadControlKind } from "@/lib/database.types";
-import { MAX_CITY_SIZE, MAX_STROKE_TILES, ROAD_CONTROLS, cityStats, controlByType, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, roadControlTypes, sellRefund } from "@/lib/game";
+import { MAX_CITY_SIZE, MAX_STROKE_TILES, ROAD_CONTROLS, cityStats, controlByType, milestoneFor, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, roadControlTypes, sellRefund } from "@/lib/game";
 import { BRIDGE_TYPE, ROAD_TIERS, connectedIds, isRoadType, key, nextFacing, roadSet, streetOf, touchesRoad, type Lot, type Tile } from "@/lib/roads";
-import { buyBuilding, buyLand, buyTiles, moveBuilding, placeRoadControl, removeRoadControl, sellBuilding, sellMany, setBuildingColor, setFacing, upgradeBuilding } from "../actions";
+import { buyBuilding, buyLand, buyTiles, claimCityMilestone, moveBuilding, placeLandmark, placeRoadControl, removeRoadControl, sellBuilding, sellMany, setBuildingColor, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
 import { useConfirm } from "@/components/confirm";
 import { citizensFrom, placesFrom, roleText } from "@/lib/sim";
 import { BuildOverlay } from "./build-overlay";
 import type { CitizenInfo } from "./traffic";
-import { CityName, CityStatsPanel, SelectedPanel, Shop } from "./panels";
+import { CityName, CityStatsPanel, MilestonesPanel, SelectedPanel, Shop } from "./panels";
 
 // three.js only loads on this page, in the browser.
 const City3D = dynamic(() => import("./city-3d"), {
@@ -69,6 +69,8 @@ export function CityBoard(props: {
   size: number;
   landPurchases: number;
   placed: Placed[];
+  /** Population milestones whose bonus has been collected. */
+  claimedMilestones?: number[];
   /** Stop signs and traffic lights on crossings. */
   controls?: { x: number; y: number; kind: RoadControlKind }[];
   types: BuildingTypeRow[];
@@ -317,6 +319,15 @@ export function CityBoard(props: {
     const { x, y } = draftSpot;
     if (mode.kind === "place" && placingType) {
       if (!draftDims || !lotFree(size, { x, y, ...draftDims }, lots)) return say("That spot is taken or doesn't fit.", "bad");
+      if (milestoneFor(placingType.id)) {
+        start(async () => {
+          const r = await placeLandmark(placingType.id, x, y, draftRot);
+          if (!r.ok) return say(r.error, "bad");
+          say(`${placingType.name} built. Congratulations on your city!`);
+          setMode({ kind: "idle" });
+        });
+        return;
+      }
       if (balance < placingType.cost) return say("Not enough coins yet. Finish some tasks!", "bad");
       start(async () => {
         const r = await buyBuilding(placingType.id, x, y, draftRot);
@@ -483,6 +494,22 @@ export function CityBoard(props: {
     start(async () => {
       const r = await moveBuilding(lot.id, spot.x, spot.y, rotated);
       if (!r.ok) return say(r.error, "bad");
+    });
+  }
+
+  // Milestone landmarks: free, one each, once the city has enough people.
+  const placedTypes = useMemo(() => new Set(lots.map((l) => l.type_id)), [lots]);
+  function landmarkState(t: BuildingTypeRow) {
+    const m = milestoneFor(t.id);
+    if (!m) return null;
+    if (placedTypes.has(t.id)) return { locked: true, note: "Already in your city" };
+    if (stats.population < m.population) return { locked: true, note: `Reach ${formatCoins(m.population)} people` };
+    return { locked: false, note: `Your reward for reaching ${formatCoins(m.population)} people` };
+  }
+  function claimMilestone(population: number) {
+    start(async () => {
+      const r = await claimCityMilestone(population);
+      say(r.ok ? `+${formatCoins(r.coins)} coins for reaching ${formatCoins(population)} people!` : r.error, r.ok ? "good" : "bad");
     });
   }
 
@@ -756,6 +783,8 @@ export function CityBoard(props: {
     setMessage(null);
     const control = controlByType(t.id);
     if (control) return setMode({ kind: "control", control: control.kind });
+    const landmark = landmarkState(t);
+    if (landmark?.locked) return say(`${t.name}: ${landmark.note.toLowerCase()}.`, "bad");
     setMode(isPaint(t.id) ? { kind: "paint", typeId: t.id } : { kind: "place", typeId: t.id });
   }
 
@@ -988,6 +1017,7 @@ export function CityBoard(props: {
               {full && !selected && mode.kind !== "move" && (
                 <BuildOverlay
                   types={menuTypes}
+                  landmarkState={landmarkState}
                   progress={progress}
                   balance={balance}
                   activeId={placingType?.id ?? (mode.kind === "paint" ? mode.typeId : mode.kind === "control" ? ROAD_CONTROLS.find((c) => c.kind === mode.control)!.typeId : undefined)}
@@ -1097,10 +1127,28 @@ export function CityBoard(props: {
               {full && statsOpen && (
                 <div className="absolute top-[max(4.5rem,calc(env(safe-area-inset-top)+4rem))] right-2 bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))] z-10 w-[min(30rem,calc(100%-1rem))] overflow-y-auto rounded-2xl shadow-2xl">
 <CityStatsPanel stats={stats} onClose={() => setStatsOpen(false)} />
+                  <div className="mt-3">
+                    <MilestonesPanel
+                      population={stats.population}
+                      claimed={props.claimedMilestones ?? []}
+                      placed={placedTypes}
+                      names={new Map(types.map((t) => [t.id, t.name]))}
+                      pending={pending}
+                      onClaim={claimMilestone}
+                    />
+                  </div>
                 </div>
               )}
             </div>
           <CityStatsPanel stats={stats} />
+          <MilestonesPanel
+            population={stats.population}
+            claimed={props.claimedMilestones ?? []}
+            placed={placedTypes}
+            names={new Map(types.map((t) => [t.id, t.name]))}
+            pending={pending}
+            onClaim={claimMilestone}
+          />
         </div>
 
         <div className="space-y-4">
@@ -1109,6 +1157,7 @@ export function CityBoard(props: {
           ) : (
             <Shop
               types={menuTypes}
+              landmarkState={landmarkState}
               progress={progress}
               balance={balance}
               activeId={placingType?.id ?? (mode.kind === "paint" ? mode.typeId : mode.kind === "control" ? ROAD_CONTROLS.find((c) => c.kind === mode.control)!.typeId : undefined)}

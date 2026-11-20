@@ -30,8 +30,8 @@ const progress = (p: Partial<ProgressRow>): ProgressRow => ({
 });
 
 describe("prices (same as the database)", () => {
-  it("land: 300 × 1.6ⁿ rounded to 10", () => {
-    expect([0, 1, 2, 3].map(landPrice)).toEqual([300, 480, 770, 1230]);
+  it("land: 300 × 1.35ⁿ rounded to 10", () => {
+    expect([0, 1, 2, 3].map(landPrice)).toEqual([300, 410, 550, 740]);
   });
   it("selling refunds half, rounded down", () => {
     expect(sellRefund(141)).toBe(70);

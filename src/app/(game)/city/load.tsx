@@ -4,12 +4,13 @@ import { CityBoard } from "./city-board";
 
 export async function CityLoader({ place, standalone }: { place?: string; standalone?: boolean }) {
   const { supabase } = await requireUser();
-  const [{ data: profile }, { data: placed }, { data: types }, { data: progress }, { data: controls }] = await Promise.all([
+  const [{ data: profile }, { data: placed }, { data: types }, { data: progress }, { data: controls }, { data: milestones }] = await Promise.all([
     supabase.from("profiles").select("city_name, city_size, land_purchases").maybeSingle(),
     supabase.from("placed_buildings").select("id, type_id, x, y, price_paid, facing, rotated, color_seed").order("created_at"),
     supabase.from("building_types").select("*").order("sort_order"),
     supabase.rpc("my_progress").maybeSingle(),
     supabase.from("road_controls").select("x, y, kind"),
+    supabase.from("city_milestones").select("population"),
   ]);
 
   if (!profile || !types) {
@@ -23,6 +24,7 @@ export async function CityLoader({ place, standalone }: { place?: string; standa
       landPurchases={profile.land_purchases}
       placed={placed ?? []}
       controls={controls ?? []}
+      claimedMilestones={(milestones ?? []).map((m) => m.population)}
       types={types}
       progress={progress ?? null}
       balance={Number(progress?.balance ?? 0)}

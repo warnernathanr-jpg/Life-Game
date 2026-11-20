@@ -4,7 +4,7 @@
 // along z, with its front (doors, signs) facing +z. Colors come from one small palette per building (picked by its
 // seed), so the same building always looks the same. Nothing here runs at import time (models.tsx imports this file).
 import type { ReactNode } from "react";
-import { B, BOX, Cyl, PALETTE, Roof, Tree, mat, pick } from "./models";
+import { B, BOX, Cyl, PALETTE, PYRAMID, Roof, Tree, mat, pick } from "./models";
 
 /** A two-sided roof along x (ridge in the middle), w × d, with its eaves at height y. */
 function SlopedRoof({ x, z, y, w, d, c }: { x: number; z: number; y: number; w: number; d: number; c: string }) {
@@ -616,6 +616,102 @@ const MODELS: Record<string, Maker> = {
     </group>
   ),
 
+  // Milestone landmarks (can't be bought: one each, for reaching a population).
+  welcome_arch: (p) => (
+    <>
+      <B p={[0, 0, 0]} s={[0.96, 0.015, 0.96]} c="#d6d3d1" />
+      <B p={[-0.32, 0.015, 0]} s={[0.12, 0.62, 0.16]} c="#f5f5f4" />
+      <B p={[0.32, 0.015, 0]} s={[0.12, 0.62, 0.16]} c="#f5f5f4" />
+      <B p={[0, 0.6, 0]} s={[0.84, 0.14, 0.2]} c={p.accent} />
+      <B p={[0, 0.63, 0.101]} s={[0.6, 0.08, 0.01]} c="#fef3c7" />
+      <B p={[0, 0.74, 0]} s={[0.9, 0.04, 0.22]} c="#f5f5f4" />
+      {[-0.42, 0.42].map((x) => (
+        <Tree key={x} p={[x, 0.015, 0.36]} s={0.45} />
+      ))}
+    </>
+  ),
+  clock_tower: (p) => (
+    <>
+      <B p={[0, 0, 0]} s={[0.9, 0.015, 0.9]} c="#d6d3d1" />
+      <B p={[0, 0.015, 0]} s={[0.36, 1.2, 0.36]} c="#b45309" />
+      <B p={[0, 1.2, 0]} s={[0.42, 0.06, 0.42]} c="#f5f5f4" />
+      {[[0, 0.211], [0, -0.211]].map(([x, z], i) => (
+        <group key={i}>
+          <Cyl p={[x, 0.95, z]} r={0.13} h={0.02} c="#f8fafc" />
+        </group>
+      ))}
+      <B p={[0, 1.05, 0.215]} s={[0.012, 0.1, 0.01]} c="#111827" />
+      <B p={[0.03, 1.0, 0.215]} s={[0.07, 0.012, 0.01]} c="#111827" />
+      <B p={[0, 1.26, 0]} s={[0.3, 0.24, 0.3]} c="#b45309" />
+      <Roof p={[0, 1.5, 0]} s={[0.42, 0.42, 0.42]} c={p.roof} />
+    </>
+  ),
+  fountain: (p) => (
+    <>
+      <B p={[0, 0, 0]} s={[1.94, 0.02, 1.94]} c="#e7e5e4" />
+      <B p={[0, 0.02, 0]} s={[1.6, 0.006, 1.6]} c="#d6d3d1" />
+      <Cyl p={[0, 0.02, 0]} r={0.6} h={0.14} c="#cbd5e1" />
+      <Cyl p={[0, 0.06, 0]} r={0.54} h={0.09} c="#38bdf8" />
+      <Cyl p={[0, 0.02, 0]} r={0.14} h={0.42} c="#e2e8f0" />
+      <Cyl p={[0, 0.44, 0]} r={0.26} h={0.05} c="#cbd5e1" />
+      <Cyl p={[0, 0.45, 0]} r={0.22} h={0.04} c="#7dd3fc" />
+      <Cyl p={[0, 0.49, 0]} r={0.04} h={0.22} c="#bae6fd" />
+      {[[-0.82, -0.82], [0.82, -0.82], [-0.82, 0.82], [0.82, 0.82]].map(([x, z], i) => (
+        <Tree key={i} p={[x, 0.02, z]} s={0.6} crown={p.accent === "#dc2626" ? "#16a34a" : "#22c55e"} />
+      ))}
+      {[[-0.75, 0], [0.75, 0], [0, -0.75], [0, 0.75]].map(([x, z], i) => (
+        <B key={`b${i}`} p={[x, 0.02, z]} s={x ? [0.06, 0.04, 0.22] : [0.22, 0.04, 0.06]} c="#92400e" />
+      ))}
+    </>
+  ),
+  founders_statue: (p) => (
+    <>
+      <B p={[0, 0, 0]} s={[1.94, 0.02, 1.94]} c="#bbf7d0" />
+      <B p={[0, 0.02, 0]} s={[1.3, 0.04, 1.3]} c="#e7e5e4" />
+      <B p={[0, 0.06, 0]} s={[0.6, 0.36, 0.6]} c="#a8a29e" />
+      <B p={[0, 0.42, 0]} s={[0.66, 0.05, 0.66]} c="#d6d3d1" />
+      {/* A golden figure raising a lantern. */}
+      <B p={[0, 0.47, 0]} s={[0.22, 0.42, 0.16]} c="#eab308" />
+      <B p={[0, 0.89, 0]} s={[0.12, 0.12, 0.12]} c="#eab308" />
+      <B p={[0.13, 0.75, 0]} s={[0.05, 0.34, 0.05]} c="#eab308" />
+      <B p={[0.13, 1.09, 0]} s={[0.08, 0.08, 0.08]} c="#fde047" />
+      {[[-0.8, -0.8], [0.8, -0.8], [-0.8, 0.8], [0.8, 0.8]].map(([x, z], i) => (
+        <Tree key={i} p={[x, 0.02, z]} s={0.55} />
+      ))}
+      <B p={[0, 0.02, 0.8]} s={[0.24, 0.005, 0.32]} c="#e7e5e4" />
+    </>
+  ),
+  observation_tower: (p) => (
+    <>
+      <B p={[0, 0, 0]} s={[1.94, 0.02, 1.94]} c="#e7e5e4" />
+      <Cyl p={[0, 0.02, 0]} r={0.5} h={0.18} c="#cbd5e1" />
+      <Cyl p={[0, 0.2, 0]} r={0.12} h={2.6} c="#e2e8f0" />
+      <Cyl p={[0, 2.8, 0]} r={0.42} h={0.16} c="#94a3b8" />
+      <Cyl p={[0, 2.96, 0]} r={0.38} h={0.18} c={p.glass} />
+      <Cyl p={[0, 3.14, 0]} r={0.42} h={0.06} c="#94a3b8" />
+      <Cyl p={[0, 3.2, 0]} r={0.03} h={0.6} c="#f8fafc" />
+      <B p={[0, 3.78, 0]} s={[0.06, 0.06, 0.06]} c="#ef4444" />
+    </>
+  ),
+  crystal_spire: (p) => (
+    <>
+      <B p={[0, 0, 0]} s={[1.94, 0.02, 1.94]} c="#e2e8f0" />
+      <Cyl p={[0, 0.02, 0]} r={0.8} h={0.05} c="#cbd5e1" />
+      <Cyl p={[0, 0.07, 0]} r={0.66} h={0.004} c="#7dd3fc" />
+      {/* Four glass fins rising to a point, with a glowing tip. */}
+      {[0, 1, 2, 3].map((i) => (
+        <group key={i} rotation-y={(i * Math.PI) / 2}>
+          <mesh geometry={PYRAMID} material={mat("#7dd3fc", { metal: true })} position={[0.22, 1.3, 0]} scale={[0.28, 2.6, 0.12]} castShadow />
+        </group>
+      ))}
+      <mesh geometry={PYRAMID} material={mat("#bae6fd", { metal: true })} position={[0, 1.7, 0]} scale={[0.36, 3.4, 0.36]} castShadow />
+      <B p={[0, 3.36, 0]} s={[0.08, 0.08, 0.08]} c="#fef3c7" />
+      {[[-0.8, -0.8], [0.8, -0.8], [-0.8, 0.8], [0.8, 0.8]].map(([x, z], i) => (
+        <B key={i} p={[x, 0.02, z]} s={[0.12, 0.3, 0.12]} c={p.accent} />
+      ))}
+    </>
+  ),
+
   // ---------------- Landmarks ----------------
   monument: (p) => (
     <>
@@ -646,6 +742,7 @@ export const CATALOG_HEIGHT: Record<string, number> = {
   police: 0.55, hospital: 1.6, city_hall: 1.9,
   school: 0.7, high_school: 0.7, university: 2.0, library: 0.7,
   community: 0.75, pool: 0.3, gym: 0.6, museum: 0.8, golf: 0.6, stadium: 1.8, zoo: 0.6,
+  welcome_arch: 0.8, clock_tower: 1.95, fountain: 0.75, founders_statue: 1.2, observation_tower: 3.9, crystal_spire: 3.5,
   gas_station: 0.6, bus_station: 0.45, parking: 0.6, airport: 1.3, monument: 1.6,
 };
 

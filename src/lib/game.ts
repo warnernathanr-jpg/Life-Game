@@ -29,7 +29,7 @@ export function nextMilestone(total: number) {
 
 /** public.land_price(): 300 × 1.6ⁿ, rounded to the nearest 10. */
 export function landPrice(purchases: number): number {
-  return Math.round((300 * Math.pow(1.6, purchases)) / 10) * 10;
+  return Math.round((300 * Math.pow(1.35, purchases)) / 10) * 10;
 }
 
 /** public.sell_refund(): half of what was paid (integer coins). */
@@ -67,7 +67,23 @@ export const PARK_IDS = new Set(["park", "court", "garden", "central_park"]);
 export const KNOWLEDGE_IDS = new Set(["school", "high_school", "university", "library"]);
 export const RECREATION_IDS = new Set([...PARK_IDS, "community", "gym", "pool", "stadium", "golf", "museum", "zoo"]);
 export const TRANSPORT_IDS = new Set(["gas_station", "bus_station", "parking", "airport"]);
-export const LANDMARK_IDS = new Set(["monument"]);
+export const LANDMARK_IDS = new Set(["monument", "welcome_arch", "clock_tower", "fountain", "founders_statue", "observation_tower", "crystal_spire"]);
+
+/**
+ * Population milestones (mirrors public.city_milestone_bonus): a one-time coin bonus, and a landmark that can't be bought
+ * (placed free, one each, once the city has that many people).
+ */
+export const CITY_MILESTONES = [
+  { population: 50, bonus: 100, landmark: "welcome_arch" },
+  { population: 100, bonus: 200, landmark: "clock_tower" },
+  { population: 250, bonus: 400, landmark: "fountain" },
+  { population: 500, bonus: 750, landmark: "founders_statue" },
+  { population: 1000, bonus: 1500, landmark: "observation_tower" },
+  { population: 2500, bonus: 3000, landmark: "crystal_spire" },
+] as const;
+
+/** The milestone a landmark belongs to (undefined for ordinary buildings). */
+export const milestoneFor = (typeId: string) => CITY_MILESTONES.find((m) => m.landmark === typeId);
 /** Schools children (and students) attend. */
 export const SCHOOL_IDS = new Set(["school", "high_school", "university"]);
 
@@ -118,6 +134,7 @@ export function areaPoints(progress: ProgressRow | null, area: LifeArea): number
 
 /** How many more area points a building needs (0 = unlocked). */
 export function pointsToUnlock(type: BuildingTypeRow, progress: ProgressRow | null): number {
+  if (milestoneFor(type.id)) return 0; // milestone landmarks unlock by population, not points
   if (!type.unlock_area || !type.unlock_points) return 0;
   return Math.max(0, type.unlock_points - areaPoints(progress, type.unlock_area));
 }
