@@ -7,6 +7,7 @@
 //   * shops and services: a paved forecourt with benches, planters, a lamp post, a bike rack or a sign.
 // Everything is low, seeded by the building's id (same layout every visit) and kept to the lot's edges so it never
 // pokes through the building.
+import type { ReactNode } from "react";
 import * as THREE from "three";
 import { B, Cyl, mat, type V3 } from "./models";
 
@@ -126,7 +127,7 @@ export function LotDressing({ typeId, seed, lw, ld }: { typeId: string; seed: nu
       <>
         <Slab x={0} z={0} w={lw - 0.04} d={ld - 0.04} c={CONCRETE} />
         {/* Painted bays and a couple of bollards at the entrance. */}
-        <Slab x={hx - 0.2} z={hz - 0.12} w={0.3} d={0.012} c="#facc15" y={0.0085} />
+        <Slab x={hx - 0.1} z={hz - 0.12} w={0.14} d={0.012} c="#facc15" y={0.0085} />
         <Cyl p={[-hx + 0.06, 0.008, hz - 0.05]} r={0.012} h={0.05} c="#facc15" />
         <Cyl p={[-hx + 0.16, 0.008, hz - 0.05]} r={0.012} h={0.05} c="#facc15" />
       </>
@@ -189,12 +190,43 @@ export function LotDressing({ typeId, seed, lw, ld }: { typeId: string; seed: nu
   }
 
   if (SMALL_SHOPS.has(typeId)) {
-    const props = [
-      <Bench key="b" p={[-hx + 0.14, 0.008, hz - 0.06]} />,
-      <Planter key="p" p={[hx - 0.07, 0.008, hz - 0.07]} c={pickOf(BUSH)} />,
-      r() < 0.5 ? <Lamp key="l" p={[-hx + 0.04, 0.008, hz - 0.04]} /> : <BikeRack key="r" p={[hx - 0.2, 0.008, hz - 0.06]} />,
-      r() < 0.6 ? <Sign key="s" p={[hx - 0.2, 0.008, hz - 0.05]} c={pickOf(["#f8fafc", "#fde68a", "#fecaca"])} /> : <TrashCan key="t" p={[hx - 0.2, 0.008, hz - 0.05]} />,
-    ];
+    // Props go where each model leaves room: the café and restaurant have patio tables out front (only planters at the
+    // corners), the clothing store has its sign on the right (props on the left only).
+    const leftC = pickOf(BUSH);
+    const rightC = pickOf(BUSH);
+    let props: ReactNode;
+    if (typeId === "cafe" || typeId === "restaurant") {
+      props = (
+        <>
+          <Planter p={[-hx + 0.06, 0.008, hz - 0.06]} c={leftC} />
+          <Planter p={[hx - 0.06, 0.008, hz - 0.06]} c={rightC} />
+        </>
+      );
+    } else if (typeId === "clothing") {
+      props = (
+        <>
+          <Bench p={[-hx + 0.16, 0.008, hz - 0.06]} />
+          <Lamp p={[-hx + 0.04, 0.008, hz - 0.04]} />
+        </>
+      );
+    } else {
+      // Left: a bench (and a lamp). Right of the door: one thing (bike rack, or for the shop a sign or bin), then a planter.
+      const rightThing = r();
+      props = (
+        <>
+          <Bench p={[-hx + 0.16, 0.008, hz - 0.06]} />
+          <Lamp p={[-hx + 0.04, 0.008, hz - 0.04]} />
+          {typeId === "corner_shop" && rightThing < 0.4 ? (
+            <Sign p={[hx - 0.22, 0.008, hz - 0.05]} c={pickOf(["#f8fafc", "#fde68a", "#fecaca"])} />
+          ) : typeId === "corner_shop" && rightThing < 0.7 ? (
+            <TrashCan p={[hx - 0.2, 0.008, hz - 0.05]} />
+          ) : (
+            <BikeRack p={[hx - 0.22, 0.008, hz - 0.06]} />
+          )}
+          <Planter p={[hx - 0.07, 0.008, hz - 0.07]} c={rightC} />
+        </>
+      );
+    }
     return (
       <>
         <Slab x={0} z={hz - 0.07} w={lw - 0.02} d={0.14} c={PAVING} />

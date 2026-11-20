@@ -577,6 +577,9 @@ _Last updated: 2026-11-27_
   sit above them (the Suburban House's garage driveway and the duplex's were hidden under the grass). **Luxury Home** remodelled: house
   moved toward the front with a front door and porch roof, windows on both floors, sides and back, a garage door, and the **pool in the
   back yard** with loungers.
+- **Props**: café and restaurant (patio tables out front) only get planters at the corners; the clothing store's props stay
+  left of its sign; the warehouse's crates sit at the corner and the yellow bay line at the far edge, clear of the loading
+  doors; the parking garage's blue "P" sign (it floated past the slab) stands on a post at the entrance.
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
