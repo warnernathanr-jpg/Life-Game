@@ -486,6 +486,14 @@ _Last updated: 2026-11-27_
 - The selected-building panel lists Colors → road options → Upgrade → who lives / works here → buttons.
 - `setGameClock()` in `traffic.tsx` jumps the clock (used to preview night).
 
+### 36. Livelier streets (2026-11-27)
+- Free time is spent out more often (shops, the park, or **visiting a friend's home**, new trip purpose `visit`); stays in
+  between are shorter. About 1 adult in 6 is a **night owl** who goes out until about midnight.
+- **Always a little life**: when fewer than min(4, a quarter of the citizens) people are out (night, small towns), someone at
+  home (12+) is sent on an errand, a walk or a visit every few game minutes. Measured at 3–4 AM in a sample town: 3–4 people
+  out at every check. `outing()` in `sim.ts`; trip starting moved into `start()` in `traffic.tsx`.
+- Cars have **headlights and taillights** that glow after dark.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

@@ -214,11 +214,11 @@ export function roadPath(roads: Set<string>, from: Tile, to: Tile): Tile[] | nul
 export const SIM_MINUTES_PER_SECOND = 4;
 export const DAY = 24 * 60;
 
-export type Purpose = "work" | "school" | "shop" | "park" | "home";
+export type Purpose = "work" | "school" | "shop" | "park" | "visit" | "home";
 
 export type Plan = { purpose: Purpose; toId: string } | { stayUntil: number };
 
-const PURPOSE_WORDS: Record<Purpose, string> = { work: "work", school: "school", shop: "the shops", park: "the park", home: "home" };
+const PURPOSE_WORDS: Record<Purpose, string> = { work: "work", school: "school", shop: "the shops", park: "the park", visit: "see a friend", home: "home" };
 export const purposeWord = (p: Purpose) => PURPOSE_WORDS[p];
 
 /** Minute of the day (0–1439) for a game time in minutes. */
@@ -262,6 +262,9 @@ export function decide(c: Citizen, atId: string, t: number, places: Map<string, 
 
   // At home.
   if (c.age < 5) return { stayUntil: t + 240 }; // little ones stay home with family
+  // Night owls (about 1 adult in 6) are still out and about until midnight.
+  const owl = c.age >= 18 && c.seed % 6 === 0;
+  if (owl && m >= 21 * 60 + 30 && m < 23 * 60 + 40 && r() < 0.5) return outing(c, places, r) ?? { stayUntil: t + 30 };
   if (m < 6 * 60 + 30 || m >= 21 * 60 + 30) return { stayUntil: nextAt(t, 6 * 60 + 30 + jitter) }; // night: sleep
   const goWork = 7 * 60 + jitter; // 7:00–7:50 AM
   if (c.workId && m < 15 * 60) {
@@ -273,17 +276,39 @@ export function decide(c: Citizen, atId: string, t: number, places: Map<string, 
     if (m >= goSchool) return { purpose: "school", toId: c.schoolId };
     return { stayUntil: t + (goSchool - m) };
   }
-  // Free time: an errand or a walk now and then, otherwise stay in a while.
-  const roll = r();
-  if (roll < 0.35 && shops.length) return { purpose: "shop", toId: pick(shops).id };
-  if (roll < 0.6 && parks.length) return { purpose: "park", toId: pick(parks).id };
-  return { stayUntil: t + 40 + Math.floor(r() * 120) };
+  // Free time: often out (errands, the park, friends), otherwise stay in a little while.
+  if (r() < 0.7) {
+    const out = outing(c, places, r);
+    if (out) return out;
+  }
+  return { stayUntil: t + 20 + Math.floor(r() * 70) };
+}
+
+/** An outing from home: the shops, the park, or a friend's home (whatever the city has). */
+export function outing(c: Citizen, places: Map<string, Place>, r: () => number): { purpose: Purpose; toId: string } | null {
+  const all = [...places.values()].filter((p) => p.entrance);
+  const choices: { purpose: Purpose; list: Place[]; weight: number }[] = [
+    { purpose: "shop", list: all.filter((p) => p.shop), weight: 0.4 },
+    { purpose: "park", list: all.filter((p) => p.park), weight: 0.35 },
+    { purpose: "visit", list: all.filter((p) => p.homes > 0 && p.id !== c.homeId), weight: 0.25 },
+  ];
+  const options = choices.filter((o) => o.list.length > 0);
+  if (options.length === 0) return null;
+  const total = options.reduce((s, o) => s + o.weight, 0);
+  let roll = r() * total;
+  for (const o of options) {
+    roll -= o.weight;
+    if (roll <= 0) return { purpose: o.purpose, toId: o.list[Math.floor(r() * o.list.length)].id };
+  }
+  const o = options[options.length - 1];
+  return { purpose: o.purpose, toId: o.list[Math.floor(r() * o.list.length)].id };
 }
 
 /** How long someone stays at a shop or park before heading home (game minutes). */
 export function dwellMinutes(purpose: Purpose, r: () => number): number {
   if (purpose === "shop") return 20 + Math.floor(r() * 30);
   if (purpose === "park") return 30 + Math.floor(r() * 60);
+  if (purpose === "visit") return 30 + Math.floor(r() * 60);
   return 0;
 }
 

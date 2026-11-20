@@ -29,6 +29,8 @@ function golden(minutes: number): number {
 // Window glass colors used by the models, and lamp heads; they glow at night.
 const WINDOWS = ["#93c5fd", "#bfdbfe", "#bae6fd", "#7dd3fc"];
 const LAMPS = ["#fef3c7"];
+/** Car taillights (a red no model uses for anything else). */
+export const TAIL_COLOR = "#c81e1e";
 const NIGHT_SKY = new THREE.Color("#0b1230");
 const WARM = new THREE.Color("#ffd27a");
 const SUN_DAY = new THREE.Color("#ffffff");
@@ -58,6 +60,9 @@ function setGlow(night: number) {
     m.emissive.copy(WARM);
     m.emissiveIntensity = night * 0.9;
   }
+  const tail = mat(TAIL_COLOR);
+  tail.emissive.set("#ff2a2a");
+  tail.emissiveIntensity = night * 1.4;
   for (const c of LAMPS) {
     const m = mat(c);
     m.emissive.set("#ffe7a3");

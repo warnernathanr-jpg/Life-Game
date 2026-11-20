@@ -12,6 +12,7 @@ import {
   clockText,
   decide,
   dwellMinutes,
+  outing,
   purposeWord,
   rng,
   roadPath,
@@ -21,7 +22,11 @@ import {
   type Place,
   type Purpose,
 } from "@/lib/sim";
-import { BOX } from "./models";
+import { BOX, mat } from "./models";
+import { TAIL_COLOR } from "./day-night";
+
+const HEADLIGHT = mat("#fef3c7");
+const TAILLIGHT = mat(TAIL_COLOR);
 
 export type CitizenInfo = {
   id: string;
@@ -186,6 +191,40 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
     return n >= 3;
   };
 
+  const lastNudge = useRef(-Infinity);
+
+  /** Set off on a trip (if there's a way there and room on the streets). Returns whether they left. */
+  const start = (c: Citizen, s: State, plan: { purpose: Purpose; toId: string }, t: number, active: number): boolean => {
+    if (s.trip || !s.at) return false;
+    const from = places.get(s.at);
+    const to = places.get(plan.toId);
+    const path = from && to ? route(from, to) : null;
+    if (!path) {
+      s.until = t + 60; // no way there: try again later
+      return false;
+    }
+    if (active >= CAR_SLOTS + WALK_SLOTS - 4) {
+      s.until = t + 5; // the streets are full: leave a little later
+      return false;
+    }
+    const mode = travelMode(path.length, plan.purpose, c.age);
+    // Don't pull out on top of another car: wait a moment until the start of the road is clear.
+    if (mode === "car") {
+      const startPt = pointAt(path, 0, SIDE.car);
+      const crowded = [...states.current.values()].some((o) => {
+        if (!o.trip || o.trip.mode !== "car") return false;
+        const q = pointAt(o.trip.path, o.trip.u, SIDE.car);
+        return Math.hypot(q.x - startPt.x, q.z - startPt.z) < GAP;
+      });
+      if (crowded) {
+        s.until = t + 2;
+        return false;
+      }
+    }
+    states.current.set(c.id, { at: null, until: 0, trip: { purpose: plan.purpose, fromId: s.at, toId: plan.toId, path, mode, start: t, u: 0, waited: 0 } });
+    return true;
+  };
+
   useFrame((_, delta) => {
     const t0 = clock.t;
     const dt = sim.paused ? 0 : Math.min(delta, 0.1);
@@ -213,35 +252,24 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
           s.until = Math.max(plan.stayUntil, t + 1);
           continue;
         }
-        const from = places.get(s.at);
-        const to = places.get(plan.toId);
-        const path = from && to ? route(from, to) : null;
-        if (!path) {
-          s.until = t + 60; // no way there: try again later
-          continue;
-        }
-        if (active >= CAR_SLOTS + WALK_SLOTS - 4) {
-          s.until = t + 5; // the streets are full: leave a little later
-          continue;
-        }
-        const mode = travelMode(path.length, plan.purpose, c.age);
-        // Don't pull out on top of another car: wait a moment until the start of the road is clear.
-        if (mode === "car") {
-          const start = pointAt(path, 0, SIDE.car);
-          const crowded = [...states.current.values()].some((o) => {
-            if (!o.trip || o.trip.mode !== "car") return false;
-            const q = pointAt(o.trip.path, o.trip.u, SIDE.car);
-            return Math.hypot(q.x - start.x, q.z - start.z) < GAP;
-          });
-          if (crowded) {
-            s.until = t + 2;
-            continue;
-          }
-        }
-        states.current.set(c.id, { at: null, until: 0, trip: { purpose: plan.purpose, fromId: s.at, toId: plan.toId, path, mode, start: t, u: 0, waited: 0 } });
-        active++;
+        if (start(c, s, plan, t, active)) active++;
+      }
+      // Always a little life on the streets: if only a few people are out (night, weekend lull, small town),
+      // send someone at home on an errand, a walk or a visit. Checked every few game minutes.
+      const minOut = Math.min(4, Math.ceil(sim.citizens.length / 4));
+      if (active < minOut && t - lastNudge.current > 3) {
+        lastNudge.current = t;
+        const homeBodies = sim.citizens.filter((c) => {
+          const s = states.current.get(c.id);
+          return s && !s.trip && s.at === c.homeId && c.age >= 12;
+        });
+        const c = homeBodies[Math.floor(random.current() * homeBodies.length)];
+        const s = c && states.current.get(c.id);
+        const plan = c ? outing(c, places, random.current) : null;
+        if (c && s && plan && start(c, s, plan, t, active)) active++;
       }
     }
+
 
     // Move everyone who's out. Walkers just walk; cars keep their distance and take turns at intersections.
     if (dt > 0) {
@@ -416,6 +444,11 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
         <group key={`c${i}`} ref={(el) => { carRefs.current[i] = el; }} visible={false} onClick={pick("car", i)}>
           <mesh geometry={BOX} material={carBody[i]} position={[0, 0.05, 0]} scale={[0.16, 0.07, 0.28]} castShadow />
           <mesh geometry={BOX} material={CAR_GLASS} position={[0, 0.11, -0.02]} scale={[0.13, 0.06, 0.14]} />
+          {/* Headlights and taillights (they glow after dark, see day-night.tsx). */}
+          <mesh geometry={BOX} material={HEADLIGHT} position={[-0.05, 0.06, 0.141]} scale={[0.035, 0.02, 0.01]} />
+          <mesh geometry={BOX} material={HEADLIGHT} position={[0.05, 0.06, 0.141]} scale={[0.035, 0.02, 0.01]} />
+          <mesh geometry={BOX} material={TAILLIGHT} position={[-0.055, 0.06, -0.141]} scale={[0.03, 0.02, 0.01]} />
+          <mesh geometry={BOX} material={TAILLIGHT} position={[0.055, 0.06, -0.141]} scale={[0.03, 0.02, 0.01]} />
           {/* A bigger invisible box makes small cars easy to tap. */}
           <mesh geometry={BOX} material={HIT} position={[0, 0.1, 0]} scale={[0.4, 0.3, 0.5]} />
         </group>
