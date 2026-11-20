@@ -265,6 +265,16 @@ export type Database = {
       sync_achievements: { Args: Record<string, never>; Returns: number };
       mark_achievements_seen: { Args: Record<string, never>; Returns: undefined };
       my_achievement_coins: { Args: Record<string, never>; Returns: { badges: number; coins: number }[] };
+      am_admin: { Args: Record<string, never>; Returns: boolean };
+      admin_signups: { Args: { p_days?: number }; Returns: { day: string; signups: number; played: number }[] };
+      admin_players: {
+        Args: Record<string, never>;
+        Returns: {
+          user_id: string; email: string | null; display_name: string | null; city_name: string | null; signed_up: string;
+          last_sign_in: string | null; tasks: number; checkoffs: number; last_checkoff: string | null; buildings: number;
+          population: number; coins: number; land: number | null; friends: number; tutorial_done: boolean;
+        }[];
+      };
       record_invite_shared: { Args: Record<string, never>; Returns: undefined };
       leaderboard: {
         Args: Record<string, never>;

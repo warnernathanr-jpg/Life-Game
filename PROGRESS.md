@@ -949,6 +949,16 @@ _Last updated: 2026-11-28_
   parks again; parks are out of step with each other (`park-rides.tsx`, `coasterCurve()` shared with the track in
   `models-catalog.tsx`; both pause with the city). Fire trucks are as tall as buses (0.21).
 
+### 67. Admin page (2026-11-28)
+- **`/admin`** (link at the top of Settings, only for admins; everyone else gets "page not found"): tiles (players, signed up
+  today and how many of them played, last 7 / 30 days, active today), sign-ups per day for the last 14 days with how many of each
+  day's sign-ups checked off a task, and every player (email, name, city, signed up, last sign-in, tasks, check-offs and the last
+  one, buildings, people, coins, land, friends, Getting started done). Times in the admin's time zone.
+- Admins are rows in `private.admins` (added by hand in the database, not in the code; the owner's account was added live).
+  `admin_signups(days)` / `admin_players()` refuse anyone else (`not_admin`), so the app still only uses the signed-in user's
+  session; `am_admin()` shows the link. Migration `20261128190000_admin.sql` (applied live). 6 pgTAP tests (`admin.test.sql`,
+  395 total; the local `auth.users` stand-in now has `created_at` / `last_sign_in_at`).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

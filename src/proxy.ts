@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { originFromHeaders } from "@/lib/origin";
 import { supabaseKey, supabaseUrl } from "@/lib/supabase/env";
 
-const GAME_PATHS = ["/city", "/play", "/friends", "/visit", "/tasks", "/goals", "/settings", "/focus", "/stats", "/achievements", "/today", "/coins"];
+const GAME_PATHS = ["/city", "/play", "/friends", "/visit", "/tasks", "/goals", "/settings", "/focus", "/stats", "/achievements", "/admin", "/today", "/coins"];
 
 /**
  * Refreshes the Supabase session cookie on every request, keeps signed-out
