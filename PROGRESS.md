@@ -809,6 +809,10 @@ _Last updated: 2026-11-28_
   lane, so the bus seemed to jump across the street). A lone station's tour is one continuous path out of the station and back
   in. Checked per frame for 40 s: no jumps (largest step 0.24 tiles at ~6 fps), buses seen inside the station lots.
 
+- **Fire trucks and police cars pull in and out** (2026-11-28): their routes start inside the station's lot (they pull out onto
+  the road), end turned in toward the building on its driveway (stopping 0.2 tiles short of the lot so they stay clear of the
+  model), and on the way back turn into the station and disappear, like everyday cars.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

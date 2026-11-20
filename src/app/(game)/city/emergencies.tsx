@@ -11,7 +11,7 @@ import * as THREE from "three";
 import type { Tile } from "@/lib/roads";
 import { roadPath, type Place } from "@/lib/sim";
 import { BOX, MODEL_HEIGHT, mat } from "./models";
-import { pointAt } from "./traffic";
+import { lotTileBy, pointAt } from "./traffic";
 
 type Kind = "fire" | "crime";
 type Phase = "waiting" | "en_route" | "on_scene" | "returning";
@@ -22,6 +22,8 @@ const SPEED = 3; // tiles a second (faster than everyday traffic)
 const ON_SCENE = 6; // seconds at the scene
 const NO_HELP = 18; // seconds an event lasts when nobody can come
 const LANE = 0.2;
+const START_U = 0.7; // starts just inside the station's lot
+const PARK_AT = 0.2; // stops this far short of the place's lot: turned in, facing the building, still clear of it
 
 /** Seconds between events (random within the range); the first comes sooner. */
 const FIRST_EVENT = [20, 35] as const;
@@ -59,12 +61,16 @@ function choose(places: Place[], kind: Kind): Place | null {
   return null;
 }
 
-/** The shortest road route from any station of this kind to the place. */
+/**
+ * The shortest road route from any station of this kind to the place. Like everyday cars, it starts inside the station's
+ * lot (the vehicle pulls out onto the road) and ends at the edge of the place's lot (it turns in and stops facing the building).
+ */
 function routeFor(places: Place[], roads: Set<string>, kind: Kind, to: Place): Tile[] | null {
   let best: Tile[] | null = null;
   for (const s of places) {
     if (s.typeId !== STATION[kind] || !s.entrance || !to.entrance) continue;
-    const path = roadPath(roads, s.entrance, to.entrance);
+    const road = roadPath(roads, s.entrance, to.entrance);
+    const path = road ? [lotTileBy(s, s.entrance), ...road, lotTileBy(to, to.entrance)] : null;
     if (path && (!best || path.length < best.length)) best = path;
   }
   return best;
@@ -155,7 +161,7 @@ export function Emergencies({
       const place = choose(places, kind);
       if (!place) return;
       const path = routeFor(places, roads, kind, place);
-      incidents.current[kind] = { kind, place, path, phase: path ? "en_route" : "waiting", u: 0, timer: NO_HELP };
+      incidents.current[kind] = { kind, place, path, phase: path ? "en_route" : "waiting", u: START_U, timer: NO_HELP };
       onNews?.((path ? NEWS[kind].start : NEWS[kind].noHelp)(place.name));
       invalidate();
     }, 1000);
@@ -201,7 +207,10 @@ export function Emergencies({
         continue;
       }
       const name = inc.place.name;
-      const end = inc.path ? inc.path.length - 1 : 0;
+      // Arrive just inside the place's lot (parked facing it); drive back until just inside the station's lot.
+      const n = inc.path ? inc.path.length - 1 : 0;
+      const arrive = n - PARK_AT;
+      const home = n + 0.3;
       if (inc.phase === "waiting") {
         inc.timer -= dt;
         if (inc.timer <= 0) {
@@ -211,8 +220,8 @@ export function Emergencies({
         }
       } else if (inc.phase === "en_route") {
         inc.u += dt * SPEED;
-        if (inc.u >= end) {
-          inc.u = end;
+        if (inc.u >= arrive) {
+          inc.u = arrive;
           inc.phase = "on_scene";
           inc.timer = ON_SCENE;
         }
@@ -220,12 +229,12 @@ export function Emergencies({
         inc.timer -= dt;
         if (inc.timer <= 0) {
           inc.phase = "returning";
-          inc.u = 0;
+          inc.u = 1 + PARK_AT; // the same spot, on the reversed path
           onNews?.(NEWS[kind].solved(name));
         }
       } else {
         inc.u += dt * SPEED;
-        if (inc.u >= end) {
+        if (inc.u >= home) {
           delete incidents.current[kind];
           continue;
         }
@@ -279,7 +288,7 @@ export function Emergencies({
         vehicle.visible = !!moving;
         if (moving && inc.path) {
           const path = inc.phase === "returning" ? [...inc.path].reverse() : inc.path;
-          const pos = pointAt(path, Math.min(inc.u, end), LANE);
+          const pos = pointAt(path, inc.u, LANE);
           vehicle.position.set(pos.x, 0, pos.z);
           vehicle.rotation.y = pos.heading;
         }
