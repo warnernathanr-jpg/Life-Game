@@ -643,7 +643,7 @@ _Last updated: 2026-11-28_
 ### 44. Leaving the scenic view, sound effects (2026-11-28)
 - **Scenic view** was hard to leave (a faint eye icon in the bottom corner): now a clear **Show menus** button at the top right,
   a tap anywhere on the map, or Escape brings the menus back.
-- **Sound effects** in the city (`src/lib/sfx.ts`, Web Audio, no files): a soft click for every button pressed over the
+- (Removed later at the owner's request; the music stays.) **Sound effects** in the city (`src/lib/sfx.ts`, Web Audio, no files): a soft click for every button pressed over the
   full-screen map, a pop when something is built (buildings, roads, upgrades, moves, stop signs), a crunch when demolishing,
   and a rising chime for buying land, the first building and claiming a milestone. On by default; **Settings → Sounds** switches
   them off (remembered per device, `lifecity.sfx`). `say()` in `city-board.tsx` takes an optional sound.
@@ -707,6 +707,12 @@ _Last updated: 2026-11-28_
 
 - Placing or moving in full screen: the Cancel button moved from the top row (it squeezed the city name and coins) to the end of
   the "Placing … / Moving …" line under it.
+
+### 51. Sound effects removed; Instagram profile picture (2026-11-28)
+- The button / build / demolish sounds and their Settings switch are gone (`src/lib/sfx.ts` deleted) at the owner's request; the
+  full-screen music stays.
+- `brand/instagram-profile.png` (1080×1080, from `brand/instagram-profile.svg`): the app logo on full-bleed green with the shapes
+  inside the circle Instagram crops to.
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
