@@ -580,6 +580,10 @@ _Last updated: 2026-11-27_
 - **Props**: café and restaurant (patio tables out front) only get planters at the corners; the clothing store's props stay
   left of its sign; the warehouse's crates sit at the corner and the yellow bay line at the far edge, clear of the loading
   doors; the parking garage's blue "P" sign (it floated past the slab) stands on a post at the entrance.
+- **Clock Tower**: a real clock face on all four sides (dark rim, white dial, hour marks, hands); before, the faces lay flat
+  inside the tower. **Fountain Plaza** runs: water arcs from the spout into the top bowl and spills from its rim into the
+  pool (`fountain-water.tsx`, one instanced mesh, paused with the other animations), and the pool's water now shows above
+  its stone rim.
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate

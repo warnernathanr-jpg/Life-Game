@@ -11,6 +11,7 @@ import { Traffic, type SimProps } from "./traffic";
 import { LotDressing } from "./lot-dressing";
 import { Airplanes } from "./airplanes";
 import { ZooAnimals } from "./zoo-animals";
+import { FountainWater } from "./fountain-water";
 import { palFor } from "./models-catalog";
 import { DayNight, GRID_MAT, StreetLights } from "./day-night";
 import { RoadControls } from "./road-controls";
@@ -70,6 +71,7 @@ const isCoarse = () => typeof window !== "undefined" && window.matchMedia("(poin
  * so a phone's scrolling never competes with the 3D view.
  */
 const motion = { on: true };
+const isMoving = () => motion.on;
 
 /** True while a building preview is being dragged (the map must not pan meanwhile). */
 const gesture = { ghostDrag: false };
@@ -326,6 +328,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
                   <BuildingModel typeId={b.type_id} seed={b.color_seed ?? colorSeed(b.id)} join={joins.get(b.id)} />
                   <LotDressing typeId={b.type_id} seed={colorSeed(b.id)} lw={sideways ? b.h : b.w} ld={sideways ? b.w : b.h} />
                   {b.type_id === "zoo" && <ZooAnimals seed={colorSeed(b.id)} />}
+                  {b.type_id === "fountain" && <FountainWater moving={isMoving} />}
                   {b.type_id === "airport" && <Airplanes seed={colorSeed(b.id)} accent={palFor(b.color_seed ?? colorSeed(b.id)).accent} />}
                 </group>
               );
