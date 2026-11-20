@@ -26,6 +26,8 @@ export type ProfileRow = {
   created_at: string;
   /** Six-character code friends use to add this city. */
   city_code: string;
+  /** The Getting started guide was skipped (or the player joined before it existed). */
+  tutorial_hidden: boolean;
 };
 
 export type TaskRow = {
@@ -181,7 +183,7 @@ export type ProgressRow = {
 export type Database = {
   public: {
     Tables: {
-      profiles: Table<ProfileRow, Partial<ProfileRow>, Partial<Pick<ProfileRow, "display_name" | "timezone" | "city_name">>>;
+      profiles: Table<ProfileRow, Partial<ProfileRow>, Partial<Pick<ProfileRow, "display_name" | "timezone" | "city_name" | "tutorial_hidden">>>;
       tasks: Table<
         TaskRow,
         Pick<TaskRow, "title" | "area"> & Partial<Pick<TaskRow, "difficulty" | "repeat" | "user_id" | "weekdays" | "times_per_period" | "icon" | "due_date" | "times_of_day">>,
@@ -258,6 +260,7 @@ export type Database = {
       complete_focus: { Args: { p_id: string }; Returns: { coins: number; balance: number }[] };
       fail_focus: { Args: { p_id: string }; Returns: undefined };
       buy_land: { Args: Record<string, never>; Returns: { city_size: number; balance: number }[] };
+      my_tutorial: { Args: Record<string, never>; Returns: { has_task: boolean; has_checkoff: boolean; has_road: boolean; has_home: boolean; has_resident: boolean; has_color: boolean; has_shop: boolean; hidden: boolean; claimed: boolean }[] };
       shift_city: { Args: { p_dx: number; p_dy: number }; Returns: undefined };
       my_progress: { Args: Record<string, never>; Returns: ProgressRow[] };
       my_tasks: { Args: Record<string, never>; Returns: MyTaskRow[] };

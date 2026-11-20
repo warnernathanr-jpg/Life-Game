@@ -673,6 +673,18 @@ _Last updated: 2026-11-28_
 - Account mbsw000@gnail.com (signed up with "gnail"): +500,000 coins, 1,000 points per area (all buildings), all 7 milestones
   recorded as claimed with no bonus coins (all landmarks unlocked); land left at 8×8.
 
+### 48. Getting started guide (2026-11-28)
+- New players get a six-step guide: **add a task → check it off → lay a road → build a home beside it (residents move in) → tap it
+  and pick its colors → open a shop beside the road**. A **Getting started** card at the top of every app page (progress bar, ticked
+  steps, how to do the next one, Go to Tasks / Open my city) and, in full screen, a coach bubble under the top bar with the current
+  step (`src/components/getting-started.tsx`, `city/tutorial-coach.tsx`, steps in `src/lib/tutorial.ts`). A home that isn't touching a
+  road gets a "move it next to the road" hint. Finishing pays **100 coins** (`claim_reward('tutorial')`, checked by the database).
+  **Skip** hides it (`profiles.tutorial_hidden`). Budget fits the 100 starting coins (Dirt Road 1/tile, Small Cottage 25, Convenience
+  Store 60, plus the first check-off).
+- Migration `20261128090000_tutorial.sql` (applied live): `profiles.tutorial_hidden` (true for players who already had tasks or
+  buildings), `private.tutorial_state()`, `my_tutorial()`, `user_rewards` allows 'tutorial'. 12 pgTAP tests (`tutorial.test.sql`,
+  355 total).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

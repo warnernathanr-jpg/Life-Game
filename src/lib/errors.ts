@@ -18,6 +18,7 @@ const MESSAGES: Record<string, string> = {
   not_enough_coins: "Not enough coins yet. Finish some tasks!",
   building_not_found: "That building is gone.",
   max_size: "Your city is already as big as it can get.",
+  tutorial_not_done: "Finish every Getting started step first.",
   off_the_edge: "Your city is already at that edge of your land.",
   no_tiles: "Nothing selected.",
   bad_minutes: "Choose between 5 and 60 minutes.",

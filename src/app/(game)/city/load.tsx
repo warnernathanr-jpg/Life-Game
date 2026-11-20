@@ -1,6 +1,7 @@
 // Loads everything the city screen needs (used by /city and the full-screen /play page).
 import { requireUser } from "@/lib/auth";
 import { CityBoard } from "./city-board";
+import { tutorialActive } from "@/lib/tutorial";
 
 export async function CityLoader({ place, standalone }: { place?: string; standalone?: boolean }) {
   const { supabase } = await requireUser();
@@ -12,6 +13,7 @@ export async function CityLoader({ place, standalone }: { place?: string; standa
     supabase.from("road_controls").select("x, y, kind"),
     supabase.from("city_milestones").select("population"),
   ]);
+  const { data: tutorial } = standalone ? await supabase.rpc("my_tutorial").maybeSingle() : { data: null };
 
   if (!profile || !types) {
     return <p className="card">Your city couldn&apos;t be loaded. Refresh to try again.</p>;
@@ -30,6 +32,7 @@ export async function CityLoader({ place, standalone }: { place?: string; standa
       balance={Number(progress?.balance ?? 0)}
       initialPlace={place}
       standalone={standalone}
+      tutorial={tutorialActive(tutorial) ? tutorial : null}
     />
   );
 }

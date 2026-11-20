@@ -78,6 +78,8 @@ import {
 } from "@/lib/roads";
 import { startMusic, stopMusic } from "@/lib/music";
 import { playSfx, type Sfx } from "@/lib/sfx";
+import type { TutorialState } from "@/lib/tutorial";
+import { TutorialCoach } from "./tutorial-coach";
 import {
   buyBuilding,
   buyLand,
@@ -178,6 +180,8 @@ export function CityBoard(props: {
   initialPlace?: string;
   /** The full-screen page (/play): only the map, with the build bar over it. */
   standalone?: boolean;
+  /** Getting started guide state (full screen only; null when finished, skipped or claimed). */
+  tutorial?: TutorialState | null;
   /** Visiting a friend's city: look around only (no building, selling or selecting). */
   visit?: { owner: string | null; inviteUrl: string };
 }) {
@@ -1778,6 +1782,12 @@ export function CityBoard(props: {
                     </p>
                   ) : null}
                 </div>
+                {props.tutorial && !props.visit && (
+                  <TutorialCoach
+                    state={props.tutorial}
+                    onReward={(coins) => say(`+${coins} coins for finishing Getting started!`, "good", "fanfare")}
+                  />
+                )}
               </div>
             )}
             {full && mode.kind === "shift" && (

@@ -350,13 +350,22 @@ export async function failFocus(id: string): Promise<ActionResult> {
 // One-time rewards and notifications
 // ---------------------------------------------------------------------------
 
-export async function claimReward(reward: "home_screen" | "notifications"): Promise<ActionResult<{ coins: number }>> {
-  if (reward !== "home_screen" && reward !== "notifications") return { ok: false, error: gameError(null) };
+export async function claimReward(reward: "home_screen" | "notifications" | "tutorial"): Promise<ActionResult<{ coins: number }>> {
+  if (reward !== "home_screen" && reward !== "notifications" && reward !== "tutorial") return { ok: false, error: gameError(null) };
   const { supabase } = await requireUser();
   const { data, error } = await supabase.rpc("claim_reward", { p_reward: reward }).single();
   if (error || !data) return { ok: false, error: gameError(error) };
   refresh();
   return { ok: true, coins: data.coins };
+}
+
+/** Hide the Getting started guide. */
+export async function hideTutorial(): Promise<ActionResult> {
+  const { supabase, userId } = await requireUser();
+  const { error } = await supabase.from("profiles").update({ tutorial_hidden: true }).eq("id", userId);
+  if (error) return { ok: false, error: gameError(error) };
+  refresh();
+  return { ok: true };
 }
 
 const subscriptionSchema = z.object({

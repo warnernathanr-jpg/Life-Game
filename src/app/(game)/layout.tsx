@@ -6,6 +6,8 @@ import { formatCoins } from "@/lib/game";
 import { RewardPrompts } from "@/components/reward-prompts";
 import { BottomNav, TopNav } from "./nav";
 import { InviteRedeemer } from "@/components/invite";
+import { GettingStarted } from "@/components/getting-started";
+import { tutorialActive } from "@/lib/tutorial";
 
 export default function GameLayout({ children }: LayoutProps<"/">) {
   return (
@@ -32,7 +34,12 @@ export default function GameLayout({ children }: LayoutProps<"/">) {
         </div>
       </header>
       {/* Room at the bottom on phones for the tab bar. */}
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-8">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-8">
+        <Suspense>
+          <TutorialCard />
+        </Suspense>
+        {children}
+      </main>
       <BottomNav />
       <InviteRedeemer />
       <Suspense>
@@ -88,4 +95,11 @@ async function FriendsBadge() {
   const { supabase } = await requireUser();
   const { data } = await supabase.rpc("my_friend_requests");
   return <FriendsLink count={(data ?? []).filter((r) => r.direction === "in").length} />;
+}
+
+/** The Getting started guide, for new players until it's finished or skipped. */
+async function TutorialCard() {
+  const { supabase } = await requireUser();
+  const { data } = await supabase.rpc("my_tutorial").maybeSingle();
+  return tutorialActive(data) ? <GettingStarted state={data} /> : null;
 }
