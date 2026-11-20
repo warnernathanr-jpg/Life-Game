@@ -357,6 +357,14 @@ _Last updated: 2026-11-25_
   JetBrains Mono for code.
 - Fix: an import had been placed above `"use server"` in `actions.ts` (lint warned); the directive is first again.
 
+### 23. Full screen loads fresh; Stats page only about you (2026-11-26)
+- Entering/leaving full screen is a full page load (`hardNavigate()` in `city-board.tsx`): with client navigation Next.js kept the
+  City page alive in the background (two 3D views running). Found in the live test (2 canvases on /play).
+- **Stats page**: no area points, coins or city numbers; tiles are Done today, Check-offs, Focus, Goals; then the check-offs chart,
+  habits and the history calendar.
+- Live test (throwaway account, deleted): 5 tabs, new heading font, /play fills the screen with Stats and Exit, a task with the
+  dumbbell icon, a goal with 3 steps (1 checked → 33%), Stats tiles.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

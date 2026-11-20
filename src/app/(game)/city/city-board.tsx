@@ -3,7 +3,6 @@
 import { Car, ChartColumn, Footprints, House, LocateFixed, Maximize2, Minimize2, Moon, MousePointer2, Pause, Play, RotateCcw, RotateCw, Sun, Sunrise, Sunset, X, ZoomIn, ZoomOut } from "lucide-react";
 import dynamic from "next/dynamic";
 import { BuildingIcon, BulldozeIcon, CoinIcon } from "@/components/icons";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
 import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, sellRefund } from "@/lib/game";
@@ -27,6 +26,11 @@ type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid
 const PAINT_TYPES = ["dirt_road", "road", "avenue", "tree", "water"] as const;
 type PaintType = (typeof PAINT_TYPES)[number];
 const isPaint = (id: string): id is PaintType => (PAINT_TYPES as readonly string[]).includes(id);
+
+/** Load a page fresh (deliberately not client-side navigation: see enterFull). */
+function hardNavigate(path: string) {
+  window.location.assign(new URL(path, window.location.origin).href);
+}
 
 /** Sky for the city clock. */
 function DayIcon({ t }: { t: number }) {
@@ -141,7 +145,6 @@ export function CityBoard(props: {
   // City Stats as a panel over the map in full screen.
   const [statsOpen, setStatsOpen] = useState(false);
   // Full screen is its own page (/play) showing only the map, so it opens the same way every time.
-  const router = useRouter();
   const full = !!props.standalone;
   const fullRef = useRef(full);
   const modeRef = useRef<Mode>(mode);
@@ -150,11 +153,12 @@ export function CityBoard(props: {
     modeRef.current = mode;
   });
 
+  // A full page load (not client navigation), so the city page isn't kept alive in the background with a second 3D view.
   function enterFull() {
-    router.push("/play");
+    hardNavigate("/play");
   }
   function exitFull() {
-    router.push("/city");
+    hardNavigate("/city");
   }
 
 
@@ -170,12 +174,12 @@ export function CityBoard(props: {
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
       // Escape first stops what you're doing, then leaves full screen.
-      if (modeRef.current.kind === "idle" && fullRef.current) router.push("/city");
+      if (modeRef.current.kind === "idle" && fullRef.current) hardNavigate("/city");
       else setMode({ kind: "idle" });
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if ((mode.kind === "selected" || mode.kind === "move") && !lots.some((b) => b.id === mode.id)) {

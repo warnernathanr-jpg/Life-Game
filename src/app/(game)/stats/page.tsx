@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { AreaPoints } from "@/components/area-points";
 import { requireUser } from "@/lib/auth";
-import { formatCoins, nextUnlocks } from "@/lib/game";
+import { formatCoins } from "@/lib/game";
 import { addDays, isHabit, rateWords, summarizeHabit } from "@/lib/habits";
 import { describeSchedule } from "@/lib/tasks";
 import { ActivityChart } from "./activity-chart";
@@ -13,10 +12,8 @@ export const metadata: Metadata = { title: "Stats · Life City" };
 async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats">["searchParams"] }) {
   const { month: monthParam } = await searchParams;
   const { supabase } = await requireUser();
-  const [{ data: tasks }, { data: progress }, { data: types }, { data: goals }, { data: profile }] = await Promise.all([
+  const [{ data: tasks }, { data: goals }, { data: profile }] = await Promise.all([
     supabase.rpc("my_tasks"),
-    supabase.rpc("my_progress").maybeSingle(),
-    supabase.from("building_types").select("*").order("sort_order"),
     supabase.from("goals").select("id, completed_at, target_date"),
     supabase.from("profiles").select("timezone").maybeSingle(),
   ]);
@@ -67,7 +64,7 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
     .sort((a, b) => b.summary.rate - a.summary.rate);
 
   const tiles = [
-    { label: "Coins", value: formatCoins(Number(progress?.balance ?? 0)), note: "to spend" },
+    { label: "Done today", value: String(recent.filter((c) => c.local_day === today).length), note: "check-offs today" },
     { label: "Check-offs", value: String(checkoffsWeek), note: `last 7 days · ${formatCoins(allCheckoffs ?? 0)} all time` },
     { label: "Focus", value: `${focusWeek} min`, note: `last 7 days · ${formatCoins(focusAll)} min all time` },
     { label: "Goals", value: String(activeGoals.length), note: `in progress · ${reachedGoals} reached${lateGoals ? ` · ${lateGoals} past the date` : ""}` },
@@ -90,7 +87,7 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
         ))}
       </dl>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+      <div className="space-y-6">
         <div className="min-w-0 space-y-6">
           <section className="card" aria-labelledby="act-h">
             <h2 id="act-h" className="font-semibold">Check-offs per day</h2>
@@ -133,13 +130,6 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
           </section>
         </div>
 
-        <aside className="space-y-4">
-          <section className="card" aria-labelledby="pts-h">
-            <h2 id="pts-h" className="font-semibold">Area points</h2>
-            <p className="mb-3 text-xs text-muted">Earned with every check-off. They unlock buildings and are never spent.</p>
-            <AreaPoints unlocks={nextUnlocks(types ?? [], progress ?? null)} />
-          </section>
-        </aside>
       </div>
     </div>
   );
