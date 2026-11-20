@@ -1,7 +1,9 @@
 "use client";
 
 // Side panels and small pieces of the city screen.
+import { ArrowUp, Briefcase, Frown, Lock, Meh, Smile, Star, TriangleAlert, Users, type LucideIcon } from "lucide-react";
 import { useState, useTransition } from "react";
+import { AreaIcon, BuildingIcon, CoinIcon, GroupIcon } from "@/components/icons";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
 import { AREA_BY_ID, BUILD_GROUPS, CATEGORY_BY_ID, buildGroupOf, formatCoins, sizeText, type BuildGroupId, pointsToUnlock, sellRefund, type CityStats } from "@/lib/game";
 import { renameCity } from "../actions";
@@ -41,16 +43,17 @@ export function CityName({ name }: { name: string }) {
 }
 
 export function Effects({ t }: { t: BuildingTypeRow }) {
-  const parts: { text: string; bad?: boolean }[] = [];
-  if (t.population) parts.push({ text: `+${t.population} 👥` });
-  if (t.jobs) parts.push({ text: `+${t.jobs} 💼` });
-  if (t.happiness) parts.push({ text: `${t.happiness > 0 ? "+" : "−"}${Math.abs(t.happiness)} 😊`, bad: t.happiness < 0 });
-  if (t.w > 1 || t.d > 1) parts.push({ text: sizeText(t) });
+  const parts: { text: string; Icon?: LucideIcon; label: string; bad?: boolean }[] = [];
+  if (t.population) parts.push({ text: `+${t.population}`, Icon: Users, label: "residents" });
+  if (t.jobs) parts.push({ text: `+${t.jobs}`, Icon: Briefcase, label: "jobs" });
+  if (t.happiness) parts.push({ text: `${t.happiness > 0 ? "+" : "−"}${Math.abs(t.happiness)}`, Icon: Smile, label: "happiness", bad: t.happiness < 0 });
+  if (t.w > 1 || t.d > 1) parts.push({ text: sizeText(t), label: "lot size" });
   return (
     <span className="flex flex-wrap gap-1">
       {parts.map((p) => (
-        <span key={p.text} className={`rounded px-1.5 py-0.5 text-xs ${p.bad ? "bg-bad-soft text-bad" : "bg-raised text-ink"}`}>
+        <span key={p.label} title={p.label} className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs ${p.bad ? "bg-bad-soft text-bad" : "bg-raised text-ink"}`}>
           {p.text}
+          {p.Icon && <p.Icon className="size-3" aria-label={p.label} />}
         </span>
       ))}
     </span>
@@ -80,7 +83,7 @@ export function Shop({
     <section className="card" aria-labelledby="shop-h">
       <h2 id="shop-h" className="font-semibold">Build</h2>
       <div className="mt-2 flex flex-wrap gap-1" role="tablist" aria-label="Building types">
-        {[{ id: "all" as const, label: "All", icon: "" }, ...BUILD_GROUPS].map((c) => (
+        {[{ id: "all" as const, label: "All" }, ...BUILD_GROUPS].map((c) => (
           <button
             key={c.id}
             type="button"
@@ -89,7 +92,7 @@ export function Shop({
             onClick={() => setTab(c.id)}
             className={`min-h-9 rounded-full px-3 text-sm ${tab === c.id ? "bg-accent text-on-accent" : "bg-raised text-ink hover:bg-line"}`}
           >
-            {c.icon && <span aria-hidden>{c.icon} </span>}{c.label}
+            {c.id !== "all" && <GroupIcon id={c.id} className="mr-1 size-3.5" />}{c.label}
           </button>
         ))}
       </div>
@@ -101,7 +104,7 @@ export function Shop({
           return (
             <li key={t.id}>
               {locked && i === unlocked.length && (
-                <p className="mt-2 mb-1.5 text-xs font-semibold tracking-wide text-muted uppercase">🔒 Locked</p>
+                <p className="mt-2 mb-1.5 text-xs font-semibold tracking-wide text-muted uppercase"><Lock className="mr-1 inline size-3" aria-hidden />Locked</p>
               )}
               <button
                 type="button"
@@ -117,18 +120,18 @@ export function Shop({
                 } ${locked ? "cursor-not-allowed bg-raised opacity-70" : ""}`}
               >
                 <span className={`flex size-11 shrink-0 items-center justify-center rounded-lg border-2 text-2xl ${CATEGORY_BY_ID[t.category].tile} ${locked ? "grayscale" : ""}`} aria-hidden>
-                  {t.icon}
+                  <BuildingIcon id={t.id} className="size-6 text-slate-800" strokeWidth={1.75} />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
                     <span className="font-medium">{t.name}</span>
                     <span className={`shrink-0 text-sm font-bold ${short && !locked ? "text-bad" : "text-coin"}`}>
-                      🪙 {formatCoins(t.cost)}{t.category === "road" ? <span className="font-normal"> / tile</span> : null}
+                      <CoinIcon className="size-3.5" /> {formatCoins(t.cost)}{t.category === "road" ? <span className="font-normal"> / tile</span> : null}
                     </span>
                   </span>
                   {locked ? (
                     <span className="mt-0.5 block text-xs text-muted">
-                      🔒 {remaining} more {AREA_BY_ID[t.unlock_area!].icon} {AREA_BY_ID[t.unlock_area!].label} points to unlock
+                      <Lock className="inline size-3" aria-hidden /> {remaining} more <AreaIcon area={t.unlock_area!} className="size-3" /> {AREA_BY_ID[t.unlock_area!].label} points to unlock
                     </span>
                   ) : (
                     <span className="mt-0.5 block text-xs text-muted">{t.description}</span>
@@ -182,7 +185,7 @@ export function SelectedPanel({
     <section className="card" aria-labelledby="sel-h">
       <div className="flex items-start gap-3">
         <span className={`flex size-14 shrink-0 items-center justify-center rounded-xl border-2 text-3xl ${CATEGORY_BY_ID[type.category].tile}`} aria-hidden>
-          {type.icon}
+          <BuildingIcon id={type.id} className="size-7 text-slate-800" strokeWidth={1.75} />
         </span>
         <div className="min-w-0 flex-1">
           <h2 id="sel-h" className="font-semibold">{type.name}</h2>
@@ -192,7 +195,7 @@ export function SelectedPanel({
       </div>
       {warning && (
         <p role="status" className="mt-3 rounded-lg bg-coin-soft px-3 py-2 text-sm text-ink">
-          <span aria-hidden>⚠️ </span>
+          <TriangleAlert className="mr-1 inline size-4 text-coin" aria-hidden />
           {warning}
         </p>
       )}
@@ -225,14 +228,14 @@ export function SelectedPanel({
       {upgrade && (
         <div className="mt-4 rounded-xl border border-line bg-raised p-3">
           <p className="text-sm font-semibold">
-            Upgrade to <span aria-hidden>{upgrade.to.icon}</span> {upgrade.to.name}
+            Upgrade to <BuildingIcon id={upgrade.to.id} /> {upgrade.to.name}
             {upgrade.to.size > type.size ? ` (${sizeText(upgrade.to)})` : ""}
           </p>
           <p className="text-xs text-muted">
             +{upgrade.to.population - type.population} residents · pay the difference
           </p>
           <button type="button" className="btn-primary mt-2 w-full" disabled={pending || !!upgrade.blocked} onClick={onUpgrade}>
-            ⬆️ Upgrade · 🪙 {formatCoins(upgrade.cost)}
+            <ArrowUp className="size-4" aria-hidden /> Upgrade · <CoinIcon className="size-4" /> {formatCoins(upgrade.cost)}
           </button>
           {upgrade.blocked && <p className="mt-1.5 text-xs text-muted">{upgrade.blocked}</p>}
         </div>
@@ -264,12 +267,12 @@ function healthTone(stats: CityStats) {
 /** Everything about how the city is doing: health, numbers, what drives happiness, and what to do next. */
 export function CityStatsPanel({ stats }: { stats: CityStats }) {
   const tone = healthTone(stats);
-  const mood = stats.happiness >= 70 ? "😊" : stats.happiness >= 45 ? "😐" : "😟";
+  const Mood = stats.happiness >= 70 ? Smile : stats.happiness >= 45 ? Meh : Frown;
   const numbers = [
-    { label: "Population", value: formatCoins(stats.population), icon: "👥", note: stats.unemployed > 0 ? `${stats.unemployed} looking for work` : "everyone housed" },
-    { label: "Jobs", value: formatCoins(stats.jobs), icon: "💼", note: stats.jobs === 0 ? "no businesses yet" : `${Math.round(stats.staffing * 100)}% staffed` },
-    { label: "Happiness", value: `${stats.happiness}%`, icon: mood, note: stats.happiness >= 70 ? "residents are content" : stats.happiness >= 45 ? "could be better" : "residents are unhappy" },
-    { label: "City score", value: formatCoins(stats.score), icon: "⭐", note: "population × happiness" },
+    { label: "Population", value: formatCoins(stats.population), Icon: Users, note: stats.unemployed > 0 ? `${stats.unemployed} looking for work` : "everyone housed" },
+    { label: "Jobs", value: formatCoins(stats.jobs), Icon: Briefcase, note: stats.jobs === 0 ? "no businesses yet" : `${Math.round(stats.staffing * 100)}% staffed` },
+    { label: "Happiness", value: `${stats.happiness}%`, Icon: Mood, note: stats.happiness >= 70 ? "residents are content" : stats.happiness >= 45 ? "could be better" : "residents are unhappy" },
+    { label: "City score", value: formatCoins(stats.score), Icon: Star, note: "population × happiness" },
   ];
   return (
     <section className="card space-y-5 sm:p-6" aria-labelledby="city-stats-h" id="city-stats">
@@ -309,7 +312,7 @@ export function CityStatsPanel({ stats }: { stats: CityStats }) {
         {numbers.map((n) => (
           <div key={n.label} className="rounded-2xl bg-raised p-4">
             <dt className="text-sm text-muted">{n.label}</dt>
-            <dd className="mt-1 text-3xl font-black tabular-nums"><span aria-hidden className="text-2xl">{n.icon}</span> {n.value}</dd>
+            <dd className="mt-1 flex items-center gap-2 text-3xl font-black tabular-nums"><n.Icon className="size-6 text-muted" aria-hidden /> {n.value}</dd>
             <dd className="mt-0.5 text-xs text-muted">{n.note}</dd>
           </div>
         ))}
@@ -333,7 +336,7 @@ export function CityStatsPanel({ stats }: { stats: CityStats }) {
           {stats.tips.length > 0 ? (
             <ul className="mt-2 space-y-2">
               {stats.tips.slice(0, 5).map((t) => (
-                <li key={t} className="flex gap-2"><span aria-hidden>👉</span><span>{t}</span></li>
+                <li key={t} className="flex gap-2"><span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-accent" /><span>{t}</span></li>
               ))}
             </ul>
           ) : (

@@ -1,5 +1,11 @@
 "use client";
 
+import { CoinIcon } from "@/components/icons";
+
+import { CalendarDays, Check, Sprout, Target } from "lucide-react";
+
+import { AreaIcon } from "@/components/icons";
+
 import { useState, useTransition } from "react";
 import { useConfirm } from "@/components/confirm";
 import type { MyTaskRow } from "@/lib/database.types";
@@ -25,7 +31,7 @@ export function TaskList({
   if (todo.length + done.length + otherDays.length === 0) {
     return (
       <div className="card text-center">
-        <p className="text-4xl" aria-hidden>🌱</p>
+        <Sprout className="mx-auto size-10 text-good" aria-hidden />
         <p className="mt-2 font-medium">No tasks yet</p>
         <p className="text-sm text-muted">Add a few below: a daily habit, a weekly routine and something you&apos;ve been putting off.</p>
       </div>
@@ -40,7 +46,7 @@ export function TaskList({
       <section className="card p-0 sm:p-0" aria-labelledby="todo-h">
         <h2 id="todo-h" className="px-4 pt-4 font-semibold sm:px-5">To do</h2>
         {todo.length === 0 ? (
-          <p className="px-4 pt-1 pb-4 text-sm text-muted sm:px-5">Nothing left. 🎉</p>
+          <p className="px-4 pt-1 pb-4 text-sm text-muted sm:px-5">Nothing left. Nice work!</p>
         ) : (
           <ul className="divide-y divide-line">
             {todo.map((t) => (
@@ -146,12 +152,12 @@ function TaskRow({
           checked ? "border-good bg-good text-bg" : "border-line bg-raised hover:border-accent"
         }`}
       >
-        {checked ? "✓" : ""}
+        {checked ? <Check className="size-5" strokeWidth={3} aria-hidden /> : null}
       </button>
       <div className="min-w-0 flex-1">
         <p className={`break-words font-medium ${task.done ? "text-muted line-through" : ""}`}>{task.title}</p>
         <p className="flex flex-wrap gap-x-2 text-xs text-muted">
-          <span><span aria-hidden>{area.icon}</span> {area.label}</span>
+          <span><AreaIcon area={area.id} className="size-3.5" /> {area.label}</span>
           <span>· {describeSchedule(task)}</span>
           {progress && <span className={task.done ? "" : "font-medium text-good"}>· {progress}</span>}
           {task.total_completions > 0 && <span>· {task.total_completions}× total</span>}
@@ -172,7 +178,7 @@ function TaskRow({
       </button>
       {pop?.id === task.id && pop.coins > 0 && (
         <span key={pop.key} aria-hidden className="coin-pop pointer-events-none absolute top-1 right-16 font-bold text-coin">
-          +{pop.coins} 🪙
+          +{pop.coins} <CoinIcon className="size-3.5 text-coin" />
         </span>
       )}
     </li>
@@ -198,7 +204,7 @@ function HabitRhythm({ habit, total }: { habit: HabitSummary; total: number }) {
       {habit.rate > 0 && <span className="font-medium text-good">{rateWords(habit.rate)}</span>}
       {next && (
         <span>
-          🎯 {next.at - total} to go for +{next.bonus} bonus
+          <Target className="size-3.5" aria-hidden /> {next.at - total} to go for +{next.bonus} bonus
         </span>
       )}
     </div>
@@ -212,11 +218,11 @@ function OtherDayRow({ task, setMessage }: { task: MyTaskRow; setMessage: SetMes
   return (
     <li className={`flex items-center gap-3 px-4 py-3 sm:px-5 ${pending ? "opacity-60" : ""}`}>
       {confirmDialog}
-      <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-raised text-base">📅</span>
+      <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-raised text-muted"><CalendarDays className="size-4" /></span>
       <div className="min-w-0 flex-1">
         <p className="break-words font-medium text-ink">{task.title}</p>
         <p className="flex flex-wrap gap-x-2 text-xs text-muted">
-          <span><span aria-hidden>{area.icon}</span> {area.label}</span>
+          <span><AreaIcon area={area.id} className="size-3.5" /> {area.label}</span>
           <span>· {describeSchedule(task)}</span>
           <span>· Next: {describeNext(task.weekdays ?? [], task.today)}</span>
         </p>

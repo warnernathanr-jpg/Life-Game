@@ -2,11 +2,13 @@
 
 // Full-screen city: a bottom bar of tools and building groups; tapping a group opens a pop-up of its buildings
 // over the map.
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { Lock } from "lucide-react";
+import { BuildingIcon, CoinIcon, GroupIcon } from "@/components/icons";
 import type { BuildingTypeRow, ProgressRow } from "@/lib/database.types";
 import { AREA_BY_ID, BUILD_GROUPS, buildGroupOf, formatCoins, pointsToUnlock, sizeText, type BuildGroupId } from "@/lib/game";
 
-type Tool = { id: string; label: string; icon: string };
+type Tool = { id: string; label: string; icon: ReactNode };
 
 export function BuildOverlay({
   types,
@@ -45,7 +47,7 @@ export function BuildOverlay({
         >
           <div className="mb-2 flex items-center justify-between gap-2">
             <h2 className="font-bold">
-              <span aria-hidden>{group.icon}</span> {group.label}
+              <GroupIcon id={group.id} className="size-5" /> {group.label}
             </h2>
             <button type="button" onClick={() => setOpen(null)} className="btn-secondary min-h-9 px-3 py-1 text-sm">
               Close
@@ -74,17 +76,17 @@ export function BuildOverlay({
                       activeId === t.id ? "border-accent bg-accent-soft ring-2 ring-accent" : "border-line hover:bg-raised"
                     } ${isLocked ? "cursor-not-allowed opacity-60" : ""}`}
                   >
-                    <span className={`flex size-12 items-center justify-center rounded-xl border-2 text-3xl ${group.tile} ${isLocked ? "grayscale" : ""}`} aria-hidden>
-                      {t.icon}
+                    <span className={`flex size-12 items-center justify-center rounded-xl border-2 text-slate-800 ${group.tile} ${isLocked ? "grayscale" : ""}`} aria-hidden>
+                      <BuildingIcon id={t.id} className="size-6" strokeWidth={1.75} />
                     </span>
                     <span className="text-sm leading-tight font-semibold">{t.name}</span>
                     {isLocked ? (
                       <span className="text-[11px] text-muted">
-                        🔒 {remaining} {AREA_BY_ID[t.unlock_area!].icon} pts
+                        <Lock className="inline size-3" aria-hidden /> {remaining} {AREA_BY_ID[t.unlock_area!].label} pts
                       </span>
                     ) : (
                       <span className={`text-xs font-bold ${short ? "text-bad" : "text-coin"}`}>
-                        🪙 {formatCoins(t.cost)}
+                        <CoinIcon className="size-3.5" /> {formatCoins(t.cost)}
                         {t.category === "road" || t.category === "landscape" ? " / tile" : ""}
                       </span>
                     )}
@@ -109,7 +111,7 @@ export function BuildOverlay({
         {BUILD_GROUPS.map((g) => (
           <BarButton
             key={g.id}
-            icon={g.icon}
+            icon={<GroupIcon id={g.id} className="size-5" strokeWidth={1.75} />}
             label={g.label}
             tile={g.tile}
             expanded={open === g.id}
@@ -134,7 +136,7 @@ function BarButton({
   expanded,
   onClick,
 }: {
-  icon: string;
+  icon: ReactNode;
   label: string;
   tile?: string;
   active: boolean;
@@ -152,7 +154,7 @@ function BarButton({
       }`}
     >
       <span
-        className={`flex size-10 items-center justify-center rounded-full border-2 text-xl ${tile ?? "border-line bg-raised"}`}
+        className={`flex size-10 items-center justify-center rounded-full border-2 ${tile ? `${tile} text-slate-800` : "border-line bg-raised text-ink"}`}
         aria-hidden
       >
         {icon}

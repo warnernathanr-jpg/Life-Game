@@ -1,3 +1,4 @@
+import { AreaIcon, BuildingIcon } from "@/components/icons";
 import type { nextUnlocks } from "@/lib/game";
 
 /** Points per life area with progress toward each area's next building. */
@@ -8,7 +9,7 @@ export function AreaPoints({ unlocks }: { unlocks: ReturnType<typeof nextUnlocks
         <li key={area.id}>
           <div className="flex items-center justify-between gap-2 text-sm">
             <span className="font-medium">
-              <span aria-hidden>{area.icon}</span> {area.label}
+              <AreaIcon area={area.id} /> {area.label}
             </span>
             <span className="font-semibold tabular-nums">{points.toLocaleString("en-US")} pts</span>
           </div>
@@ -21,7 +22,7 @@ export function AreaPoints({ unlocks }: { unlocks: ReturnType<typeof nextUnlocks
                 />
               </div>
               <p className="mt-1 text-xs text-muted">
-                {remaining} more → <span aria-hidden>{next.icon}</span> {next.name}
+                {remaining} more → <BuildingIcon id={next.id} className="size-3.5" /> {next.name}
               </p>
             </>
           ) : (

@@ -37,11 +37,11 @@ export function sellRefund(pricePaid: number): number {
   return Math.floor(pricePaid / 2);
 }
 
-export const AREAS: { id: LifeArea; label: string; icon: string; hint: string }[] = [
-  { id: "health", label: "Health", icon: "💪", hint: "Exercise, sleep, eating well" },
-  { id: "work", label: "Work", icon: "💼", hint: "Homework, jobs, projects" },
-  { id: "knowledge", label: "Knowledge", icon: "📖", hint: "Reading, studying, new skills" },
-  { id: "personal", label: "Personal", icon: "🌱", hint: "Friends, family, hobbies, home" },
+export const AREAS: { id: LifeArea; label: string; hint: string }[] = [
+  { id: "health", label: "Health", hint: "Exercise, sleep, eating well" },
+  { id: "work", label: "Work", hint: "Homework, jobs, projects" },
+  { id: "knowledge", label: "Knowledge", hint: "Reading, studying, new skills" },
+  { id: "personal", label: "Personal", hint: "Friends, family, hobbies, home" },
 ];
 export const AREA_BY_ID = Object.fromEntries(AREAS.map((a) => [a.id, a])) as Record<LifeArea, (typeof AREAS)[number]>;
 
@@ -58,7 +58,7 @@ export const CATEGORIES: { id: BuildingCategory; label: string; tile: string; ch
   { id: "commercial", label: "Commercial", tile: "bg-sky-100 border-sky-300", chip: "bg-sky-100 text-sky-900" },
   { id: "industrial", label: "Industrial", tile: "bg-stone-200 border-stone-400", chip: "bg-stone-200 text-stone-900" },
   { id: "service", label: "Services", tile: "bg-violet-100 border-violet-300", chip: "bg-violet-100 text-violet-900" },
-  { id: "road", label: "Roads", tile: "bg-slate-500 border-slate-600", chip: "bg-slate-200 text-slate-900" },
+  { id: "road", label: "Roads", tile: "bg-slate-300 border-slate-500", chip: "bg-slate-200 text-slate-900" },
   { id: "landscape", label: "Landscape", tile: "bg-emerald-200 border-emerald-400", chip: "bg-emerald-100 text-emerald-900" },
 ];
 /** Parks (places people visit to relax), part of Recreation. */
@@ -83,18 +83,18 @@ export type BuildGroupId =
   | "road"
   | "landscape";
 
-/** The build menu's groups (with icons), in menu order. Bridges are drawn with the road tool, not picked. */
-export const BUILD_GROUPS: { id: BuildGroupId; label: string; icon: string; tile: string }[] = [
-  { id: "residential", label: "Residential", icon: "🏠", tile: "bg-orange-100 border-orange-300" },
-  { id: "commercial", label: "Commercial", icon: "🏪", tile: "bg-sky-100 border-sky-300" },
-  { id: "industrial", label: "Industrial", icon: "🏭", tile: "bg-stone-200 border-stone-400" },
-  { id: "service", label: "Services", icon: "🏛️", tile: "bg-violet-100 border-violet-300" },
-  { id: "knowledge", label: "Knowledge", icon: "📚", tile: "bg-amber-100 border-amber-300" },
-  { id: "recreation", label: "Recreation", icon: "🎡", tile: "bg-lime-100 border-lime-400" },
-  { id: "transport", label: "Transport", icon: "🚌", tile: "bg-cyan-100 border-cyan-300" },
-  { id: "landmark", label: "Landmarks", icon: "🗽", tile: "bg-teal-100 border-teal-300" },
-  { id: "road", label: "Roads", icon: "🛣️", tile: "bg-slate-300 border-slate-500" },
-  { id: "landscape", label: "Landscape", icon: "🌲", tile: "bg-emerald-200 border-emerald-400" },
+/** The build menu's groups, in menu order (icons: GroupIcon). Bridges are drawn with the road tool, not picked. */
+export const BUILD_GROUPS: { id: BuildGroupId; label: string; tile: string }[] = [
+  { id: "residential", label: "Residential", tile: "bg-orange-100 border-orange-300" },
+  { id: "commercial", label: "Commercial", tile: "bg-sky-100 border-sky-300" },
+  { id: "industrial", label: "Industrial", tile: "bg-stone-200 border-stone-400" },
+  { id: "service", label: "Services", tile: "bg-violet-100 border-violet-300" },
+  { id: "knowledge", label: "Knowledge", tile: "bg-amber-100 border-amber-300" },
+  { id: "recreation", label: "Recreation", tile: "bg-lime-100 border-lime-400" },
+  { id: "transport", label: "Transport", tile: "bg-cyan-100 border-cyan-300" },
+  { id: "landmark", label: "Landmarks", tile: "bg-teal-100 border-teal-300" },
+  { id: "road", label: "Roads", tile: "bg-slate-300 border-slate-500" },
+  { id: "landscape", label: "Landscape", tile: "bg-emerald-200 border-emerald-400" },
 ];
 
 export function buildGroupOf(t: Pick<BuildingTypeRow, "id" | "category">): BuildGroupId | null {

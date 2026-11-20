@@ -30,7 +30,7 @@ export function AddTaskForm() {
         <span className="text-sm font-medium text-ink">Life area</span>
         <select name="area" defaultValue="health" className="input mt-1">
           {AREAS.map((a) => (
-            <option key={a.id} value={a.id}>{a.icon} {a.label}</option>
+            <option key={a.id} value={a.id}>{a.label}</option>
           ))}
         </select>
       </label>

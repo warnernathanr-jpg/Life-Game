@@ -1,5 +1,7 @@
 "use client";
 
+import { Bell, BellRing, PartyPopper, Share, Smartphone } from "lucide-react";
+
 import { useEffect, useState, useTransition } from "react";
 import { claimReward, savePushSubscription } from "@/app/(game)/actions";
 import { vapidKeyBytes } from "@/lib/push";
@@ -125,10 +127,10 @@ export function RewardPrompts({ claimed }: { claimed: string[] }) {
         {prompt === "install" && (
           <>
             <div className="flex items-start gap-3">
-              <span className="text-3xl" aria-hidden>📲</span>
+              <Smartphone className="size-8 shrink-0 text-accent-text" aria-hidden />
               <div className="min-w-0 flex-1">
                 <h2 id="reward-h" className="font-bold">Add Life City to your home screen</h2>
-                <p className="text-sm text-coin font-semibold">Get 🪙 200 coins</p>
+                <p className="text-sm text-coin font-semibold">Get 200 coins</p>
               </div>
               <button type="button" aria-label="Not now" onClick={() => close("install")} className="flex size-9 items-center justify-center rounded-lg text-muted hover:bg-raised">×</button>
             </div>
@@ -136,7 +138,7 @@ export function RewardPrompts({ claimed }: { claimed: string[] }) {
               <button type="button" className="btn-primary mt-4 w-full" onClick={install}>Install Life City</button>
             ) : plat === "ios" ? (
               <ol className="mt-3 space-y-2 text-sm">
-                <li className="flex gap-2"><span className="font-bold text-accent-text">1.</span><span>Tap the <strong>Share</strong> button <span aria-hidden>(the square with an arrow ⬆️)</span> in Safari&apos;s toolbar.</span></li>
+                <li className="flex gap-2"><span className="font-bold text-accent-text">1.</span><span>Tap the <strong>Share</strong> button <span aria-hidden>(the square with an arrow <Share className="inline size-3.5" />)</span> in Safari&apos;s toolbar.</span></li>
                 <li className="flex gap-2"><span className="font-bold text-accent-text">2.</span><span>Scroll down and tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</span></li>
                 <li className="flex gap-2"><span className="font-bold text-accent-text">3.</span><span>Open <strong>Life City</strong> from your home screen to collect your coins.</span></li>
               </ol>
@@ -159,7 +161,7 @@ export function RewardPrompts({ claimed }: { claimed: string[] }) {
 
         {prompt === "installed" && (
           <div className="text-center">
-            <p className="text-4xl" aria-hidden>🎉</p>
+            <PartyPopper className="mx-auto size-10 text-good" aria-hidden />
             <h2 id="reward-h" className="mt-1 font-bold">Thanks for adding Life City!</h2>
             <p className="font-semibold text-coin">+200 coins</p>
             <button type="button" className="btn-primary mt-4 w-full" onClick={() => setPrompt(!hasNotify && "Notification" in window ? "notify" : null)}>Nice!</button>
@@ -169,10 +171,10 @@ export function RewardPrompts({ claimed }: { claimed: string[] }) {
         {prompt === "notify" && (
           <>
             <div className="flex items-start gap-3">
-              <span className="text-3xl" aria-hidden>🔔</span>
+              <Bell className="size-8 shrink-0 text-accent-text" aria-hidden />
               <div className="min-w-0 flex-1">
                 <h2 id="reward-h" className="font-bold">Turn on notifications</h2>
-                <p className="text-sm font-semibold text-coin">Get 🪙 200 more coins</p>
+                <p className="text-sm font-semibold text-coin">Get 200 more coins</p>
               </div>
               <button type="button" aria-label="Not now" onClick={() => close("notify")} className="flex size-9 items-center justify-center rounded-lg text-muted hover:bg-raised">×</button>
             </div>
@@ -187,7 +189,7 @@ export function RewardPrompts({ claimed }: { claimed: string[] }) {
 
         {prompt === "notified" && (
           <div className="text-center">
-            <p className="text-4xl" aria-hidden>🔔</p>
+            <BellRing className="mx-auto size-10 text-good" aria-hidden />
             <h2 id="reward-h" className="mt-1 font-bold">Notifications are on</h2>
             <p className="font-semibold text-coin">+200 coins</p>
             <button type="button" className="btn-primary mt-4 w-full" onClick={() => setPrompt(null)}>Great</button>

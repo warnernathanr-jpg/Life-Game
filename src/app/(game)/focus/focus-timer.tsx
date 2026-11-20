@@ -1,5 +1,9 @@
 "use client";
 
+import { AreaIcon } from "@/components/icons";
+
+import { Bell, CircleCheck, CircleX, Coins, DoorOpen, PartyPopper, Smartphone } from "lucide-react";
+
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useConfirm } from "@/components/confirm";
@@ -83,10 +87,10 @@ export function FocusTimer(props: {
 
       {phase.kind === "won" && (
         <div role="status" className="card border-good/40 bg-good-soft text-center">
-          <p className="text-4xl" aria-hidden>🎉</p>
+          <PartyPopper className="mx-auto size-10 text-good" aria-hidden />
           <p className="mt-1 text-lg font-bold">You focused for {phase.minutes} minutes!</p>
           <p className="text-good">{`+${formatCoins(phase.coins)} coins`}</p>
-          <Link href="/city" className="btn-secondary mt-3">🏗️ Spend in your city</Link>
+          <Link href="/city" className="btn-secondary mt-3">Build in your city</Link>
         </div>
       )}
       {phase.kind === "lost" && (
@@ -144,7 +148,7 @@ export function FocusTimer(props: {
               onChange={(e) => toggleSound(e.target.checked)}
               className="size-5 accent-[var(--t-accent)]"
             />
-            🔔 Chime when time is up
+            <Bell className="size-4" aria-hidden /> Chime when time is up
           </label>
           <button
             type="button"
@@ -162,7 +166,7 @@ export function FocusTimer(props: {
             Count toward a life area? <span className="font-normal text-muted">(earns {minutes} area points)</span>
           </legend>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {[{ id: null, label: "None", icon: "" }, ...AREAS].map((a) => (
+            {[{ id: null, label: "None" }, ...AREAS].map((a) => (
               <button
                 key={a.id ?? "none"}
                 type="button"
@@ -170,7 +174,7 @@ export function FocusTimer(props: {
                 onClick={() => setArea(a.id as LifeArea | null)}
                 className={`min-h-10 rounded-full px-3 text-sm font-medium ${area === a.id ? "bg-accent text-on-accent" : "bg-raised text-ink hover:bg-line"}`}
               >
-                {a.icon && <span aria-hidden>{a.icon} </span>}
+                {a.id && <AreaIcon area={a.id} className="mr-1 size-4" />}
                 {a.label}
               </button>
             ))}
@@ -181,10 +185,10 @@ export function FocusTimer(props: {
           {pending ? "Starting…" : `Start ${minutes}-minute focus`}
         </button>
         <ul className="space-y-1 text-xs text-muted">
-          <li>📱 Leave this page open and put your phone face down. The screen stays on while you focus.</li>
-          <li>🚪 Switching to another app or tab for more than 10 seconds ends the session with no coins.</li>
-          <li>🔔 The chime plays through this page, so keep it open. On iPhone, the silent switch mutes it.</li>
-          <li>🪙 1 coin per minute, as many sessions as you like.</li>
+          <li className="flex gap-2"><Smartphone className="mt-0.5 size-4 shrink-0" aria-hidden /><span>Leave this page open and put your phone face down. The screen stays on while you focus.</span></li>
+          <li className="flex gap-2"><DoorOpen className="mt-0.5 size-4 shrink-0" aria-hidden /><span>Switching to another app or tab for more than 10 seconds ends the session with no coins.</span></li>
+          <li className="flex gap-2"><Bell className="mt-0.5 size-4 shrink-0" aria-hidden /><span>The chime plays through this page, so keep it open. On iPhone, the silent switch mutes it.</span></li>
+          <li className="flex gap-2"><Coins className="mt-0.5 size-4 shrink-0" aria-hidden /><span>1 coin per minute, as many sessions as you like.</span></li>
         </ul>
       </section>
 
@@ -201,7 +205,7 @@ export function FocusTimer(props: {
           <ul className="mt-2 divide-y divide-line">
             {props.history.map((h) => (
               <li key={h.id} className="flex items-center gap-3 py-2 text-sm">
-                <span aria-hidden>{h.status === "completed" ? "✅" : "✖️"}</span>
+                {h.status === "completed" ? <CircleCheck className="size-4 text-good" aria-hidden /> : <CircleX className="size-4 text-bad" aria-hidden />}
                 <span className="min-w-0 flex-1 truncate">
                   {h.minutes} min{h.label ? ` · ${h.label}` : ""}
                   <span className="block text-xs text-muted">
@@ -376,7 +380,7 @@ function RunningView({
                 setNeedsTap(false);
               }}
             >
-              🔔 Tap to turn on the end chime
+              <Bell className="size-4" aria-hidden /> Tap to turn on the end chime
             </button>
           )}
           {awayWarning && (

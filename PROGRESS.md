@@ -334,6 +334,13 @@ _Last updated: 2026-11-25_
 - The "Now facing the … road" message after Rotate is gone.
 - Migration `20261125000300_no_side_by_side_roads.sql` (applied live). 5 pgTAP tests (`road_spacing.test.sql`, 234 total).
 
+### 21. Line icons instead of emojis (2026-11-26)
+- At the owner's request there are **no emojis anywhere**: the app uses one line-icon set, **Lucide** (`lucide-react`, free,
+  lucide.dev). `src/components/icons.tsx` maps every building (`BuildingIcon`), build-menu group (`GroupIcon`) and life area
+  (`AreaIcon`) to an icon, plus `CoinIcon` / `BulldozeIcon`. Tabs, header, build list and bar, building cards and effect chips,
+  City Stats, map buttons, clock and pause, citizen card, tasks, focus, history calendar, reward popups and the landing page
+  all use them. `AREAS` / `BUILD_GROUPS` no longer carry emoji fields; the `building_types.icon` column is no longer shown.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

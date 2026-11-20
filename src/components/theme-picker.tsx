@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, Palette } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_THEME, THEME_EVENT, THEME_KEY, THEMES, type ThemeId } from "@/lib/themes";
 
@@ -49,7 +50,7 @@ export function ThemePicker() {
         onClick={() => setOpen((o) => !o)}
         className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-white/80 hover:bg-white/10"
       >
-        <span aria-hidden>🎨</span>
+        <Palette className="size-4" aria-hidden />
         <span className="hidden sm:inline">Theme</span>
       </button>
       {open && (
@@ -71,7 +72,7 @@ export function ThemePicker() {
                     <span className="absolute right-0 bottom-0 size-3 rounded-tl-full" style={{ background: t.accent }} />
                   </span>
                   {t.label}
-                  {theme === t.id && <span aria-hidden className="ml-auto text-accent-text">✓</span>}
+                  {theme === t.id && <Check className="ml-auto size-4 text-accent-text" aria-hidden />}
                 </button>
               </li>
             ))}

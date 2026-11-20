@@ -1,3 +1,4 @@
+import { CoinIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
@@ -67,10 +68,10 @@ async function TasksPageContent() {
         <section className="card" aria-labelledby="coins-today">
           <h2 id="coins-today" className="text-sm font-semibold text-muted">Coins earned today</h2>
           <p className="mt-1 text-3xl font-bold text-coin">
-            <span aria-hidden>🪙</span> {formatCoins(earnedToday)}
+            <CoinIcon /> {formatCoins(earnedToday)}
           </p>
           <p className="mt-2 text-xs text-muted">Easy 10 · Medium 25 · Hard 50 · Epic 100. No daily limit.</p>
-          <Link href="/city" className="btn-secondary mt-3 w-full">🏙️ Build in your city</Link>
+          <Link href="/city" className="btn-secondary mt-3 w-full">Build in your city</Link>
         </section>
 
         <section className="card" aria-labelledby="unlocks">

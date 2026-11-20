@@ -1,9 +1,11 @@
 "use client";
 
+import { AreaIcon } from "@/components/icons";
+
 import Link from "next/link";
 import { useState } from "react";
 import type { LifeArea } from "@/lib/database.types";
-import { AREAS, AREA_BY_ID } from "@/lib/game";
+import { AREAS } from "@/lib/game";
 
 export type DoneItem = { day: string; title: string; area: LifeArea; time: string };
 
@@ -105,7 +107,7 @@ export function HistoryCalendar({ month, today, items }: { month: string; today:
           <ul className="mt-1.5 divide-y divide-line">
             {selectedItems.map((it, i) => (
               <li key={i} className="flex items-center gap-2 py-1.5 text-sm">
-                <span aria-hidden>{AREA_BY_ID[it.area]?.icon ?? "✅"}</span>
+                <AreaIcon area={it.area} className="size-4 text-muted" />
                 <span className="min-w-0 flex-1 truncate">{it.title}</span>
                 <span className="shrink-0 text-xs text-muted tabular-nums">{it.time}</span>
               </li>

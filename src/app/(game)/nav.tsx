@@ -1,13 +1,14 @@
 "use client";
 
+import { ChartColumn, ListChecks, Map, Timer } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 export const NAV = [
-  { href: "/city", label: "City", icon: "🏙️" },
-  { href: "/tasks", label: "Tasks", icon: "✅" },
-  { href: "/focus", label: "Focus", icon: "⏱️" },
-  { href: "/stats", label: "Stats", icon: "📊" },
+  { href: "/city", label: "City", Icon: Map },
+  { href: "/tasks", label: "Tasks", Icon: ListChecks },
+  { href: "/focus", label: "Focus", Icon: Timer },
+  { href: "/stats", label: "Stats", Icon: ChartColumn },
 ];
 
 function useActive() {
@@ -29,7 +30,7 @@ export function TopNav() {
             isActive(l.href) ? "bg-accent text-on-accent" : "text-white/80 hover:bg-white/10"
           }`}
         >
-          <span aria-hidden>{l.icon}</span>
+          <l.Icon className="size-4" aria-hidden />
           {l.label}
         </Link>
       ))}
@@ -46,7 +47,7 @@ export function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <ul className="mx-auto grid max-w-lg grid-cols-5">
+      <ul className="mx-auto grid max-w-lg grid-cols-4">
         {NAV.map((l) => {
           const active = isActive(l.href);
           return (
@@ -58,7 +59,7 @@ export function BottomNav() {
                   active ? "text-accent-text" : "text-muted"
                 }`}
               >
-                <span aria-hidden className={`text-xl leading-none ${active ? "" : "opacity-80 grayscale-[30%]"}`}>{l.icon}</span>
+                <l.Icon className="size-6" strokeWidth={active ? 2.25 : 1.75} aria-hidden />
                 {l.label}
                 <span aria-hidden className={`mt-0.5 h-0.5 w-6 rounded-full ${active ? "bg-accent" : "bg-transparent"}`} />
               </Link>

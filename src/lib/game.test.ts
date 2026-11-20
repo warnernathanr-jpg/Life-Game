@@ -4,7 +4,7 @@ import { cityStats, landPrice, lotFree, nextMilestone, nextUnlocks, sellRefund, 
 
 function type(p: Partial<BuildingTypeRow> & Pick<BuildingTypeRow, "id">): BuildingTypeRow {
   return {
-    name: p.id, category: "residential", icon: "🏠", description: "", cost: 10, size: 1,
+    name: p.id, category: "residential", icon: "", description: "", cost: 10, size: 1,
     population: 0, jobs: 0, happiness: 0, unlock_area: null, unlock_points: null, upgrades_to: null, sort_order: 0,
     w: p.w ?? p.size ?? 1, d: p.d ?? p.size ?? 1, ...p,
   };

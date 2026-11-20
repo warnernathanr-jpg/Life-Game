@@ -1,6 +1,8 @@
 "use client";
 
+import { Car, ChartColumn, Footprints, House, LocateFixed, Maximize2, Minimize2, Moon, MousePointer2, Pause, Play, RotateCcw, RotateCw, Sun, Sunrise, Sunset, X, ZoomIn, ZoomOut } from "lucide-react";
 import dynamic from "next/dynamic";
+import { BuildingIcon, BulldozeIcon, CoinIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
@@ -27,12 +29,10 @@ type PaintType = (typeof PAINT_TYPES)[number];
 const isPaint = (id: string): id is PaintType => (PAINT_TYPES as readonly string[]).includes(id);
 
 /** Sky for the city clock. */
-function dayIcon(t: number) {
+function DayIcon({ t }: { t: number }) {
   const m = minuteOfDay(Math.floor(t));
-  if (m < 6 * 60 || m >= 21 * 60) return "🌙";
-  if (m < 9 * 60) return "🌅";
-  if (m < 18 * 60) return "☀️";
-  return "🌇";
+  const Icon = m < 6 * 60 || m >= 21 * 60 ? Moon : m < 9 * 60 ? Sunrise : m < 18 * 60 ? Sun : Sunset;
+  return <Icon className="size-4 text-coin" aria-hidden />;
 }
 
 export type Mode =
@@ -44,11 +44,11 @@ export type Mode =
   | { kind: "bulldoze" };
 
 const VIEW_BUTTONS = [
-  { action: "in", label: "Zoom in", icon: "+" },
-  { action: "out", label: "Zoom out", icon: "−" },
-  { action: "left", label: "Rotate left", icon: "⟲" },
-  { action: "right", label: "Rotate right", icon: "⟳" },
-  { action: "reset", label: "Reset view", icon: "⌂" },
+  { action: "in", label: "Zoom in", Icon: ZoomIn },
+  { action: "out", label: "Zoom out", Icon: ZoomOut },
+  { action: "left", label: "Rotate left", Icon: RotateCcw },
+  { action: "right", label: "Rotate right", Icon: RotateCw },
+  { action: "reset", label: "Reset view", Icon: LocateFixed },
 ] as const;
 
 export function CityBoard(props: {
@@ -413,12 +413,9 @@ export function CityBoard(props: {
     });
   }
 
-  const tools: { id: string; label: string; icon: string; mode: Mode }[] = [
-    { id: "idle", label: "Select", icon: "👆", mode: { kind: "idle" } },
-    { id: "road", label: "Road", icon: "🛣️", mode: { kind: "paint", typeId: "road" } },
-    { id: "tree", label: "Trees", icon: "🌲", mode: { kind: "paint", typeId: "tree" } },
-    { id: "water", label: "Water", icon: "💧", mode: { kind: "paint", typeId: "water" } },
-    { id: "bulldoze", label: "Bulldoze", icon: "🚧", mode: { kind: "bulldoze" } },
+  const tools: { id: string; label: string; icon: React.ReactNode; mode: Mode }[] = [
+    { id: "idle", label: "Select", icon: <MousePointer2 className="size-5" aria-hidden />, mode: { kind: "idle" } },
+    { id: "bulldoze", label: "Bulldoze", icon: <BulldozeIcon className="size-5" />, mode: { kind: "bulldoze" } },
   ];
   const activeTool =
     mode.kind === "paint" ? mode.typeId : mode.kind === "bulldoze" ? "bulldoze" : mode.kind === "idle" || mode.kind === "selected" ? "idle" : null;
@@ -426,7 +423,7 @@ export function CityBoard(props: {
     stroke && mode.kind === "paint"
       ? (() => {
           const p = planPaint(stroke, mode.typeId);
-          return { text: `${p.fresh.length} tile${p.fresh.length === 1 ? "" : "s"} · 🪙 ${formatCoins(p.cost)}`, bad: !p.ok };
+          return { text: `${p.fresh.length} tile${p.fresh.length === 1 ? "" : "s"} · ${formatCoins(p.cost)} coins`, bad: !p.ok };
         })()
       : stroke && mode.kind === "bulldoze"
         ? (() => {
@@ -451,7 +448,7 @@ export function CityBoard(props: {
   const draftBar: { title: string; detail: string; problem?: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void; onTurn?: () => void } | null =
     mode.kind === "paint" && paintType && draftPlan
       ? {
-          title: `${paintType.icon} ${draftPlan.fresh.length} ${paintType.name.toLowerCase()} tile${draftPlan.fresh.length === 1 ? "" : "s"} · 🪙 ${formatCoins(draftPlan.cost)}`,
+          title: `${draftPlan.fresh.length} ${paintType.name.toLowerCase()} tile${draftPlan.fresh.length === 1 ? "" : "s"} · ${formatCoins(draftPlan.cost)} coins`,
           detail:
             [
               draftPlan.bridges > 0 && `${draftPlan.bridges} as bridge${draftPlan.bridges === 1 ? "" : "s"}`,
@@ -485,7 +482,7 @@ export function CityBoard(props: {
                 (l) => l.type_id === "tree" && l.x >= draftSpot.x && l.x < draftSpot.x + dims.w && l.y >= draftSpot.y && l.y < draftSpot.y + dims.h,
               ).length;
               return {
-                title: mode.kind === "place" ? `${placingType!.icon} ${placingType!.name} · 🪙 ${formatCoins(placingType!.cost)}` : "Move here?",
+                title: mode.kind === "place" ? `${placingType!.name} · ${formatCoins(placingType!.cost)} coins` : "Move here?",
                 detail: covers > 0 ? `Clears ${covers} tree tile${covers === 1 ? "" : "s"}. Tap elsewhere to move the preview.` : "Tap elsewhere to move the preview.",
                 problem: !fits
                   ? "That spot is taken or doesn't fit."
@@ -567,9 +564,9 @@ export function CityBoard(props: {
             <div className="flex items-center justify-between gap-3 rounded-xl bg-accent-soft px-4 py-2 text-sm text-ink">
               <span>
                 {mode.kind === "paint" && paintType ? (
-                  <>Painting <strong>{paintType.icon} {paintType.name}</strong>.</>
+                  <>Painting <strong><BuildingIcon id={paintType.id} /> {paintType.name}</strong>.</>
                 ) : (
-                  <><strong>🚧 Bulldozer</strong> on.</>
+                  <><strong><BulldozeIcon /> Bulldozer</strong> on.</>
                 )}
               </span>
               <button type="button" className="btn-secondary min-h-9 px-3 py-1" onClick={() => setMode({ kind: "idle" })}>
@@ -582,7 +579,7 @@ export function CityBoard(props: {
               <span>
                 {mode.kind === "place" && placingType ? (
                   <>
-                    Placing <strong>{placingType.icon} {placingType.name}</strong>
+                    Placing <strong><BuildingIcon id={placingType.id} /> {placingType.name}</strong>
                     {placingType.size > 1 ? ` (${placingType.size}×${placingType.size})` : ""}. Tap a spot next to a road to preview it, then Build here.
                   </>
                 ) : (
@@ -649,7 +646,7 @@ export function CityBoard(props: {
               )}
               {citizens.length > 0 && (
                 <div className={`absolute left-2 flex items-center gap-1 rounded-full bg-surface/95 py-1 pr-1 pl-3 text-sm font-semibold text-ink shadow ring-1 ring-line ${full ? "top-[max(4.5rem,calc(env(safe-area-inset-top)+4rem))]" : "top-2"}`}>
-                  <span aria-hidden>{dayIcon(simClock)}</span>
+                  <DayIcon t={simClock} />
                   <span className="tabular-nums" aria-label={`City time ${clockText(simClock)}`}>{clockText(simClock)}</span>
                   <button
                     type="button"
@@ -658,7 +655,7 @@ export function CityBoard(props: {
                     title={paused ? "Resume" : "Pause (then tap a car or a person)"}
                     className={`ml-1 flex size-8 items-center justify-center rounded-full ${paused ? "bg-accent text-on-accent" : "bg-raised hover:bg-line"}`}
                   >
-                    {paused ? "▶" : "⏸"}
+                    {paused ? <Play className="size-4" aria-hidden /> : <Pause className="size-4" aria-hidden />}
                   </button>
                 </div>
               )}
@@ -676,7 +673,7 @@ export function CityBoard(props: {
                   </div>
                   {draftBar.onTurn && (
                     <button type="button" className="btn-secondary min-h-10 shrink-0 px-3 py-1 text-sm" onClick={draftBar.onTurn} aria-label="Turn the building">
-                      ⟳ Turn
+                      <RotateCw className="size-4" aria-hidden /> Turn
                     </button>
                   )}
                   <button type="button" className="btn-secondary min-h-10 shrink-0 px-3 py-1 text-sm" onClick={draftBar.onCancel}>
@@ -697,7 +694,7 @@ export function CityBoard(props: {
                 >
                   <div className="flex items-start gap-2">
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-raised text-xl" aria-hidden>
-                      {citizenInfo.mode === "car" ? "🚗" : citizenInfo.mode === "walk" ? "🚶" : "🏠"}
+                      {citizenInfo.mode === "car" ? <Car className="size-5" aria-hidden /> : citizenInfo.mode === "walk" ? <Footprints className="size-5" aria-hidden /> : <House className="size-5" aria-hidden />}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-bold">
@@ -717,13 +714,13 @@ export function CityBoard(props: {
                 <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
                   <div className="min-w-0 rounded-2xl bg-surface/95 px-3 py-1.5 shadow ring-1 ring-line backdrop-blur">
                     <p className="truncate text-sm font-bold">
-                      {props.cityName} <span className="text-coin">· 🪙 {formatCoins(balance)}</span>
+                      {props.cityName} <span className="text-coin">· <CoinIcon className="size-3.5" /> {formatCoins(balance)}</span>
                     </p>
                     {message?.text ? (
                       <p aria-live="polite" className={`text-xs ${message.tone === "bad" ? "text-bad" : "text-good"}`}>{message.text}</p>
                     ) : (
                       mode.kind === "place" && placingType ? (
-                        <p className="text-xs text-muted">Placing {placingType.icon} {placingType.name}: tap a spot, then Build here.</p>
+                        <p className="text-xs text-muted">Placing {placingType.name}: tap a spot, then Build here.</p>
                       ) : mode.kind === "move" ? (
                         <p className="text-xs text-muted">Moving: tap where it should go, then Move here.</p>
                       ) : mode.kind === "paint" && paintType ? (
@@ -749,10 +746,10 @@ export function CityBoard(props: {
                       aria-pressed={statsOpen}
                       className={`min-h-10 rounded-xl px-3 py-1 text-sm font-semibold shadow ${statsOpen ? "bg-accent text-on-accent" : "bg-surface/95 text-ink ring-1 ring-line"}`}
                     >
-                      📊 Stats
+                      <ChartColumn className="size-4" aria-hidden /> Stats
                     </button>
                     <button type="button" onClick={exitFull} className="btn-primary min-h-10 px-3 py-1 text-sm shadow">
-                      ✕ Exit
+                      <X className="size-4" aria-hidden /> Exit
                     </button>
                   </div>
                 </div>
@@ -789,7 +786,7 @@ export function CityBoard(props: {
                   onClick={full ? exitFull : enterFull}
                   className="flex size-10 items-center justify-center rounded-lg bg-surface/95 text-lg font-bold text-ink shadow ring-1 ring-line hover:bg-raised"
                 >
-                  {full ? "🗗" : "⛶"}
+                  {full ? <Minimize2 className="size-5" aria-hidden /> : <Maximize2 className="size-5" aria-hidden />}
                 </button>
                 {!full && (
                   <button
@@ -805,7 +802,7 @@ export function CityBoard(props: {
                       mode.kind === "bulldoze" ? "bg-accent text-on-accent" : "bg-surface/95 text-ink hover:bg-raised"
                     }`}
                   >
-                    🚧
+                    <BulldozeIcon className="size-5" />
                   </button>
                 )}
                 {VIEW_BUTTONS.map((b) => (
@@ -817,7 +814,7 @@ export function CityBoard(props: {
                     onClick={() => viewAction(b.action)}
                     className="flex size-10 items-center justify-center rounded-lg bg-surface/95 text-lg font-bold text-ink shadow ring-1 ring-line hover:bg-raised"
                   >
-                    {b.icon}
+                    <b.Icon className="size-5" aria-hidden />
                   </button>
                 ))}
               </div>
@@ -864,7 +861,7 @@ export function CityBoard(props: {
                 disabled={pending || balance < landPrice(props.landPurchases)}
                 onClick={expand}
               >
-                Expand to {size + 2}×{size + 2} · 🪙 {formatCoins(landPrice(props.landPurchases))}
+                Expand to {size + 2}×{size + 2} · <CoinIcon /> {formatCoins(landPrice(props.landPurchases))}
               </button>
             )}
             {size < MAX_CITY_SIZE && balance < landPrice(props.landPurchases) && (

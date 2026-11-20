@@ -65,7 +65,7 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
     .sort((a, b) => b.summary.rate - a.summary.rate);
 
   const tiles = [
-    { label: "Coins", value: `🪙 ${formatCoins(Number(progress?.balance ?? 0))}`, note: "to spend" },
+    { label: "Coins", value: formatCoins(Number(progress?.balance ?? 0)), note: "to spend" },
     { label: "Check-offs", value: String(checkoffsWeek), note: `last 7 days · ${formatCoins(allCheckoffs ?? 0)} all time` },
     { label: "Focus", value: `${focusWeek} min`, note: `last 7 days · ${formatCoins(focusAll)} min all time` },
     { label: "Population", value: formatCoins(city.population), note: `${city.buildings} buildings · ${city.happiness}% happy` },

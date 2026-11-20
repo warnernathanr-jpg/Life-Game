@@ -1,3 +1,4 @@
+import { Building2, Coins } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
@@ -13,7 +14,7 @@ export default function GameLayout({ children }: LayoutProps<"/">) {
       <header className="bg-header text-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
           <Link href="/city" className="flex items-center gap-1.5 font-bold">
-            <span aria-hidden>🏙️</span>
+            <Building2 className="size-5" aria-hidden />
             <span>Life City</span>
           </Link>
           <TopNav />
@@ -49,7 +50,7 @@ async function CoinBadge() {
         }`}
         aria-label={`${formatCoins(balance)} coins`}
       >
-        <span aria-hidden>🪙</span> {formatCoins(balance)}
+        <Coins className="size-4" aria-hidden /> {formatCoins(balance)}
       </span>
   );
 }
