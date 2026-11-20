@@ -1665,21 +1665,6 @@ export function CityBoard(props: {
                     )}
                   </div>
                   <div className="flex shrink-0 gap-1.5">
-                    {(mode.kind === "place" || mode.kind === "move") && (
-                      <button
-                        type="button"
-                        className="btn-secondary min-h-10 px-3 py-1 text-sm shadow"
-                        onClick={() =>
-                          setMode(
-                            movingLot
-                              ? { kind: "selected", id: movingLot.id }
-                              : { kind: "idle" },
-                          )
-                        }
-                      >
-                        Cancel
-                      </button>
-                    )}
                     <button
                       type="button"
                       onClick={toggleMusic}
@@ -1763,13 +1748,21 @@ export function CityBoard(props: {
                     >
                       {message.text}
                     </p>
-                  ) : mode.kind === "place" && placingType ? (
-                    <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">
-                      Placing {placingType.name}: tap a spot, then Build here.
-                    </p>
-                  ) : mode.kind === "move" ? (
-                    <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">
-                      Moving: tap where it should go, then Move here.
+                  ) : (mode.kind === "place" && placingType) || mode.kind === "move" ? (
+                    // How-to line with its own Cancel (kept out of the top row, where it squeezed the city name).
+                    <p className="flex items-center gap-2 rounded-full bg-surface/95 py-1 pr-1 pl-3 text-xs text-ink shadow ring-1 ring-line">
+                      <span>
+                        {mode.kind === "place" && placingType
+                          ? `Placing ${placingType.name}: tap a spot, then Build here.`
+                          : "Moving: tap where it should go, then Move here."}
+                      </span>
+                      <button
+                        type="button"
+                        className="shrink-0 rounded-full bg-raised px-3 py-1 font-semibold hover:bg-accent-soft"
+                        onClick={() => setMode(movingLot ? { kind: "selected", id: movingLot.id } : { kind: "idle" })}
+                      >
+                        Cancel
+                      </button>
                     </p>
                   ) : mode.kind === "paint" && paintType ? (
                     <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">

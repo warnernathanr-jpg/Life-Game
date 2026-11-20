@@ -705,6 +705,9 @@ _Last updated: 2026-11-28_
 - After a successful Build of a drawn road (or trees / water), the tool goes back to Select, so the next tap doesn't start drawing
   more; tap Roads again to draw another. A failed Build keeps the tool on so the drawing can be fixed.
 
+- Placing or moving in full screen: the Cancel button moved from the top row (it squeezed the city name and coins) to the end of
+  the "Placing … / Moving …" line under it.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
