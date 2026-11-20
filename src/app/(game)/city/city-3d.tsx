@@ -407,8 +407,8 @@ function CameraRig({
   }, [camera, center, size, invalidate, getState]);
 
   // Touch gestures are handled here with plain touch events (the most reliable thing on phones, iPhones especially);
-  // the controls only handle the mouse. One finger drags the map (unless painting, where it draws); two fingers pan,
-  // pinch to zoom and twist to rotate. A tap still selects (no movement, so the browser still sends the click).
+  // the controls only handle the mouse. One finger drags the map (unless painting, where it draws); two fingers pinch to
+  // zoom, twist to rotate and slide up/down to tilt. A tap still selects (no movement, so the browser still sends the click).
   const gl = useThree((st) => st.gl);
   const paintingRef = useRef(painting);
   useLayoutEffect(() => {
@@ -462,12 +462,18 @@ function CameraRig({
         return;
       }
       e.preventDefault();
-      panBy(now.x - last.x, now.y - last.y);
-      if (now.n === 2 && last.dist > 0 && now.dist > 0) {
+      if (now.n === 1) {
+        panBy(now.x - last.x, now.y - last.y);
+      } else if (last.dist > 0 && now.dist > 0) {
+        // Two fingers: pinch to zoom, twist to rotate, slide up/down together to tilt (top-down <-> side view).
         const offset = camera.position.clone().sub(c.target);
         const len = THREE.MathUtils.clamp(offset.length() * (last.dist / now.dist), c.minDistance, c.maxDistance);
-        offset.setLength(len).applyAxisAngle(new THREE.Vector3(0, 1, 0), now.angle - last.angle);
-        camera.position.copy(c.target).add(offset);
+        const sph = new THREE.Spherical().setFromVector3(offset);
+        sph.radius = len;
+        sph.theta -= now.angle - last.angle;
+        sph.phi = THREE.MathUtils.clamp(sph.phi - (now.y - last.y) * 0.006, c.minPolarAngle, c.maxPolarAngle);
+        camera.position.copy(c.target).add(new THREE.Vector3().setFromSpherical(sph));
+        camera.lookAt(c.target);
       }
       last = now;
       settle();

@@ -601,6 +601,8 @@ _Last updated: 2026-11-28_
 - **Monument** is a population reward now (not for sale): 50 Welcome Arch, 100 Fountain Plaza, 250 Clock Tower, 500 Monument,
   1,000 Founders' Statue, 2,500 Observation Tower, **5,000 Crystal Spire** (new milestone, 6,000 coins). Migration
   `20261128020000_monument_milestone.sql` (applied live).
+- **Two-finger tilt** on phones (full screen): slide two fingers up or down together to tip the view between top-down and a
+  side view; pinch still zooms, twist rotates, one finger moves the map (two fingers no longer pan).
 - Stats page ignores hand-granted test points (no task, no coins) in check-off counts, the chart and the history calendar.
 - Props: café/restaurant planters only, warehouse crates and bay line clear of the doors, parking garage "P" sign on a post;
   Clock Tower faces on all four sides; Fountain Plaza with running water (`fountain-water.tsx`).
