@@ -184,6 +184,11 @@ export type CityStats = {
   staffing: number;
   /** Shops and industry that are short of workers (all of them while staffing < 1). */
   understaffed: Set<string>;
+  /** Shops that don't get all the goods they need from industry (and how stocked shops are, 0 … 1). */
+  noGoods: Set<string>;
+  goodsSupply: number;
+  /** Workplaces with skilled jobs nobody is educated for. */
+  skilledShort: Set<string>;
   happiness: number;
   /** What makes up happiness, biggest effects first. */
   factors: HappinessFactor[];
@@ -248,6 +253,7 @@ export function cityStats(
   let shopJobs = 0;
   let industryJobs = 0;
   let schoolSeats = 0;
+  const goodsShops: string[] = [];
   const jobBuildings: string[] = [];
   for (const b of lots) {
     const t = byId.get(b.type_id);
@@ -268,7 +274,10 @@ export function cityStats(
     }
     population += t.population;
     jobs += t.jobs;
-    if (t.category === "commercial" && !GOODS_SHOP_EXCLUDE.has(t.id)) shopJobs += t.jobs;
+    if (t.category === "commercial" && !GOODS_SHOP_EXCLUDE.has(t.id)) {
+      shopJobs += t.jobs;
+      goodsShops.push(b.id);
+    }
     if (t.category === "industrial") industryJobs += t.jobs;
     schoolSeats += SCHOOL_SEATS[t.id] ?? 0;
     if (t.category === "service") {
@@ -395,6 +404,8 @@ export function cityStats(
   }
   // Goods: industry makes the products shops sell. Too little industry leaves shelves empty; too much has nobody to sell to.
   const goods = industryJobs * GOODS_PER_INDUSTRY_JOB;
+  const goodsSupply = shopJobs > 0 ? Math.min(1, goods / shopJobs) : 1;
+  const noGoods = new Set(shopJobs >= 8 && goods < shopJobs ? goodsShops : []);
   if (shopJobs >= 8 && goods < shopJobs) {
     add({
       key: "goods_short",
@@ -483,6 +494,9 @@ export function cityStats(
     unemployed,
     staffing,
     understaffed,
+    noGoods,
+    goodsSupply,
+    skilledShort: new Set(unfilledSkilled > 0 ? skilledBuildings : []),
     happiness,
     factors,
     health,

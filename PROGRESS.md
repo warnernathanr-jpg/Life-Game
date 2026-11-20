@@ -848,6 +848,18 @@ _Last updated: 2026-11-28_
   "Not enough educated workers" (up to −12) with a tip to build a high school or university near the neighborhoods. 1 unit test.
 - The build menu's **Knowledge** group is now **Education** (the Knowledge life area for tasks keeps its name).
 
+### 61. Guide that stays, shop goods warning, fitting news line, plainer stop signs (2026-11-28)
+- **Getting started kept disappearing**: its Skip (×) sat over the top of the map, so a tap while laying a road could hide the guide
+  for good (every live account had it hidden). Now, while placing, drawing or bulldozing, the coach shrinks to a one-line strip
+  with no buttons (`compact`); Skip asks "Hide the guide?" first; and **Start over** brings the guide back (`reset_progress()` sets
+  `tutorial_hidden = false`, migration `20261128120000_reset_shows_tutorial.sql`, applied live; Settings says so).
+- **Shops short of goods**: an orange crate floats over every goods-selling shop when industry doesn't supply enough
+  (`cityStats().noGoods`, same rule as "Shops short of goods"; beside the yellow worker marker when both apply), and the
+  selected shop's panel says "Short of goods: shops only get N% of the products they sell. Build industry…". Skilled workplaces
+  short of graduates now say "Not enough educated workers…" in their panel (`skilledShort`).
+- The fire / break-in line beside the pause button wraps instead of being cut off (the pill becomes a rounded box).
+- Stop signs lost the white bar across the octagon.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

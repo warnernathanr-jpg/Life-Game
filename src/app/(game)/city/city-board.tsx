@@ -1394,9 +1394,14 @@ export function CityBoard(props: {
           ? touchesRoad(selected, roads)
             ? "Its road isn't joined to the rest of town, so nobody can get here and it doesn't count. Connect that road to your other roads."
             : "No road beside it, so it doesn't count yet. Build a road next to it."
-          : stats.understaffed.has(selected.id)
-            ? `Not enough workers: businesses are ${Math.round(stats.staffing * 100)}% staffed. Build homes so they can hire.`
-            : undefined
+          : [
+              stats.noGoods.has(selected.id) &&
+                `Short of goods: shops only get ${Math.round(stats.goodsSupply * 100)}% of the products they sell. Build industry (workshops, factories, warehouses) to supply them.`,
+              stats.skilledShort.has(selected.id) &&
+                "Not enough educated workers for its skilled jobs. Build a high school or university near your homes.",
+              stats.understaffed.has(selected.id) && stats.staffing < 1 &&
+                `Not enough workers: businesses are ${Math.round(stats.staffing * 100)}% staffed. Build homes so they can hire.`,
+            ].filter(Boolean).join(" ") || undefined
       }
       canRotate={
         selectedType?.category !== "landscape" &&
@@ -1447,11 +1452,12 @@ export function CityBoard(props: {
   // Just a pause button (no clock): pausing makes it easy to tap a car or a person.
   const clockPill = (className: string) => (
     <div
-      className={`flex items-center rounded-full bg-surface/95 p-1 shadow ring-1 ring-line ${className}`}
+      className={`flex min-w-0 max-w-full items-center bg-surface/95 p-1 shadow ring-1 ring-line ${news ? "rounded-2xl" : "rounded-full"} ${className}`}
     >
       <button
         type="button"
         onClick={() => setPaused((p) => !p)}
+        style={{ flexShrink: 0 }}
         aria-label={paused ? "Resume the city" : "Pause the city"}
         title={paused ? "Resume" : "Pause (then tap a car or a person)"}
         className={`flex size-8 items-center justify-center rounded-full ${paused ? "bg-accent text-on-accent" : "text-ink hover:bg-raised"}`}
@@ -1463,7 +1469,7 @@ export function CityBoard(props: {
         )}
       </button>
       {news && (
-        <span role="status" className="flex min-w-0 items-center gap-1.5 whitespace-normal px-2 text-xs font-medium text-ink">
+        <span role="status" className="flex min-w-0 flex-1 items-center gap-1.5 whitespace-normal break-words px-2 text-xs font-medium text-ink">
           {/fire/i.test(news) ? (
             <Flame className="size-3.5 shrink-0 text-bad" aria-hidden />
           ) : (
@@ -1529,6 +1535,7 @@ export function CityBoard(props: {
               lots={lots}
               needsRoad={needsRoad}
               understaffed={stats.understaffed}
+              noGoods={stats.noGoods}
               selectedId={selected?.id}
               dimmedId={movingLot?.id}
               input={
@@ -1815,7 +1822,7 @@ export function CityBoard(props: {
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {citizens.length > 0 &&
-                    clockPill("shrink-0 whitespace-nowrap")}
+                    clockPill(news ? "" : "shrink-0 whitespace-nowrap")}
                   {/* Only problems and how-to lines here; routine updates ("Built a House…") aren't shown in full screen. */}
                   {message?.text && message.tone === "bad" ? (
                     <p
@@ -1860,6 +1867,7 @@ export function CityBoard(props: {
                 {props.tutorial && !props.visit && (
                   <TutorialCoach
                     state={props.tutorial}
+                    compact={mode.kind !== "idle"}
                     onReward={(coins) => say(`+${coins} coins for finishing Getting started!`, "good", "fanfare")}
                   />
                 )}

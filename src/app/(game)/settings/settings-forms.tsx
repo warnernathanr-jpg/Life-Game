@@ -85,7 +85,7 @@ export function SettingsForms({ email, name }: { email: string; name: string }) 
           <TriangleAlert className="size-4" aria-hidden /> Start over
         </h2>
         <p className="mt-1 text-sm text-ink">
-          This permanently deletes <strong>your whole city and its milestones, every task and check-off, your goals, focus sessions and coin history</strong>.
+          This permanently deletes <strong>your whole city and its milestones, every task and check-off, your goals, focus sessions and coin history</strong>, and brings back the Getting started guide.
           You start again with 100 coins and an empty 8×8 city. It can&apos;t be undone.
         </p>
         <label className="mt-3 block">

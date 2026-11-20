@@ -20,7 +20,6 @@ function StopSign({ x, z, rot }: { x: number; z: number; rot: number }) {
     <group position={[x, 0, z]} rotation-y={rot}>
       <mesh geometry={POLE} material={mat("#9ca3af")} position={[0, 0.16, 0]} scale={[1.3, 0.32, 1.3]} castShadow />
       <mesh geometry={OCTAGON} material={mat("#dc2626")} position={[0, 0.34, 0.01]} castShadow />
-      <mesh geometry={BOX} material={mat("#f8fafc")} position={[0, 0.34, 0.016]} scale={[0.08, 0.018, 0.002]} />
     </group>
   );
 }

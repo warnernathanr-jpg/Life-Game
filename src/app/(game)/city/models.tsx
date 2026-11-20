@@ -550,4 +550,17 @@ export function WorkerMarker({ y }: { y: number }) {
   );
 }
 
+/** Floats over a shop that's short of goods: an empty orange crate, tilted. */
+export function GoodsMarker({ y, x = 0 }: { y: number; x?: number }) {
+  return (
+    <group position={[x, y + 0.35, 0]} rotation={[0.3, 0.6, 0]}>
+      <mesh geometry={BOX} material={mat("#f97316")} scale={[0.26, 0.04, 0.26]} position={[0, -0.09, 0]} />
+      <mesh geometry={BOX} material={mat("#f97316")} scale={[0.26, 0.18, 0.04]} position={[0, 0, 0.11]} />
+      <mesh geometry={BOX} material={mat("#f97316")} scale={[0.26, 0.18, 0.04]} position={[0, 0, -0.11]} />
+      <mesh geometry={BOX} material={mat("#ea580c")} scale={[0.04, 0.18, 0.26]} position={[0.11, 0, 0]} />
+      <mesh geometry={BOX} material={mat("#ea580c")} scale={[0.04, 0.18, 0.26]} position={[-0.11, 0, 0]} />
+    </group>
+  );
+}
+
 export { BOX, PYRAMID, CROWN, OCTA, CYLINDER, DISC, TENT, PINE };

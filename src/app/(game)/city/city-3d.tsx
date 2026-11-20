@@ -21,7 +21,7 @@ import { palFor } from "./models-catalog";
 import { DayNight, GRID_MAT, StreetLights } from "./day-night";
 import { RoadControls } from "./road-controls";
 import type { RoadControlKind } from "@/lib/database.types";
-import { BOX, BuildingModel, CROWN, MODEL_HEIGHT, NoRoadMarker, OCTA, WorkerMarker, colorSeed, mat } from "./models";
+import { BOX, BuildingModel, CROWN, GoodsMarker, MODEL_HEIGHT, NoRoadMarker, OCTA, WorkerMarker, colorSeed, mat } from "./models";
 
 export type Preview = { tiles: Tile[]; ok: boolean; height?: number } | null;
 
@@ -32,6 +32,8 @@ export type City3DProps = {
   needsRoad: Set<string>;
   /** Shops and industry short of workers (yellow marker). */
   understaffed: Set<string>;
+  /** Shops short of goods from industry (orange crate marker). */
+  noGoods?: Set<string>;
   selectedId?: string;
   dimmedId?: string;
   /** "stroke": drag paints a path (roads, bulldozer); "point": tap a tile. */
@@ -379,6 +381,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
             })()}
             {needsRoad.has(b.id) && <NoRoadMarker y={MODEL_HEIGHT[b.type_id] ?? 1} />}
             {understaffed.has(b.id) && <WorkerMarker y={MODEL_HEIGHT[b.type_id] ?? 1} />}
+            {props.noGoods?.has(b.id) && <GoodsMarker y={MODEL_HEIGHT[b.type_id] ?? 1} x={understaffed.has(b.id) ? 0.3 : 0} />}
           </group>
         ))}
       </group>
