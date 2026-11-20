@@ -627,6 +627,16 @@ _Last updated: 2026-11-28_
 - **Names no longer cut off**: friend and city names wrap on the Friends page, and the visit screen shows "<Name>'s city" and the
   city name on two lines (Layers / Stats are icons on phones while visiting, to make room).
 
+### 43. Music in full screen, roomier top bar, starting city name, Roads first (2026-11-28)
+- **Music** (full screen): a music button next to View turns on calm instrumental music made in the browser (`src/lib/music.ts`,
+  Web Audio, no files): soft pad chords (C–Am–F–G, C–Em–F–G), a gentle bass and a plucked pentatonic melody that varies each
+  bar, with a light echo; fades in and out. Off by default; the choice is remembered per device (`lifecity.music`), starts on
+  the first tap (browsers block sound before one) and pauses while the app is in the background.
+- **Full-screen top bar**: the city name gets its own line with the coins under it; Layers and Stats are icon-only on phones.
+- **New players' city name** is "Click Here to Name City" (column default; migration `20261128050000_default_city_name.sql`,
+  applied live). Existing "My City" names were left as they are.
+- **Roads** is the first group in the build bar (`BUILD_GROUPS`).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

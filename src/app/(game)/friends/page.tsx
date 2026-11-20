@@ -20,7 +20,7 @@ async function FriendsContent() {
   return (
     <FriendsBoard
       code={code}
-      cityName={profile?.city_name ?? "My City"}
+      cityName={profile?.city_name ?? "Click Here to Name City"}
       name={profile?.display_name ?? null}
       inviteUrl={`${proto}://${host}/signup?invite=${code}`}
       friends={(friends ?? []).map((f) => ({ ...f, population: Number(f.population), buildings: Number(f.buildings) }))}

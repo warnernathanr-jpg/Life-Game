@@ -105,7 +105,9 @@ export type BuildGroupId =
   | "landscape";
 
 /** The build menu's groups, in menu order (icons: GroupIcon). Bridges are drawn with the road tool, not picked. */
+// Roads first: a new city starts with a road, and buildings only count beside one.
 export const BUILD_GROUPS: { id: BuildGroupId; label: string; tile: string }[] = [
+  { id: "road", label: "Roads", tile: "bg-slate-300 border-slate-500" },
   { id: "residential", label: "Residential", tile: "bg-orange-100 border-orange-300" },
   { id: "commercial", label: "Commercial", tile: "bg-sky-100 border-sky-300" },
   { id: "industrial", label: "Industrial", tile: "bg-stone-200 border-stone-400" },
@@ -114,7 +116,6 @@ export const BUILD_GROUPS: { id: BuildGroupId; label: string; tile: string }[] =
   { id: "recreation", label: "Recreation", tile: "bg-lime-100 border-lime-400" },
   { id: "transport", label: "Transport", tile: "bg-cyan-100 border-cyan-300" },
   { id: "landmark", label: "Landmarks", tile: "bg-teal-100 border-teal-300" },
-  { id: "road", label: "Roads", tile: "bg-slate-300 border-slate-500" },
   { id: "landscape", label: "Landscape", tile: "bg-emerald-200 border-emerald-400" },
 ];
 

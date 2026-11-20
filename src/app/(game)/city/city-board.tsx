@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Car, Eye, EyeOff, UserPlus, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, Maximize2, MousePointer2, Move, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Pause, Play, RotateCw, X } from "lucide-react";
+import { Ban, Car, Eye, EyeOff, UserPlus, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, Maximize2, MousePointer2, Music, VolumeX, Move, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Pause, Play, RotateCw, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { BulldozeIcon, CoinIcon } from "@/components/icons";
 import { cityExposure, computeLayer, LAYERS, type LayerId } from "@/lib/layers";
@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow, RoadControlKind } from "@/lib/database.types";
 import { MAX_CITY_SIZE, MAX_STROKE_TILES, ROAD_CONTROLS, cityStats, controlByType, milestoneFor, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, roadControlTypes, sellRefund } from "@/lib/game";
 import { BRIDGE_TYPE, ROAD_TIERS, connectedIds, isRoadType, key, nextFacing, roadSet, streetOf, touchesRoad, type Lot, type Tile } from "@/lib/roads";
+import { startMusic, stopMusic } from "@/lib/music";
 import { buyBuilding, buyLand, buyTiles, shiftCity, claimCityMilestone, moveBuilding, placeLandmark, placeRoadControl, removeRoadControl, sellBuilding, sellMany, setBuildingColor, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
 import { useConfirm } from "@/components/confirm";
@@ -152,6 +153,42 @@ export function CityBoard(props: {
   );
   const stats = useMemo(() => cityStats(placed, types, progress, exposure), [placed, types, progress, exposure]);
   const [paused, setPaused] = useState(false);
+  // Background music in full screen: off until turned on; the choice is remembered on this device.
+  const [music, setMusic] = useState(false);
+  useEffect(() => {
+    if (!props.standalone) return;
+    let saved = false;
+    try {
+      saved = localStorage.getItem("lifecity.music") === "on";
+    } catch {}
+    if (!saved) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMusic(true);
+  }, [props.standalone]);
+  useEffect(() => {
+    if (!music) return;
+    // Browsers only allow sound after a tap: try now, and again on the first tap.
+    const play = () => {
+      if (document.visibilityState === "visible") startMusic();
+    };
+    play();
+    const onVisible = () => (document.visibilityState === "visible" ? startMusic() : stopMusic());
+    window.addEventListener("pointerdown", play, { once: true });
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("pointerdown", play);
+      document.removeEventListener("visibilitychange", onVisible);
+      stopMusic();
+    };
+  }, [music]);
+  function toggleMusic() {
+    const next = !music;
+    if (next) startMusic(); // inside the tap, so the browser lets it play
+    setMusic(next);
+    try {
+      localStorage.setItem("lifecity.music", next ? "on" : "off");
+    } catch {}
+  }
 
   const [citizenId, setCitizenId] = useState<string | null>(null);
   const [citizenInfo, setCitizenInfo] = useState<CitizenInfo | null>(null);
@@ -966,9 +1003,9 @@ export function CityBoard(props: {
                         <p className="text-sm leading-tight font-bold break-words">{props.cityName}</p>
                       </div>
                     ) : (
-                      <div className="flex min-w-0 items-center gap-1 text-sm font-bold">
-                        <span className="min-w-0 truncate"><CityName name={props.cityName} compact /></span>
-                        <span className="shrink-0 text-coin">· <CoinIcon className="size-3.5" /> {formatCoins(balance)}</span>
+                      <div className="min-w-0 text-sm leading-tight font-bold">
+                        <div className="min-w-0 break-words"><CityName name={props.cityName} compact /></div>
+                        <div className="text-xs text-coin"><CoinIcon className="size-3" /> {formatCoins(balance)}</div>
                       </div>
                     )}
                   </div>
@@ -982,6 +1019,16 @@ export function CityBoard(props: {
                         Cancel
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={toggleMusic}
+                      aria-pressed={music}
+                      aria-label={music ? "Turn the music off" : "Turn the music on"}
+                      title={music ? "Music on" : "Music off"}
+                      className={`min-h-10 rounded-xl px-3 py-1 text-sm font-semibold shadow ${music ? "bg-accent text-on-accent" : "bg-surface/95 text-ink ring-1 ring-line"}`}
+                    >
+                      {music ? <Music className="size-4" aria-hidden /> : <VolumeX className="size-4" aria-hidden />}
+                    </button>
                     <button
                       type="button"
                       onClick={() => setScenic(true)}
@@ -1001,7 +1048,7 @@ export function CityBoard(props: {
                       aria-label="Layers"
                       className={`min-h-10 rounded-xl px-3 py-1 text-sm font-semibold shadow ${layersOpen || layer ? "bg-accent text-on-accent" : "bg-surface/95 text-ink ring-1 ring-line"}`}
                     >
-                      <Layers className="size-4" aria-hidden /> <span className={props.visit ? "hidden sm:inline" : undefined}>Layers</span>
+                      <Layers className="size-4" aria-hidden /> <span className="hidden sm:inline">Layers</span>
                     </button>
                     <button
                       type="button"
@@ -1013,7 +1060,7 @@ export function CityBoard(props: {
                       aria-label="Stats"
                       className={`min-h-10 rounded-xl px-3 py-1 text-sm font-semibold shadow ${statsOpen ? "bg-accent text-on-accent" : "bg-surface/95 text-ink ring-1 ring-line"}`}
                     >
-                      <ChartColumn className="size-4" aria-hidden /> <span className={props.visit ? "hidden sm:inline" : undefined}>Stats</span>
+                      <ChartColumn className="size-4" aria-hidden /> <span className="hidden sm:inline">Stats</span>
                     </button>
                     {props.visit && (
                       <button type="button" onClick={invite} className="min-h-10 rounded-xl bg-coin px-3 py-1 text-sm font-semibold text-on-coin shadow">
