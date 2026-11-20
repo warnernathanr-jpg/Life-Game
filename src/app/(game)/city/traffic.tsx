@@ -61,6 +61,8 @@ type Trip = {
   passKey?: string;
   /** Seconds stopped at a stop sign so far. */
   stopWait?: number;
+  /** Seconds left squeezing through after being stuck (gridlock breaker). */
+  squeeze?: number;
 };
 type State = { at: string; until: number; trip: null } | { at: null; until: number; trip: Trip };
 
@@ -79,6 +81,10 @@ function minutesLeft(trip: Trip) {
 const SIDE = { car: 0.2, walk: 0.43 };
 /** A car stops when another car is this close ahead in its lane (tiles). */
 const GAP = 0.42;
+/** A car that has been held up this long (real seconds) squeezes through for a moment: breaks gridlock loops (A behind B, B
+ *  waiting for C at a crossing, C behind A), which otherwise freeze the whole town. */
+const STUCK_SECONDS = 6;
+const SQUEEZE_SECONDS = 1.5;
 /** Give up waiting at an intersection after this many real seconds (avoids gridlock). */
 const MAX_WAIT = 4;
 /** Real seconds a car stands still at a stop sign. */
@@ -295,6 +301,19 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
           continue;
         }
         const me = travelling.find((a) => a.id === c.id)!;
+        // Stuck too long: squeeze through, ignoring the cars and crossings in the way for a moment.
+        if ((trip.squeeze ?? 0) <= 0 && trip.waited > STUCK_SECONDS) trip.squeeze = SQUEEZE_SECONDS;
+        if ((trip.squeeze ?? 0) > 0) {
+          trip.squeeze! -= dt;
+          const was = Math.floor(trip.u);
+          trip.u = Math.min(trip.u + step, trip.path.length);
+          trip.waited = 0;
+          if (Math.floor(trip.u) !== was) {
+            const left = trip.path[was];
+            if (left && holds.get(key(left.x, left.y)) === c.id) holds.delete(key(left.x, left.y));
+          }
+          continue;
+        }
         // 1. Following: someone just ahead in the same direction → wait.
         const blocked = travelling.some((o) => {
           if (o.id === c.id) return false;

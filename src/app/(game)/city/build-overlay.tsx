@@ -38,9 +38,6 @@ export function BuildOverlay({
   const [open, setOpen] = useState<BuildGroupId | null>(null);
   const group = BUILD_GROUPS.find((g) => g.id === open);
   const items = open ? types.filter((t) => buildGroupOf(t) === open).sort(byUnlockOrder) : [];
-  const isLocked = (t: BuildingTypeRow) => landmarkState?.(t)?.locked ?? pointsToUnlock(t, progress) > 0;
-  const unlocked = items.filter((t) => !isLocked(t));
-  const locked = items.filter((t) => isLocked(t));
   const activeGroup = types.find((t) => t.id === activeId);
 
   return (
@@ -60,7 +57,7 @@ export function BuildOverlay({
             </button>
           </div>
           <ul className="grid max-h-[38dvh] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4">
-            {[...unlocked, ...locked].map((t) => {
+            {items.map((t) => {
               const remaining = pointsToUnlock(t, progress);
               const special = landmarkState?.(t) ?? null;
               const isLocked = special ? special.locked : remaining > 0;

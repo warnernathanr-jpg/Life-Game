@@ -149,11 +149,11 @@ describe("build groups", () => {
 });
 
 describe("build menu order", () => {
-  it("lists what you'll reach first: landmarks by population, others by points then price", () => {
+  it("lists the cheapest first (landmarks by population)", () => {
     const t = (id: string, unlock_points: number | null, cost: number) => ({ id, unlock_points, cost });
     const landmarks = [t("crystal_spire", 1e9, 1), t("welcome_arch", 1e9, 1), t("monument", 1e9, 1), t("fountain", 1e9, 1)];
     expect(landmarks.sort(byUnlockOrder).map((x) => x.id)).toEqual(["welcome_arch", "fountain", "monument", "crystal_spire"]);
     const shops = [t("mall", 500, 900), t("corner_shop", null, 60), t("cafe", 75, 120), t("grocery", 100, 200), t("restaurant", 120, 150)];
-    expect(shops.sort(byUnlockOrder).map((x) => x.id)).toEqual(["corner_shop", "cafe", "grocery", "restaurant", "mall"]);
+    expect(shops.sort(byUnlockOrder).map((x) => x.id)).toEqual(["corner_shop", "cafe", "restaurant", "grocery", "mall"]);
   });
 });

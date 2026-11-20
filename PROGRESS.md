@@ -742,6 +742,13 @@ _Last updated: 2026-11-28_
   ref so the finger lifting can't read a stale one.
 - The button sound ignores taps on the map itself (only real buttons).
 
+### 54. Traffic unjams, 4-lane bridges, build menu by price (2026-11-28)
+- **Gridlock breaker** (`traffic.tsx`): a car stuck for 6 seconds squeezes through for 1.5 s (ignores the car ahead and releases
+  the crossing it leaves), so two cars nose to nose can't freeze the whole town.
+- **Bridges** show the markings of the road they carry (4-lane: double yellow + lane dashes; 2-lane: dashed centre; dirt: none),
+  and a pond's grassy bank is no longer drawn across road tiles at a bridge's ends.
+- **Build menu** lists every group by coin price (landmarks by their population milestone), without a separate Locked group.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

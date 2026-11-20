@@ -346,8 +346,8 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
         <Roads tiles={roadTiles.dirt} roads={roads} variant="dirt" />
         <Roads tiles={roadTiles.two} roads={roads} variant="two" />
         <Roads tiles={roadTiles.four} roads={roads} variant="four" />
-        <Water tiles={waterTiles} />
-        <Bridges tiles={bridgeTiles} roads={roads} />
+        <Water tiles={waterTiles} roads={roads} />
+        <Bridges tiles={bridgeTiles} roads={roads} typeAt={byTile} />
         <StreetLights lots={lots} roads={roads} minutes={props.minutes ?? 12 * 60} />
         {props.controls && props.controls.size > 0 && <RoadControls controls={props.controls} />}
         {props.sim && <Traffic sim={props.sim} roads={roads} controls={props.controls} />}
@@ -901,7 +901,23 @@ const BRIDGE_DECK = 0.03; // top of a bridge deck: level with the road surface
 const BRIDGE = { deck: mat("#4b5563"), wall: mat("#a8a29e"), wallTop: mat("#d6d3d1"), rail: mat("#e2e8f0"), line: mat("#fde047") };
 
 /** Bridge tiles: a deck level with the road, with railings along the direction the road runs. */
-function Bridges({ tiles, roads }: { tiles: Lot[]; roads: Set<string> }) {
+/** What a bridge carries: the kind of road at either end of its run of bridge tiles (4-lane wins, then 2-lane, then dirt). */
+function bridgeKind(t: Lot, alongX: boolean, typeAt: Map<string, Lot>): RoadVariant {
+  const found = new Set<string>();
+  for (const dir of [-1, 1]) {
+    for (let i = 1; i <= 50; i++) {
+      const x = alongX ? t.x + dir * i : t.x;
+      const y = alongX ? t.y : t.y + dir * i;
+      const type = typeAt.get(key(x, y))?.type_id;
+      if (type === BRIDGE_TYPE) continue;
+      if (type) found.add(type);
+      break;
+    }
+  }
+  return found.has(AVENUE_TYPE) ? "four" : found.has(ROAD_TYPE) ? "two" : found.has(DIRT_ROAD_TYPE) ? "dirt" : "two";
+}
+
+function Bridges({ tiles, roads, typeAt }: { tiles: Lot[]; roads: Set<string>; typeAt: Map<string, Lot> }) {
   return (
     <>
       {tiles.map((t) => {
@@ -922,7 +938,25 @@ function Bridges({ tiles, roads }: { tiles: Lot[]; roads: Set<string> }) {
                 <mesh geometry={BOX} material={BRIDGE.rail} position={[0, BRIDGE_DECK + 0.17, z]} scale={[1, 0.022, 0.035]} castShadow />
               </group>
             ))}
-            <mesh geometry={BOX} material={BRIDGE.line} position={[0, BRIDGE_DECK + 0.002, 0]} scale={[0.28, 0.004, 0.04]} raycast={() => null} />
+            {(() => {
+              const kind = bridgeKind(t, alongX, typeAt);
+              if (kind === "dirt") return null; // a plain deck for a dirt road
+              if (kind === "two")
+                return <mesh geometry={BOX} material={BRIDGE.line} position={[0, BRIDGE_DECK + 0.002, 0]} scale={[0.28, 0.004, 0.04]} raycast={() => null} />;
+              // 4-lane: a solid double yellow line in the middle and dashed white lane lines, like the road itself.
+              return (
+                <>
+                  {[-0.025, 0.025].map((z) => (
+                    <mesh key={z} geometry={BOX} material={BRIDGE.line} position={[0, BRIDGE_DECK + 0.002, z]} scale={[1, 0.004, 0.025]} raycast={() => null} />
+                  ))}
+                  {[-0.21, 0.21].flatMap((z) =>
+                    [-0.3, 0.3].map((x) => (
+                      <mesh key={`${z},${x}`} geometry={BOX} material={ROAD_PARTS.white} position={[x, BRIDGE_DECK + 0.002, z]} scale={[0.2, 0.004, 0.025]} raycast={() => null} />
+                    )),
+                  )}
+                </>
+              );
+            })()}
           </group>
         );
       })}
@@ -1039,7 +1073,7 @@ function Boxes({ list, material, shadow }: { list: THREE.Matrix4[]; material: TH
 }
 
 /** Water tiles joined into ponds and lakes, edged by a grassy bank with rocks and reeds on sides without water. */
-function Water({ tiles }: { tiles: Lot[] }) {
+function Water({ tiles, roads }: { tiles: Lot[]; roads: Set<string> }) {
   const { invalidate } = useThree();
   const geometry = useMemo(() => waterGeometry(tiles), [tiles]);
   useLayoutEffect(() => () => geometry.dispose(), [geometry]);
@@ -1058,10 +1092,12 @@ function Water({ tiles }: { tiles: Lot[] }) {
       const s = roadShape(t.x, t.y, set);
       // Each open side: [along-x?, fixed coordinate of the bank's centre line]
       const sides: [boolean, number, number][] = [];
-      if (!s.n) sides.push([true, t.y + W / 2, 0]);
-      if (!s.s) sides.push([true, t.y + 1 - W / 2, 1]);
-      if (!s.w) sides.push([false, t.x + W / 2, 2]);
-      if (!s.e) sides.push([false, t.x + 1 - W / 2, 3]);
+      // No bank where a road meets the water (a bridge's ends): the grass would cross the road.
+      const road = (x: number, y: number) => roads.has(key(x, y));
+      if (!s.n && !road(t.x, t.y - 1)) sides.push([true, t.y + W / 2, 0]);
+      if (!s.s && !road(t.x, t.y + 1)) sides.push([true, t.y + 1 - W / 2, 1]);
+      if (!s.w && !road(t.x - 1, t.y)) sides.push([false, t.x + W / 2, 2]);
+      if (!s.e && !road(t.x + 1, t.y)) sides.push([false, t.x + 1 - W / 2, 3]);
       for (const [alongX, c, side] of sides) {
         banks.push(alongX ? box(t.x + 0.5, 0, c, 1, 0.035, W) : box(c, 0, t.y + 0.5, W, 0.035, 1));
         // 0–2 rocks and 0–2 reed clumps per side, placed by the tile's hash so they stay put.
@@ -1087,7 +1123,7 @@ function Water({ tiles }: { tiles: Lot[] }) {
       }
     }
     return { banks, rocks, darkRocks, reeds, tips };
-  }, [tiles]);
+  }, [tiles, roads]);
 
   useFrame((_, delta) => {
     if (tiles.length === 0) return;
