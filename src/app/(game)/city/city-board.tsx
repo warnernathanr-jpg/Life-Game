@@ -752,6 +752,8 @@ export function CityBoard(props: {
         plan.fresh.map((t) => [t.x, t.y]),
       );
       if (!r.ok) return say(r.error, "bad");
+      // Back to Select after building, so the next tap doesn't start drawing more (tap Roads again to draw more).
+      setMode({ kind: "idle" });
       const notes = [
         plan.bridges > 0 &&
           `${plan.bridges} bridge${plan.bridges === 1 ? "" : "s"}`,

@@ -359,6 +359,14 @@ export async function claimReward(reward: "home_screen" | "notifications" | "tut
   return { ok: true, coins: data.coins };
 }
 
+/** Clear the "New" labels on earned badges (no page refresh: they stay visible until the next visit). */
+export async function markAchievementsSeen(): Promise<ActionResult> {
+  const { supabase } = await requireUser();
+  const { error } = await supabase.rpc("mark_achievements_seen");
+  if (error) return { ok: false, error: gameError(error) };
+  return { ok: true };
+}
+
 /** Hide the Getting started guide. */
 export async function hideTutorial(): Promise<ActionResult> {
   const { supabase, userId } = await requireUser();

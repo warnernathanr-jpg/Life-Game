@@ -685,6 +685,26 @@ _Last updated: 2026-11-28_
   buildings), `private.tutorial_state()`, `my_tutorial()`, `user_rewards` allows 'tutorial'. 12 pgTAP tests (`tutorial.test.sql`,
   355 total).
 
+- Getting started's **Add a task** button goes to `/tasks#add-task` (and **Go to my tasks** to `#todo-h`): `tasks/scroll-to-hash.tsx`
+  scrolls there once the streamed page has it and puts the cursor in the task name box (repeats briefly, since Next.js handles the
+  hash itself just after).
+
+### 49. Achievements and a timeline (2026-11-28)
+- **17 badges** (`src/lib/achievements.ts`): first check-off, 100 and 1,000 check-offs, a 30- and a 100-check-off habit, Well-rounded
+  (250 points in all four areas), first goal and 5 goals, first focus session and 10 focus hours, Getting started, first building and
+  50 buildings, 100 and 1,000 people, first land purchase, first friend. Saved the first time they're earned with the moment they
+  were first earned (`public.achievements`, `sync_achievements()` from `private.achievement_times()`), so they're **kept forever**
+  (demolishing or deleting never removes one). Start over clears them.
+- **Achievements page** (`/achievements`, linked from a card at the top of Stats with "N new"): badges by group (earned in gold with
+  the date and a "New" label until seen, locked ones grey with how to earn them) and **Your timeline**, newest first by month:
+  badges, goals reached, habit milestones, population milestones, land bought, the day the city started (`my_timeline()`).
+  `achievements-view.tsx` holds the layout; `mark-seen.tsx` clears "New" after a moment.
+- Migration `20261128100000_achievements.sql` (applied live). 9 pgTAP tests (`achievements.test.sql`) + 1 in `reset_progress` (365 total).
+
+### 50. Road tool turns off after Build (2026-11-28)
+- After a successful Build of a drawn road (or trees / water), the tool goes back to Select, so the next tap doesn't start drawing
+  more; tap Roads again to draw another. A failed Build keeps the tool on so the drawing can be fixed.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

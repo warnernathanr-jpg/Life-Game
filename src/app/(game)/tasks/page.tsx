@@ -7,6 +7,7 @@ import { formatCoins, nextUnlocks } from "@/lib/game";
 import { AreaPoints } from "@/components/area-points";
 import { addDays, isHabit, summarizeHabit, type HabitSummary } from "@/lib/habits";
 import { daysUntilNext } from "@/lib/tasks";
+import { ScrollToHash } from "./scroll-to-hash";
 import { AddTaskForm } from "./add-task-form";
 import { TaskList } from "./task-list";
 import { CalendarBar, DayView, MonthView, WeekView, viewRange } from "./calendar";
@@ -94,7 +95,8 @@ async function TasksPageContent({ searchParams }: { searchParams: PageProps<"/ta
         )}
 
         <section className="card" aria-labelledby="add-task">
-          <h2 id="add-task" className="mb-3 font-semibold">Add a task</h2>
+          <h2 id="add-task" className="mb-3 scroll-mt-4 font-semibold">Add a task</h2>
+          <ScrollToHash />
           <AddTaskForm />
         </section>
       </div>

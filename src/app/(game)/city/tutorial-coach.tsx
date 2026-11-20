@@ -27,7 +27,7 @@ export function TutorialCoach({ state, onReward }: { state: TutorialState; onRew
                 {next.where === "tasks" ? "Tasks come first: they earn the coins you build with. Add one and check it off, then come back here." : next.hint?.(state) ?? next.how}
               </p>
               {next.where === "tasks" && (
-                <a href="/tasks" className="btn-primary mt-2 min-h-9 px-3 py-1 text-sm">Go to Tasks</a>
+                <a href={next.id === "task" ? "/tasks#add-task" : "/tasks#todo-h"} className="btn-primary mt-2 min-h-9 px-3 py-1 text-sm">Go to Tasks</a>
               )}
             </>
           ) : (

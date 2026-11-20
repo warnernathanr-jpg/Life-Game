@@ -73,7 +73,9 @@ export function GettingStarted({ state }: { state: TutorialState }) {
                 <div className="mt-1 pl-8">
                   <p className="text-sm text-ink/90">{hint ?? step.how}</p>
                   {step.where === "tasks" ? (
-                    <Link href="/tasks" className="btn-primary mt-2 min-h-10 px-3 py-1 text-sm">Go to Tasks</Link>
+                    <Link href={step.id === "task" ? "/tasks#add-task" : "/tasks#todo-h"} className="btn-primary mt-2 min-h-10 px-3 py-1 text-sm">
+                      {step.id === "task" ? "Add a task" : "Go to my tasks"}
+                    </Link>
                   ) : (
                     // A full page load: the full-screen city is its own page (see hardNavigate in city-board.tsx).
                     <a href="/play" className="btn-primary mt-2 min-h-10 px-3 py-1 text-sm">Open my city</a>

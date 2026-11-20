@@ -219,6 +219,7 @@ export type Database = {
       road_controls: Table<RoadControlRow, never, never>;
       city_milestones: Table<{ user_id: string; population: number; coins: number; claimed_at: string }, never, never>;
       friendships: Table<{ user_id: string; friend_id: string; created_at: string }, never, never>;
+      achievements: Table<{ user_id: string; id: string; achieved_at: string; seen: boolean }, never, never>;
       user_rewards: Table<{ user_id: string; reward: "home_screen" | "notifications"; coins: number; claimed_at: string }, never, never>;
     };
     Views: Record<string, never>;
@@ -261,6 +262,9 @@ export type Database = {
       fail_focus: { Args: { p_id: string }; Returns: undefined };
       buy_land: { Args: Record<string, never>; Returns: { city_size: number; balance: number }[] };
       my_tutorial: { Args: Record<string, never>; Returns: { has_task: boolean; has_checkoff: boolean; has_road: boolean; has_home: boolean; has_resident: boolean; has_color: boolean; has_shop: boolean; hidden: boolean; claimed: boolean }[] };
+      sync_achievements: { Args: Record<string, never>; Returns: number };
+      mark_achievements_seen: { Args: Record<string, never>; Returns: undefined };
+      my_timeline: { Args: Record<string, never>; Returns: { at: string; kind: string; title: string; detail: string | null }[] };
       shift_city: { Args: { p_dx: number; p_dy: number }; Returns: undefined };
       my_progress: { Args: Record<string, never>; Returns: ProgressRow[] };
       my_tasks: { Args: Record<string, never>; Returns: MyTaskRow[] };

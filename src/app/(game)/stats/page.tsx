@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { Award, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { Suspense } from "react";
+import { ACHIEVEMENTS } from "@/lib/achievements";
 import { requireUser } from "@/lib/auth";
 import { formatCoins } from "@/lib/game";
 import { addDays, isHabit, rateWords, summarizeHabit } from "@/lib/habits";
@@ -25,6 +28,10 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
   const month = typeof monthParam === "string" && /^\d{4}-\d{2}$/.test(monthParam) && monthParam <= today.slice(0, 7) ? monthParam : today.slice(0, 7);
   const [mY, mM] = month.split("-").map(Number);
   const nextMonth = mM === 12 ? `${mY + 1}-01` : `${mY}-${String(mM + 1).padStart(2, "0")}`;
+  await supabase.rpc("sync_achievements"); // save any badge earned since the last visit
+  const { data: badges } = await supabase.from("achievements").select("id, seen");
+  const badgeCount = (badges ?? []).filter((b) => ACHIEVEMENTS.some((a) => a.id === b.id)).length;
+  const newBadges = (badges ?? []).filter((b) => !b.seen).length;
   const [{ data: completions }, { count: allCheckoffs }, { data: focus }, { data: monthDone }] = await Promise.all([
     supabase.from("task_completions").select("task_id, local_day").or(NOT_GRANT).gte("local_day", addDays(today, -35)),
     supabase.from("task_completions").select("id", { count: "exact", head: true }).or(NOT_GRANT),
@@ -77,6 +84,20 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
         <h1 className="text-2xl font-bold">Stats</h1>
         <p className="text-sm text-muted">How you&apos;re doing with your tasks, habits, focus and goals. (Your city&apos;s numbers are on the City page.)</p>
       </div>
+
+      <Link href="/achievements" className="card flex items-center gap-3 hover:border-accent/60">
+        <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-full bg-coin text-on-coin">
+          <Award className="size-6" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">
+            Achievements
+            {newBadges > 0 && <span className="ml-2 rounded-full bg-coin px-2 py-0.5 text-xs font-bold text-on-coin">{newBadges} new</span>}
+          </span>
+          <span className="block text-sm text-muted">{badgeCount} of {ACHIEVEMENTS.length} badges earned · see your timeline</span>
+        </span>
+        <ChevronRight className="size-5 shrink-0 text-muted" aria-hidden />
+      </Link>
 
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {tiles.map((t) => (

@@ -1,0 +1,25 @@
+-- Achievements: earned from what the player did, saved once, kept even after the thing that earned them is gone.
+begin;
+select plan(9);
+insert into auth.users (id, email) values ('cd111111-1111-1111-1111-111111111111', 'ach@example.com'), ('cd222222-2222-2222-2222-222222222222', 'ach2@example.com');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"cd111111-1111-1111-1111-111111111111"}', true);
+select is(public.sync_achievements(), 0, 'nothing earned yet');
+insert into public.tasks (title, area, difficulty, repeat) values ('Walk', 'health', 'easy', 'daily');
+select public.complete_task((select id from public.tasks where title = 'Walk'));
+select public.buy_tiles('dirt_road', '[[0,1],[1,1]]');
+select public.buy_building('small_cottage', 0, 0);
+select is(public.sync_achievements(), 2, 'first check-off and first building');
+select is((select array_agg(id order by id) from public.achievements), array['build_first', 'first_checkoff'], 'saved');
+select is(public.sync_achievements(), 0, 'saved only once');
+select public.sell_building((select id from public.placed_buildings where type_id = 'small_cottage'));
+select public.sync_achievements();
+select is((select count(*)::int from public.achievements where id = 'build_first'), 1, 'demolishing the building keeps the badge');
+select is((select count(*)::int from public.achievements where not seen), 2, 'new badges start unseen');
+select public.mark_achievements_seen();
+select is((select count(*)::int from public.achievements where not seen), 0, 'marked seen');
+select ok((select count(*) from public.my_timeline() where kind = 'achievement') = 2 and exists (select 1 from public.my_timeline() where kind = 'joined'), 'timeline has the badges and the day they started');
+select set_config('request.jwt.claims', '{"sub":"cd222222-2222-2222-2222-222222222222"}', true);
+select is((select count(*)::int from public.achievements), 0, 'other players see none of them');
+select * from finish();
+rollback;
