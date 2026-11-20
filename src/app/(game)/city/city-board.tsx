@@ -948,7 +948,8 @@ export function CityBoard(props: {
     if (!m) return null;
     if (placedTypes.has(t.id))
       return { locked: true, note: "Already in your city" };
-    if (stats.population < m.population)
+    // Once a milestone has been claimed its landmark stays unlocked, even if the population drops again.
+    if (stats.population < m.population && !(props.claimedMilestones ?? []).includes(m.population))
       return {
         locked: true,
         note: `Reach ${formatCoins(m.population)} people`,

@@ -666,6 +666,13 @@ _Last updated: 2026-11-28_
   Goals screens on two phones). Made from real app screens with sample data (a 16×16 sample city "Maple Bay", sample tasks,
   habits and goals), composed with PIL. The old city-only shots were removed.
 
+### 47. Claimed milestones keep their landmark (2026-11-28)
+- Once a population milestone has been claimed, its landmark stays unlocked even if the population drops (`place_landmark()` accepts
+  a claimed milestone; `landmarkState()` in `city-board.tsx` matches). Migration `20261128080000_claimed_landmarks_stay.sql`
+  (applied live); 3 pgTAP tests (`claimed_landmarks.test.sql`, 343 total).
+- Account mbsw000@gnail.com (signed up with "gnail"): +500,000 coins, 1,000 points per area (all buildings), all 7 milestones
+  recorded as claimed with no bonus coins (all landmarks unlocked); land left at 8×8.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
