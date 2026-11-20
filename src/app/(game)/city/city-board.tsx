@@ -1,46 +1,149 @@
 "use client";
 
-import { Ban, Car, Eye, EyeOff, UserPlus, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, Maximize2, MousePointer2, Music, VolumeX, Move, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Pause, Play, RotateCw, X } from "lucide-react";
+import {
+  Ban,
+  Car,
+  Eye,
+  EyeOff,
+  UserPlus,
+  ChartColumn,
+  Flame,
+  GraduationCap,
+  HeartPulse,
+  Layers,
+  ShieldAlert,
+  Factory as FactoryIcon,
+  Gem as GemIcon,
+  TrafficCone,
+  Footprints,
+  House,
+  Maximize2,
+  MousePointer2,
+  Music,
+  VolumeX,
+  Move,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  Pause,
+  Play,
+  RotateCw,
+  X,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import { BulldozeIcon, CoinIcon } from "@/components/icons";
 import { cityExposure, computeLayer, LAYERS, type LayerId } from "@/lib/layers";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow, RoadControlKind } from "@/lib/database.types";
-import { MAX_CITY_SIZE, MAX_STROKE_TILES, ROAD_CONTROLS, cityStats, controlByType, milestoneFor, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, roadControlTypes, sellRefund } from "@/lib/game";
-import { BRIDGE_TYPE, ROAD_TIERS, connectedIds, isRoadType, key, nextFacing, roadSet, streetOf, touchesRoad, type Lot, type Tile } from "@/lib/roads";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import type {
+  BuildingTypeRow,
+  PlacedBuildingRow,
+  ProgressRow,
+  RoadControlKind,
+} from "@/lib/database.types";
+import {
+  MAX_CITY_SIZE,
+  MAX_STROKE_TILES,
+  ROAD_CONTROLS,
+  cityStats,
+  controlByType,
+  milestoneFor,
+  footprint,
+  formatCoins,
+  landPrice,
+  lotFree,
+  pointsToUnlock,
+  roadControlTypes,
+  sellRefund,
+} from "@/lib/game";
+import {
+  BRIDGE_TYPE,
+  ROAD_TIERS,
+  connectedIds,
+  isRoadType,
+  key,
+  nextFacing,
+  roadSet,
+  streetOf,
+  touchesRoad,
+  type Lot,
+  type Tile,
+} from "@/lib/roads";
 import { startMusic, stopMusic } from "@/lib/music";
 import { playSfx, type Sfx } from "@/lib/sfx";
-import { buyBuilding, buyLand, buyTiles, shiftCity, claimCityMilestone, moveBuilding, placeLandmark, placeRoadControl, removeRoadControl, sellBuilding, sellMany, setBuildingColor, setFacing, upgradeBuilding } from "../actions";
+import {
+  buyBuilding,
+  buyLand,
+  buyTiles,
+  shiftCity,
+  claimCityMilestone,
+  moveBuilding,
+  placeLandmark,
+  placeRoadControl,
+  removeRoadControl,
+  sellBuilding,
+  sellMany,
+  setBuildingColor,
+  setFacing,
+  upgradeBuilding,
+} from "../actions";
 import type { City3DHandle } from "./city-3d";
 import { useConfirm } from "@/components/confirm";
 import { citizensFrom, placesFrom, roleText } from "@/lib/sim";
 import { BuildOverlay } from "./build-overlay";
 import type { CitizenInfo } from "./traffic";
-import { CityName, CityStatsPanel, MilestonesPanel, SelectedPanel } from "./panels";
+import {
+  CityName,
+  CityStatsPanel,
+  MilestonesPanel,
+  SelectedPanel,
+} from "./panels";
 
 // three.js only loads on this page, in the browser.
 const City3D = dynamic(() => import("./city-3d"), {
   ssr: false,
-  loading: () => <div className="flex h-full items-center justify-center text-sm text-muted">Loading 3D city…</div>,
+  loading: () => (
+    <div className="flex h-full items-center justify-center text-sm text-muted">
+      Loading 3D city…
+    </div>
+  ),
 });
 
-type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid" | "facing"> & { rotated?: boolean; color_seed?: number | null };
+type Placed = Pick<
+  PlacedBuildingRow,
+  "id" | "type_id" | "x" | "y" | "price_paid" | "facing"
+> & { rotated?: boolean; color_seed?: number | null };
 /** Tiles painted by dragging: roads and landscaping. */
 const PAINT_TYPES = ["dirt_road", "road", "avenue", "tree", "water"] as const;
 type PaintType = (typeof PAINT_TYPES)[number];
-const isPaint = (id: string): id is PaintType => (PAINT_TYPES as readonly string[]).includes(id);
+const isPaint = (id: string): id is PaintType =>
+  (PAINT_TYPES as readonly string[]).includes(id);
 
 /** Icons for the map layers. */
 function LayerIcon({ id }: { id: LayerId | null }) {
   const Icon =
-    id === "traffic" ? TrafficCone
-    : id === "fire" ? Flame
-    : id === "crime" ? ShieldAlert
-    : id === "education" ? GraduationCap
-    : id === "health" ? HeartPulse
-    : id === "pollution" ? FactoryIcon
-    : id === "land_value" ? GemIcon
-    : Ban;
+    id === "traffic"
+      ? TrafficCone
+      : id === "fire"
+        ? Flame
+        : id === "crime"
+          ? ShieldAlert
+          : id === "education"
+            ? GraduationCap
+            : id === "health"
+              ? HeartPulse
+              : id === "pollution"
+                ? FactoryIcon
+                : id === "land_value"
+                  ? GemIcon
+                  : Ban;
   return <Icon className="inline size-4 shrink-0" aria-hidden />;
 }
 
@@ -81,18 +184,31 @@ export function CityBoard(props: {
   const { size, placed, types, progress, balance } = props;
   const typeById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types]);
   const lots: (Lot & { price_paid: number })[] = useMemo(
-    () => placed.map((b) => ({ ...b, ...footprint(typeById.get(b.type_id), b.rotated) })),
+    () =>
+      placed.map((b) => ({
+        ...b,
+        ...footprint(typeById.get(b.type_id), b.rotated),
+      })),
     [placed, typeById],
   );
   const roads = useMemo(() => roadSet(lots), [lots]);
-  const controls = useMemo(() => new Map((props.controls ?? []).map((c) => [key(c.x, c.y), c.kind])), [props.controls]);
+  const controls = useMemo(
+    () => new Map((props.controls ?? []).map((c) => [key(c.x, c.y), c.kind])),
+    [props.controls],
+  );
   // Crossings: road tiles (not bridges) where 3 or 4 roads meet; the only places for stop signs and lights.
   const crossings = useMemo(() => {
     const out = new Set<string>();
     for (const l of lots) {
       if (!isRoadType(l.type_id) || l.type_id === BRIDGE_TYPE) continue;
       let n = 0;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (roads.has(key(l.x + dx, l.y + dy))) n++;
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ])
+        if (roads.has(key(l.x + dx, l.y + dy))) n++;
       if (n >= 3) out.add(key(l.x, l.y));
     }
     return out;
@@ -113,16 +229,25 @@ export function CityBoard(props: {
   }, [lots, typeById]);
   const occupant = useMemo(() => {
     const map = new Map<string, (typeof lots)[number]>();
-    for (const b of lots) for (let dx = 0; dx < b.w; dx++) for (let dy = 0; dy < b.h; dy++) map.set(key(b.x + dx, b.y + dy), b);
+    for (const b of lots)
+      for (let dx = 0; dx < b.w; dx++)
+        for (let dy = 0; dy < b.h; dy++) map.set(key(b.x + dx, b.y + dy), b);
     return map;
   }, [lots]);
 
   const [mode, setMode] = useState<Mode>(() => {
-    const t = props.initialPlace ? types.find((x) => x.id === props.initialPlace) : undefined;
+    const t = props.initialPlace
+      ? types.find((x) => x.id === props.initialPlace)
+      : undefined;
     if (!t || pointsToUnlock(t, progress) > 0) return { kind: "idle" };
-    return isPaint(t.id) ? { kind: "paint", typeId: t.id } : { kind: "place", typeId: t.id };
+    return isPaint(t.id)
+      ? { kind: "paint", typeId: t.id }
+      : { kind: "place", typeId: t.id };
   });
-  const [message, setMessage] = useState<{ text: string; tone: "good" | "bad" } | null>(null);
+  const [message, setMessage] = useState<{
+    text: string;
+    tone: "good" | "bad";
+  } | null>(null);
   const [stroke, setStroke] = useState<Tile[] | null>(null);
   const [pending, start] = useTransition();
   const [confirm, confirmDialog] = useConfirm();
@@ -138,31 +263,57 @@ export function CityBoard(props: {
       setScenic(false);
     };
     window.addEventListener("keydown", onKey, { capture: true });
-    return () => window.removeEventListener("keydown", onKey, { capture: true });
+    return () =>
+      window.removeEventListener("keydown", onKey, { capture: true });
   }, [scenic]);
   const [draftTiles, setDraftTiles] = useState<Tile[]>([]);
   const [draftRot, setDraftRot] = useState(false);
   const modeKey =
-    mode.kind === "paint" ? `paint:${mode.typeId}` : mode.kind === "place" ? `place:${mode.typeId}` : mode.kind === "move" ? `move:${mode.id}` : mode.kind === "control" ? `control:${mode.control}` : mode.kind;
+    mode.kind === "paint"
+      ? `paint:${mode.typeId}`
+      : mode.kind === "place"
+        ? `place:${mode.typeId}`
+        : mode.kind === "move"
+          ? `move:${mode.id}`
+          : mode.kind === "control"
+            ? `control:${mode.control}`
+            : mode.kind;
   const [draftFor, setDraftFor] = useState(modeKey);
   if (draftFor !== modeKey) {
     // Switching tools or buildings drops the preview.
     setDraftFor(modeKey);
     setDraftSpot(null);
     setDraftTiles([]);
-    setDraftRot(mode.kind === "move" ? !!placed.find((b) => b.id === mode.id)?.rotated : false);
+    setDraftRot(
+      mode.kind === "move"
+        ? !!placed.find((b) => b.id === mode.id)?.rotated
+        : false,
+    );
   }
 
   // The living city: named citizens who commute, shop and visit parks (see src/lib/sim.ts).
   const places = useMemo(() => placesFrom(lots, types), [lots, types]);
   const citizens = useMemo(() => citizensFrom(places), [places]);
-  const placeById = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
+  const placeById = useMemo(
+    () => new Map(places.map((p) => [p.id, p])),
+    [places],
+  );
   // Pollution at homes and traffic jams lower happiness (same models as the map layers).
   const exposure = useMemo(
-    () => cityExposure(lots, types, { size, places, citizens, connected: connectedIds(lots), controls }),
+    () =>
+      cityExposure(lots, types, {
+        size,
+        places,
+        citizens,
+        connected: connectedIds(lots),
+        controls,
+      }),
     [lots, types, size, places, citizens, controls],
   );
-  const stats = useMemo(() => cityStats(placed, types, progress, exposure), [placed, types, progress, exposure]);
+  const stats = useMemo(
+    () => cityStats(placed, types, progress, exposure),
+    [placed, types, progress, exposure],
+  );
   const [paused, setPaused] = useState(false);
   // Background music in full screen: off until turned on; the choice is remembered on this device.
   const [music, setMusic] = useState(false);
@@ -183,7 +334,8 @@ export function CityBoard(props: {
       if (document.visibilityState === "visible") startMusic();
     };
     play();
-    const onVisible = () => (document.visibilityState === "visible" ? startMusic() : stopMusic());
+    const onVisible = () =>
+      document.visibilityState === "visible" ? startMusic() : stopMusic();
     window.addEventListener("pointerdown", play, { once: true });
     document.addEventListener("visibilitychange", onVisible);
     return () => {
@@ -207,7 +359,16 @@ export function CityBoard(props: {
   const [layer, setLayer] = useState<LayerId | null>(null);
   const [layersOpen, setLayersOpen] = useState(false);
   const layerCells = useMemo(
-    () => (layer ? computeLayer(layer, lots, types, { size, places, citizens, connected: connectedIds(lots), controls }) : null),
+    () =>
+      layer
+        ? computeLayer(layer, lots, types, {
+            size,
+            places,
+            citizens,
+            connected: connectedIds(lots),
+            controls,
+          })
+        : null,
     [layer, lots, types, size, places, citizens],
   );
   const layerInfo = LAYERS.find((l) => l.id === layer);
@@ -260,9 +421,11 @@ export function CityBoard(props: {
   async function invite() {
     if (!props.visit) return;
     const url = props.visit.inviteUrl;
-    const text = "I'm building a city by getting things done in Life City. Come build yours and add me as a friend!";
+    const text =
+      "I'm building a city by getting things done in Life City. Come build yours and add me as a friend!";
     try {
-      if (navigator.share) return await navigator.share({ title: "Life City", text, url });
+      if (navigator.share)
+        return await navigator.share({ title: "Life City", text, url });
     } catch {
       return; // share sheet closed
     }
@@ -274,20 +437,28 @@ export function CityBoard(props: {
     }
   }
 
-
-  const placingType = mode.kind === "place" ? typeById.get(mode.typeId) : undefined;
-  const paintType = mode.kind === "paint" ? typeById.get(mode.typeId) : undefined;
-  const movingLot = mode.kind === "move" ? lots.find((b) => b.id === mode.id) : undefined;
-  const selected = mode.kind === "selected" ? lots.find((b) => b.id === mode.id) : undefined;
+  const placingType =
+    mode.kind === "place" ? typeById.get(mode.typeId) : undefined;
+  const paintType =
+    mode.kind === "paint" ? typeById.get(mode.typeId) : undefined;
+  const movingLot =
+    mode.kind === "move" ? lots.find((b) => b.id === mode.id) : undefined;
+  const selected =
+    mode.kind === "selected" ? lots.find((b) => b.id === mode.id) : undefined;
   // Footprint of what's being placed or moved, turned or not (rectangles can be turned before confirming).
-  const draftDims = placingType ? footprint(placingType, draftRot) : movingLot ? footprint(typeById.get(movingLot.type_id), draftRot) : null;
+  const draftDims = placingType
+    ? footprint(placingType, draftRot)
+    : movingLot
+      ? footprint(typeById.get(movingLot.type_id), draftRot)
+      : null;
   const canTurn = !!draftDims && draftDims.w !== draftDims.h;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
       // Escape first stops what you're doing, then leaves full screen.
-      if (modeRef.current.kind === "idle" && fullRef.current) hardNavigate("/city");
+      if (modeRef.current.kind === "idle" && fullRef.current)
+        hardNavigate("/city");
       else setMode({ kind: "idle" });
     }
     window.addEventListener("keydown", onKey);
@@ -295,7 +466,10 @@ export function CityBoard(props: {
   }, []);
 
   useEffect(() => {
-    if ((mode.kind === "selected" || mode.kind === "move") && !lots.some((b) => b.id === mode.id)) {
+    if (
+      (mode.kind === "selected" || mode.kind === "move") &&
+      !lots.some((b) => b.id === mode.id)
+    ) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setMode({ kind: "idle" });
     }
@@ -314,7 +488,14 @@ export function CityBoard(props: {
   const shift = useCallback(
     (dx: number, dy: number) => {
       if (shiftingRef.current || !edges) return;
-      const room = dx < 0 ? edges.left : dx > 0 ? edges.right : dy < 0 ? edges.top : edges.bottom;
+      const room =
+        dx < 0
+          ? edges.left
+          : dx > 0
+            ? edges.right
+            : dy < 0
+              ? edges.top
+              : edges.bottom;
       if (room <= 0) return;
       shiftingRef.current = true;
       start(async () => {
@@ -327,7 +508,12 @@ export function CityBoard(props: {
   );
   useEffect(() => {
     if (mode.kind !== "shift") return;
-    const dirs: Record<string, [number, number]> = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+    const dirs: Record<string, [number, number]> = {
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1],
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+    };
     function onKey(e: KeyboardEvent) {
       const d = dirs[e.key];
       if (!d) return;
@@ -349,35 +535,82 @@ export function CityBoard(props: {
     const at = (t: Tile) => occupant.get(key(t.x, t.y))?.type_id;
     const road = isRoadType(typeId);
     // A bridge already is road (of any kind) and already is water.
-    const fresh = tiles.filter((t) => at(t) !== typeId && !(at(t) === BRIDGE_TYPE && (road || typeId === "water")));
+    const fresh = tiles.filter(
+      (t) =>
+        at(t) !== typeId &&
+        !(at(t) === BRIDGE_TYPE && (road || typeId === "water")),
+    );
     // Roads drawn over water become bridges; over another kind of road they replace it; trees are cleared.
     const bridges = road ? fresh.filter((t) => at(t) === "water").length : 0;
-    const swaps = road ? fresh.filter((t) => at(t) !== undefined && at(t) !== "water" && isRoadType(at(t)!)).length : 0;
+    const swaps = road
+      ? fresh.filter(
+          (t) => at(t) !== undefined && at(t) !== "water" && isRoadType(at(t)!),
+        ).length
+      : 0;
     const trees = fresh.filter((t) => at(t) === "tree").length;
     const free = (t: Tile) => {
       const here = at(t);
-      return here === undefined || here === "tree" || (road && (here === "water" || isRoadType(here)));
+      return (
+        here === undefined ||
+        here === "tree" ||
+        (road && (here === "water" || isRoadType(here)))
+      );
     };
-    const blocked = fresh.some((t) => !free(t) || t.x < 0 || t.y < 0 || t.x >= size || t.y >= size);
+    const blocked = fresh.some(
+      (t) => !free(t) || t.x < 0 || t.y < 0 || t.x >= size || t.y >= size,
+    );
     // Roads can't run side by side: no 2x2 block of road tiles may include a new tile (the database checks too).
     let sideBySide = false;
     if (road && fresh.length > 0) {
       const all = new Set([...roads, ...fresh.map((t) => key(t.x, t.y))]);
       sideBySide = fresh.some((t) =>
-        [[0, 0], [-1, 0], [0, -1], [-1, -1]].some(([dx, dy]) =>
-          [[0, 0], [1, 0], [0, 1], [1, 1]].every(([ex, ey]) => all.has(key(t.x + dx + ex, t.y + dy + ey))),
+        [
+          [0, 0],
+          [-1, 0],
+          [0, -1],
+          [-1, -1],
+        ].some(([dx, dy]) =>
+          [
+            [0, 0],
+            [1, 0],
+            [0, 1],
+            [1, 1],
+          ].every(([ex, ey]) => all.has(key(t.x + dx + ex, t.y + dy + ey))),
         ),
       );
     }
-    const cost = (fresh.length - bridges) * cost1 + bridges * (typeById.get(BRIDGE_TYPE)?.cost ?? 0);
-    return { fresh, bridges, swaps, trees, blocked, sideBySide, cost, ok: !blocked && !sideBySide && cost <= balance && fresh.length <= MAX_STROKE_TILES };
+    const cost =
+      (fresh.length - bridges) * cost1 +
+      bridges * (typeById.get(BRIDGE_TYPE)?.cost ?? 0);
+    return {
+      fresh,
+      bridges,
+      swaps,
+      trees,
+      blocked,
+      sideBySide,
+      cost,
+      ok:
+        !blocked &&
+        !sideBySide &&
+        cost <= balance &&
+        fresh.length <= MAX_STROKE_TILES,
+    };
   }
   function planDemolish(tiles: Tile[]) {
-    const ids = [...new Set(tiles.map((t) => occupant.get(key(t.x, t.y))?.id).filter(Boolean) as string[])];
+    const ids = [
+      ...new Set(
+        tiles
+          .map((t) => occupant.get(key(t.x, t.y))?.id)
+          .filter(Boolean) as string[],
+      ),
+    ];
     // Bridges go back to water with nothing back.
     const refund = ids.reduce((s, id) => {
       const l = lots.find((x) => x.id === id);
-      return s + (l && l.type_id !== BRIDGE_TYPE ? sellRefund(l.price_paid) : 0);
+      return (
+        s + (l && l.type_id !== BRIDGE_TYPE ? sellRefund(l.price_paid) : 0)
+      );
     }, 0);
     return { ids, refund };
   }
@@ -393,7 +626,8 @@ export function CityBoard(props: {
       // The preview only goes where the building fits (never on roads, water or other buildings): the tapped spot,
       // or the nearest free spot that still covers or touches it.
       const spot = nearestFit(x, y);
-      if (!spot) return say("That spot is taken. Pick an empty patch of grass.", "bad");
+      if (!spot)
+        return say("That spot is taken. Pick an empty patch of grass.", "bad");
       setMessage(null);
       setDraftSpot(spot);
       return;
@@ -415,11 +649,16 @@ export function CityBoard(props: {
     // Anchors whose footprint covers the tapped tile first, then ones a tile away.
     for (let dy = -dims.h; dy <= 1; dy++) {
       for (let dx = -dims.w; dx <= 1; dx++) {
-        const ax = x + dx, ay = y + dy;
+        const ax = x + dx,
+          ay = y + dy;
         if (!fitsAt(ax, ay, dims)) continue;
-        const cx = ax + (dims.w - 1) / 2, cy = ay + (dims.h - 1) / 2;
+        const cx = ax + (dims.w - 1) / 2,
+          cy = ay + (dims.h - 1) / 2;
         const d = Math.hypot(cx - x, cy - y);
-        if (d < bestD) { bestD = d; best = { x: ax, y: ay }; }
+        if (d < bestD) {
+          bestD = d;
+          best = { x: ax, y: ay };
+        }
       }
     }
     return best;
@@ -430,29 +669,46 @@ export function CityBoard(props: {
     if (!draftSpot || pending) return;
     const { x, y } = draftSpot;
     if (mode.kind === "place" && placingType) {
-      if (!draftDims || !lotFree(size, { x, y, ...draftDims }, lots)) return say("That spot is taken or doesn't fit.", "bad");
+      if (!draftDims || !lotFree(size, { x, y, ...draftDims }, lots))
+        return say("That spot is taken or doesn't fit.", "bad");
       if (milestoneFor(placingType.id)) {
         start(async () => {
           const r = await placeLandmark(placingType.id, x, y, draftRot);
           if (!r.ok) return say(r.error, "bad");
-          say(`${placingType.name} built. Congratulations on your city!`, "good", "fanfare");
+          say(
+            `${placingType.name} built. Congratulations on your city!`,
+            "good",
+            "fanfare",
+          );
           setMode({ kind: "idle" });
         });
         return;
       }
-      if (balance < placingType.cost) return say("Not enough coins yet. Finish some tasks!", "bad");
+      if (balance < placingType.cost)
+        return say("Not enough coins yet. Finish some tasks!", "bad");
       start(async () => {
         const r = await buyBuilding(placingType.id, x, y, draftRot);
         if (!r.ok) return say(r.error, "bad");
-        const nearRoad = connectedIds([...lots, { id: r.id, type_id: placingType.id, x, y, ...draftDims }]).has(r.id);
-        say(`Built a ${placingType.name} for ${formatCoins(placingType.cost)} coins.${nearRoad ? "" : " It needs a road beside it to count."}`, "good", "build");
+        const nearRoad = connectedIds([
+          ...lots,
+          { id: r.id, type_id: placingType.id, x, y, ...draftDims },
+        ]).has(r.id);
+        say(
+          `Built a ${placingType.name} for ${formatCoins(placingType.cost)} coins.${nearRoad ? "" : " It needs a road beside it to count."}`,
+          "good",
+          "build",
+        );
         // One building per pick: back to looking around (no Cancel needed).
         setMode({ kind: "idle" });
       });
       return;
     }
     if (mode.kind === "move" && movingLot) {
-      if (!draftDims || !lotFree(size, { x, y, ...draftDims }, lots, movingLot.id)) return say("That spot is taken or doesn't fit.", "bad");
+      if (
+        !draftDims ||
+        !lotFree(size, { x, y, ...draftDims }, lots, movingLot.id)
+      )
+        return say("That spot is taken or doesn't fit.", "bad");
       start(async () => {
         const r = await moveBuilding(movingLot.id, x, y, draftRot);
         if (!r.ok) return say(r.error, "bad");
@@ -468,17 +724,47 @@ export function CityBoard(props: {
     const typeId = mode.typeId;
     const plan = planPaint(draftTiles, typeId);
     if (plan.fresh.length === 0) return setDraftTiles([]);
-    if (plan.blocked) return say(`${paintType.name} can't go on top of buildings or past the edge of your land.`, "bad");
-    if (plan.sideBySide) return say("Roads can't run side by side. Leave a tile between them, or join them at a crossing.", "bad");
-    if (plan.fresh.length > MAX_STROKE_TILES) return say(`Paint at most ${MAX_STROKE_TILES} tiles at a time.`, "bad");
-    if (plan.cost > balance) return say(`That costs ${formatCoins(plan.cost)} coins. You have ${formatCoins(balance)}.`, "bad");
+    if (plan.blocked)
+      return say(
+        `${paintType.name} can't go on top of buildings or past the edge of your land.`,
+        "bad",
+      );
+    if (plan.sideBySide)
+      return say(
+        "Roads can't run side by side. Leave a tile between them, or join them at a crossing.",
+        "bad",
+      );
+    if (plan.fresh.length > MAX_STROKE_TILES)
+      return say(`Paint at most ${MAX_STROKE_TILES} tiles at a time.`, "bad");
+    if (plan.cost > balance)
+      return say(
+        `That costs ${formatCoins(plan.cost)} coins. You have ${formatCoins(balance)}.`,
+        "bad",
+      );
     setDraftTiles([]);
     start(async () => {
-      const r = await buyTiles(typeId, plan.fresh.map((t) => [t.x, t.y]));
+      const r = await buyTiles(
+        typeId,
+        plan.fresh.map((t) => [t.x, t.y]),
+      );
       if (!r.ok) return say(r.error, "bad");
-      const notes = [plan.bridges > 0 && `${plan.bridges} bridge${plan.bridges === 1 ? "" : "s"}`, plan.trees > 0 && `${plan.trees} tree tile${plan.trees === 1 ? "" : "s"} cleared`].filter(Boolean);
-      const what = typeId === "tree" ? `Planted ${r.built} tree${r.built === 1 ? "" : "s"}` : typeId === "water" ? `Dug ${r.built} water tile${r.built === 1 ? "" : "s"}` : `Built ${r.built} ${paintType.name.toLowerCase()} tile${r.built === 1 ? "" : "s"}`;
-      say(`${what}${notes.length ? ` (${notes.join(", ")})` : ""} for ${formatCoins(r.cost)} coins.`, "good", "build");
+      const notes = [
+        plan.bridges > 0 &&
+          `${plan.bridges} bridge${plan.bridges === 1 ? "" : "s"}`,
+        plan.trees > 0 &&
+          `${plan.trees} tree tile${plan.trees === 1 ? "" : "s"} cleared`,
+      ].filter(Boolean);
+      const what =
+        typeId === "tree"
+          ? `Planted ${r.built} tree${r.built === 1 ? "" : "s"}`
+          : typeId === "water"
+            ? `Dug ${r.built} water tile${r.built === 1 ? "" : "s"}`
+            : `Built ${r.built} ${paintType.name.toLowerCase()} tile${r.built === 1 ? "" : "s"}`;
+      say(
+        `${what}${notes.length ? ` (${notes.join(", ")})` : ""} for ${formatCoins(r.cost)} coins.`,
+        "good",
+        "build",
+      );
     });
   }
 
@@ -490,7 +776,8 @@ export function CityBoard(props: {
       setDraftTiles((old) => {
         const seen = new Set(old.map((t) => key(t.x, t.y)));
         // Tapping a single tile that's already in the preview takes it out again (to fix mistakes before Build).
-        if (tiles.length === 1 && seen.has(key(tiles[0].x, tiles[0].y))) return old.filter((t) => t.x !== tiles[0].x || t.y !== tiles[0].y);
+        if (tiles.length === 1 && seen.has(key(tiles[0].x, tiles[0].y)))
+          return old.filter((t) => t.x !== tiles[0].x || t.y !== tiles[0].y);
         return [...old, ...tiles.filter((t) => !seen.has(key(t.x, t.y)))];
       });
       return;
@@ -498,11 +785,21 @@ export function CityBoard(props: {
     if (mode.kind === "bulldoze") {
       const { ids, refund } = planDemolish(tiles);
       if (ids.length === 0) return say("Nothing to demolish there.");
-      if (ids.length > MAX_STROKE_TILES) return say(`Demolish at most ${MAX_STROKE_TILES} items at a time. Drag a smaller box.`, "bad");
-      const what = ids.length === 1 ? `this ${typeById.get(lots.find((l) => l.id === ids[0])!.type_id)?.name ?? "item"}` : `these ${ids.length} items`;
+      if (ids.length > MAX_STROKE_TILES)
+        return say(
+          `Demolish at most ${MAX_STROKE_TILES} items at a time. Drag a smaller box.`,
+          "bad",
+        );
+      const what =
+        ids.length === 1
+          ? `this ${typeById.get(lots.find((l) => l.id === ids[0])!.type_id)?.name ?? "item"}`
+          : `these ${ids.length} items`;
       void confirm({
         title: `Demolish ${what}?`,
-        message: refund > 0 ? `You get ${formatCoins(refund)} coins back.` : "You don't get any coins back.",
+        message:
+          refund > 0
+            ? `You get ${formatCoins(refund)} coins back.`
+            : "You don't get any coins back.",
         confirmLabel: "Demolish",
         tone: "danger",
       }).then((ok) => {
@@ -510,7 +807,11 @@ export function CityBoard(props: {
         start(async () => {
           const r = await sellMany(ids);
           if (!r.ok) return say(r.error, "bad");
-          say(`Demolished ${r.sold} item${r.sold === 1 ? "" : "s"}. +${formatCoins(r.refund)} coins back.`, "good", "demolish");
+          say(
+            `Demolished ${r.sold} item${r.sold === 1 ? "" : "s"}. +${formatCoins(r.refund)} coins back.`,
+            "good",
+            "demolish",
+          );
         });
       });
     }
@@ -522,10 +823,18 @@ export function CityBoard(props: {
     const refund = isBridge ? 0 : sellRefund(b.price_paid);
     const ok = await confirm(
       isBridge
-        ? { title: "Take down this bridge?", message: "The tile goes back to water.", confirmLabel: "Take down", tone: "danger" }
+        ? {
+            title: "Take down this bridge?",
+            message: "The tile goes back to water.",
+            confirmLabel: "Take down",
+            tone: "danger",
+          }
         : {
             title: `Demolish this ${t?.name ?? "building"}?`,
-            message: refund > 0 ? `You get ${formatCoins(refund)} coins back (half of what you paid).` : "You don't get any coins back.",
+            message:
+              refund > 0
+                ? `You get ${formatCoins(refund)} coins back (half of what you paid).`
+                : "You don't get any coins back.",
             confirmLabel: "Demolish",
             tone: "danger",
           },
@@ -534,7 +843,11 @@ export function CityBoard(props: {
     start(async () => {
       const r = await sellBuilding(b.id);
       if (!r.ok) return say(r.error, "bad");
-      say(`Demolished. +${formatCoins(r.refund)} coins back.`, "good", "demolish");
+      say(
+        `Demolished. +${formatCoins(r.refund)} coins back.`,
+        "good",
+        "demolish",
+      );
       setMode({ kind: "idle" });
     });
   }
@@ -558,7 +871,15 @@ export function CityBoard(props: {
     let room = to.size <= from.size;
     for (let dy = 0; !room && dy <= to.size - from.size; dy++) {
       for (let dx = 0; !room && dx <= to.size - from.size; dx++) {
-        if (lotFree(size, { x: b.x - dx, y: b.y - dy, w: to.w, h: to.d }, lots, b.id)) room = true;
+        if (
+          lotFree(
+            size,
+            { x: b.x - dx, y: b.y - dy, w: to.w, h: to.d },
+            lots,
+            b.id,
+          )
+        )
+          room = true;
       }
     }
     const blocked =
@@ -578,7 +899,11 @@ export function CityBoard(props: {
     start(async () => {
       const r = await upgradeBuilding(b.id);
       if (!r.ok) return say(r.error, "bad");
-      say(`Upgraded to ${info.to.name} for ${formatCoins(r.cost)} coins.`, "good", "build");
+      say(
+        `Upgraded to ${info.to.name} for ${formatCoins(r.cost)} coins.`,
+        "good",
+        "build",
+      );
     });
   }
 
@@ -590,10 +915,23 @@ export function CityBoard(props: {
     const dims = footprint(t, rotated);
     // Anchors whose turned footprint still covers part of the old one, nearest first.
     const options: Tile[] = [];
-    for (let dy = -(dims.h - 1); dy <= lot.h - 1; dy++) for (let dx = -(dims.w - 1); dx <= lot.w - 1; dx++) options.push({ x: lot.x + dx, y: lot.y + dy });
-    options.sort((a, b) => Math.abs(a.x - lot.x) + Math.abs(a.y - lot.y) - (Math.abs(b.x - lot.x) + Math.abs(b.y - lot.y)));
-    const spot = options.find((o) => lotFree(size, { x: o.x, y: o.y, ...dims }, lots, lot.id));
-    if (!spot) return say("There isn't room to turn it here. Move it somewhere with more space.", "bad");
+    for (let dy = -(dims.h - 1); dy <= lot.h - 1; dy++)
+      for (let dx = -(dims.w - 1); dx <= lot.w - 1; dx++)
+        options.push({ x: lot.x + dx, y: lot.y + dy });
+    options.sort(
+      (a, b) =>
+        Math.abs(a.x - lot.x) +
+        Math.abs(a.y - lot.y) -
+        (Math.abs(b.x - lot.x) + Math.abs(b.y - lot.y)),
+    );
+    const spot = options.find((o) =>
+      lotFree(size, { x: o.x, y: o.y, ...dims }, lots, lot.id),
+    );
+    if (!spot)
+      return say(
+        "There isn't room to turn it here. Move it somewhere with more space.",
+        "bad",
+      );
     start(async () => {
       const r = await moveBuilding(lot.id, spot.x, spot.y, rotated);
       if (!r.ok) return say(r.error, "bad");
@@ -601,27 +939,53 @@ export function CityBoard(props: {
   }
 
   // Milestone landmarks: free, one each, once the city has enough people.
-  const placedTypes = useMemo(() => new Set(lots.map((l) => l.type_id)), [lots]);
+  const placedTypes = useMemo(
+    () => new Set(lots.map((l) => l.type_id)),
+    [lots],
+  );
   function landmarkState(t: BuildingTypeRow) {
     const m = milestoneFor(t.id);
     if (!m) return null;
-    if (placedTypes.has(t.id)) return { locked: true, note: "Already in your city" };
-    if (stats.population < m.population) return { locked: true, note: `Reach ${formatCoins(m.population)} people` };
-    return { locked: false, note: `Your reward for reaching ${formatCoins(m.population)} people` };
+    if (placedTypes.has(t.id))
+      return { locked: true, note: "Already in your city" };
+    if (stats.population < m.population)
+      return {
+        locked: true,
+        note: `Reach ${formatCoins(m.population)} people`,
+      };
+    return {
+      locked: false,
+      note: `Your reward for reaching ${formatCoins(m.population)} people`,
+    };
   }
   function claimMilestone(population: number) {
     start(async () => {
       const r = await claimCityMilestone(population);
-      say(r.ok ? `+${formatCoins(r.coins)} coins for reaching ${formatCoins(population)} people!` : r.error, r.ok ? "good" : "bad", r.ok ? "fanfare" : undefined);
+      say(
+        r.ok
+          ? `+${formatCoins(r.coins)} coins for reaching ${formatCoins(population)} people!`
+          : r.error,
+        r.ok ? "good" : "bad",
+        r.ok ? "fanfare" : undefined,
+      );
     });
   }
 
   /** Put a stop sign or traffic light on a crossing (with a confirm). */
   async function putControl(x: number, y: number, kind: RoadControlKind) {
     const info = ROAD_CONTROLS.find((c) => c.kind === kind)!;
-    if (!crossings.has(key(x, y))) return say("Tap a highlighted crossing (where three or four roads meet).", "bad");
-    if (controls.get(key(x, y)) === kind) return say(`There's already a ${info.name.toLowerCase()} here.`, "bad");
-    if (balance < info.cost) return say(`A ${info.name.toLowerCase()} costs ${formatCoins(info.cost)} coins. You have ${formatCoins(balance)}.`, "bad");
+    if (!crossings.has(key(x, y)))
+      return say(
+        "Tap a highlighted crossing (where three or four roads meet).",
+        "bad",
+      );
+    if (controls.get(key(x, y)) === kind)
+      return say(`There's already a ${info.name.toLowerCase()} here.`, "bad");
+    if (balance < info.cost)
+      return say(
+        `A ${info.name.toLowerCase()} costs ${formatCoins(info.cost)} coins. You have ${formatCoins(balance)}.`,
+        "bad",
+      );
     const replacing = controls.get(key(x, y));
     const ok = await confirm({
       title: `Put a ${info.name.toLowerCase()} here?`,
@@ -632,7 +996,11 @@ export function CityBoard(props: {
     start(async () => {
       const r = await placeRoadControl(x, y, kind);
       if (!r.ok) return say(r.error, "bad");
-      say(`${info.name} built for ${formatCoins(r.cost)} coins.`, "good", "build");
+      say(
+        `${info.name} built for ${formatCoins(r.cost)} coins.`,
+        "good",
+        "build",
+      );
       setMode({ kind: "idle" });
     });
   }
@@ -640,7 +1008,12 @@ export function CityBoard(props: {
     const kind = controls.get(key(x, y));
     if (!kind) return;
     const info = ROAD_CONTROLS.find((c) => c.kind === kind)!;
-    const ok = await confirm({ title: `Remove the ${info.name.toLowerCase()}?`, message: `You get ${formatCoins(Math.floor(info.cost / 2))} coins back.`, confirmLabel: "Remove", tone: "danger" });
+    const ok = await confirm({
+      title: `Remove the ${info.name.toLowerCase()}?`,
+      message: `You get ${formatCoins(Math.floor(info.cost / 2))} coins back.`,
+      confirmLabel: "Remove",
+      tone: "danger",
+    });
     if (!ok) return;
     start(async () => {
       const r = await removeRoadControl(x, y);
@@ -652,7 +1025,11 @@ export function CityBoard(props: {
   /** Swap road tiles to another kind of road (paying the new kind's price per tile). */
   async function changeRoad(tiles: Tile[], to: BuildingTypeRow) {
     const cost = tiles.length * to.cost;
-    if (cost > balance) return say(`That costs ${formatCoins(cost)} coins. You have ${formatCoins(balance)}.`, "bad");
+    if (cost > balance)
+      return say(
+        `That costs ${formatCoins(cost)} coins. You have ${formatCoins(balance)}.`,
+        "bad",
+      );
     const ok = await confirm({
       title: `Change ${tiles.length === 1 ? "this tile" : `${tiles.length} tiles`} to ${to.name}?`,
       message: `It costs ${formatCoins(cost)} coins.`,
@@ -660,9 +1037,16 @@ export function CityBoard(props: {
     });
     if (!ok) return;
     start(async () => {
-      const r = await buyTiles(to.id, tiles.map((t) => [t.x, t.y]));
+      const r = await buyTiles(
+        to.id,
+        tiles.map((t) => [t.x, t.y]),
+      );
       if (!r.ok) return say(r.error, "bad");
-      say(`Changed ${r.built} tile${r.built === 1 ? "" : "s"} to ${to.name} for ${formatCoins(r.cost)} coins.`, "good", "build");
+      say(
+        `Changed ${r.built} tile${r.built === 1 ? "" : "s"} to ${to.name} for ${formatCoins(r.cost)} coins.`,
+        "good",
+        "build",
+      );
       setMode({ kind: "idle" });
     });
   }
@@ -672,7 +1056,9 @@ export function CityBoard(props: {
     const street = streetOf(lot, (x, y) => occupant.get(key(x, y))?.type_id);
     const here = [{ x: lot.x, y: lot.y }];
     const options = ROAD_TIERS.map((id, i) => ({ t: typeById.get(id), i }))
-      .filter((o): o is { t: BuildingTypeRow; i: number } => !!o.t && o.i !== tier)
+      .filter(
+        (o): o is { t: BuildingTypeRow; i: number } => !!o.t && o.i !== tier,
+      )
       .map(({ t, i }) => ({
         to: t,
         up: i > tier,
@@ -686,10 +1072,18 @@ export function CityBoard(props: {
     const here2 = controls.get(k);
     const control = crossings.has(k)
       ? {
-          current: here2 ? ROAD_CONTROLS.find((c) => c.kind === here2)!.name : null,
-          options: ROAD_CONTROLS.filter((c) => c.kind !== here2).map((c) => ({ name: c.name, cost: c.cost, onPick: () => void putControl(lot.x, lot.y, c.kind) })),
+          current: here2
+            ? ROAD_CONTROLS.find((c) => c.kind === here2)!.name
+            : null,
+          options: ROAD_CONTROLS.filter((c) => c.kind !== here2).map((c) => ({
+            name: c.name,
+            cost: c.cost,
+            onPick: () => void putControl(lot.x, lot.y, c.kind),
+          })),
           onRemove: here2 ? () => void takeControl(lot.x, lot.y) : undefined,
-          refund: here2 ? Math.floor(ROAD_CONTROLS.find((c) => c.kind === here2)!.cost / 2) : 0,
+          refund: here2
+            ? Math.floor(ROAD_CONTROLS.find((c) => c.kind === here2)!.cost / 2)
+            : 0,
         }
       : undefined;
     return { street: street.length, options, control };
@@ -697,7 +1091,11 @@ export function CityBoard(props: {
 
   async function expand() {
     const price = landPrice(props.landPurchases);
-    if (balance < price) return say(`More land costs ${formatCoins(price)} coins. You have ${formatCoins(balance)}.`, "bad");
+    if (balance < price)
+      return say(
+        `More land costs ${formatCoins(price)} coins. You have ${formatCoins(balance)}.`,
+        "bad",
+      );
     const ok = await confirm({
       title: `Buy more land for ${formatCoins(price)} coins?`,
       message: `Your city grows to ${size + 2}×${size + 2}.`,
@@ -711,42 +1109,91 @@ export function CityBoard(props: {
     });
   }
 
-  const tools: { id: string; label: string; icon: React.ReactNode; mode: Mode }[] = [
-    { id: "idle", label: "Select", icon: <MousePointer2 className="size-5" aria-hidden />, mode: { kind: "idle" } },
-    { id: "bulldoze", label: "Bulldoze", icon: <BulldozeIcon className="size-5" />, mode: { kind: "bulldoze" } },
-    { id: "shift", label: "Move city", icon: <Move className="size-5" aria-hidden />, mode: { kind: "shift" } },
+  const tools: {
+    id: string;
+    label: string;
+    icon: React.ReactNode;
+    mode: Mode;
+  }[] = [
+    {
+      id: "idle",
+      label: "Select",
+      icon: <MousePointer2 className="size-5" aria-hidden />,
+      mode: { kind: "idle" },
+    },
+    {
+      id: "bulldoze",
+      label: "Bulldoze",
+      icon: <BulldozeIcon className="size-5" />,
+      mode: { kind: "bulldoze" },
+    },
+    {
+      id: "shift",
+      label: "Move city",
+      icon: <Move className="size-5" aria-hidden />,
+      mode: { kind: "shift" },
+    },
   ];
   const activeTool =
-    mode.kind === "paint" ? mode.typeId : mode.kind === "bulldoze" ? "bulldoze" : mode.kind === "shift" ? "shift" : mode.kind === "idle" || mode.kind === "selected" ? "idle" : null;
+    mode.kind === "paint"
+      ? mode.typeId
+      : mode.kind === "bulldoze"
+        ? "bulldoze"
+        : mode.kind === "shift"
+          ? "shift"
+          : mode.kind === "idle" || mode.kind === "selected"
+            ? "idle"
+            : null;
   const strokeInfo =
     stroke && mode.kind === "paint"
       ? (() => {
           const p = planPaint(stroke, mode.typeId);
-          return { text: `${p.fresh.length} tile${p.fresh.length === 1 ? "" : "s"} · ${formatCoins(p.cost)} coins`, bad: !p.ok };
+          return {
+            text: `${p.fresh.length} tile${p.fresh.length === 1 ? "" : "s"} · ${formatCoins(p.cost)} coins`,
+            bad: !p.ok,
+          };
         })()
       : stroke && mode.kind === "bulldoze"
         ? (() => {
             const p = planDemolish(stroke);
-            return { text: `${p.ids.length} to demolish · +${formatCoins(p.refund)} back`, bad: false };
+            return {
+              text: `${p.ids.length} to demolish · +${formatCoins(p.refund)} back`,
+              bad: false,
+            };
           })()
         : null;
 
   const selectedType = selected ? typeById.get(selected.type_id) : undefined;
 
   // The confirmation bar for whatever is being previewed.
-  const draftPlan = mode.kind === "paint" && draftTiles.length > 0 ? planPaint(draftTiles, mode.typeId) : null;
-  const draftBar: { title: string; detail: string; problem?: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void; onTurn?: () => void } | null =
+  const draftPlan =
+    mode.kind === "paint" && draftTiles.length > 0
+      ? planPaint(draftTiles, mode.typeId)
+      : null;
+  const draftBar: {
+    title: string;
+    detail: string;
+    problem?: string;
+    confirmLabel: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+    onTurn?: () => void;
+  } | null =
     mode.kind === "paint" && paintType && draftPlan
       ? {
           title: `${draftPlan.fresh.length} ${paintType.name.toLowerCase()} tile${draftPlan.fresh.length === 1 ? "" : "s"} · ${formatCoins(draftPlan.cost)} coins`,
           detail:
             [
-              draftPlan.bridges > 0 && `${draftPlan.bridges} as bridge${draftPlan.bridges === 1 ? "" : "s"}`,
-              draftPlan.swaps > 0 && `replaces ${draftPlan.swaps} road tile${draftPlan.swaps === 1 ? "" : "s"}`,
-              draftPlan.trees > 0 && `clears ${draftPlan.trees} tree tile${draftPlan.trees === 1 ? "" : "s"}`,
+              draftPlan.bridges > 0 &&
+                `${draftPlan.bridges} as bridge${draftPlan.bridges === 1 ? "" : "s"}`,
+              draftPlan.swaps > 0 &&
+                `replaces ${draftPlan.swaps} road tile${draftPlan.swaps === 1 ? "" : "s"}`,
+              draftPlan.trees > 0 &&
+                `clears ${draftPlan.trees} tree tile${draftPlan.trees === 1 ? "" : "s"}`,
             ]
               .filter(Boolean)
-              .join(" · ") || "Draw more, tap a highlighted tile to take it out, or Build.",
+              .join(" · ") ||
+            "Draw more, tap a highlighted tile to take it out, or Build.",
           problem:
             draftPlan.fresh.length === 0
               ? "That's all there already."
@@ -754,40 +1201,72 @@ export function CityBoard(props: {
                 ? "Part of it is on a building or past your land. Tap those tiles to take them out."
                 : draftPlan.sideBySide
                   ? "Roads can't run side by side. Leave a tile between them."
-                : draftPlan.fresh.length > MAX_STROKE_TILES
-                  ? `At most ${MAX_STROKE_TILES} tiles at a time.`
-                  : draftPlan.cost > balance
-                    ? `Not enough coins (you have ${formatCoins(balance)}).`
-                    : undefined,
+                  : draftPlan.fresh.length > MAX_STROKE_TILES
+                    ? `At most ${MAX_STROKE_TILES} tiles at a time.`
+                    : draftPlan.cost > balance
+                      ? `Not enough coins (you have ${formatCoins(balance)}).`
+                      : undefined,
           confirmLabel: "Build",
           onConfirm: confirmPaint,
           onCancel: () => setDraftTiles([]),
         }
-      : (mode.kind === "place" && placingType) || (mode.kind === "move" && movingLot)
+      : (mode.kind === "place" && placingType) ||
+          (mode.kind === "move" && movingLot)
         ? draftSpot
           ? (() => {
               const dims = draftDims ?? { w: 1, h: 1 };
-              const fits = lotFree(size, { x: draftSpot.x, y: draftSpot.y, ...dims }, lots, movingLot?.id);
+              const fits = lotFree(
+                size,
+                { x: draftSpot.x, y: draftSpot.y, ...dims },
+                lots,
+                movingLot?.id,
+              );
               const covers = lots.filter(
-                (l) => l.type_id === "tree" && l.x >= draftSpot.x && l.x < draftSpot.x + dims.w && l.y >= draftSpot.y && l.y < draftSpot.y + dims.h,
+                (l) =>
+                  l.type_id === "tree" &&
+                  l.x >= draftSpot.x &&
+                  l.x < draftSpot.x + dims.w &&
+                  l.y >= draftSpot.y &&
+                  l.y < draftSpot.y + dims.h,
               ).length;
               return {
-                title: mode.kind === "place" ? `${placingType!.name} · ${formatCoins(placingType!.cost)} coins` : "Move here?",
-                detail: covers > 0 ? `Clears ${covers} tree tile${covers === 1 ? "" : "s"}. Tap elsewhere to move the preview.` : "Tap elsewhere to move the preview.",
+                title:
+                  mode.kind === "place"
+                    ? `${placingType!.name} · ${formatCoins(placingType!.cost)} coins`
+                    : "Move here?",
+                detail:
+                  covers > 0
+                    ? `Clears ${covers} tree tile${covers === 1 ? "" : "s"}. Tap elsewhere to move the preview.`
+                    : "Tap elsewhere to move the preview.",
                 problem: !fits
                   ? "That spot is taken or doesn't fit."
                   : mode.kind === "place" && balance < placingType!.cost
                     ? "Not enough coins yet."
                     : undefined,
-                confirmLabel: mode.kind === "place" ? "Build here" : "Move here",
+                confirmLabel:
+                  mode.kind === "place" ? "Build here" : "Move here",
                 onConfirm: confirmSpot,
                 onCancel: () => setDraftSpot(null),
                 onTurn: canTurn
                   ? () => {
-                      const turned = draftDims ? { w: draftDims.h, h: draftDims.w } : null;
-                      if (draftSpot && turned && !fitsAt(draftSpot.x, draftSpot.y, turned)) {
-                        const spot = nearestFit(draftSpot.x, draftSpot.y, turned);
-                        if (!spot) return say("It doesn't fit here turned the other way.", "bad");
+                      const turned = draftDims
+                        ? { w: draftDims.h, h: draftDims.w }
+                        : null;
+                      if (
+                        draftSpot &&
+                        turned &&
+                        !fitsAt(draftSpot.x, draftSpot.y, turned)
+                      ) {
+                        const spot = nearestFit(
+                          draftSpot.x,
+                          draftSpot.y,
+                          turned,
+                        );
+                        if (!spot)
+                          return say(
+                            "It doesn't fit here turned the other way.",
+                            "bad",
+                          );
                         setDraftSpot(spot);
                       }
                       setDraftRot((r) => !r);
@@ -798,22 +1277,50 @@ export function CityBoard(props: {
           : null
         : null;
   const selectedPlace = selected ? placeById.get(selected.id) : undefined;
-  const person = (c: (typeof citizens)[number], line: string) => ({ id: c.id, name: c.name, age: c.age, line });
+  const person = (c: (typeof citizens)[number], line: string) => ({
+    id: c.id,
+    name: c.name,
+    age: c.age,
+    line,
+  });
   const people = !selectedPlace
     ? undefined
     : selectedPlace.homes > 0
-      ? { title: "Who lives here", empty: "Nobody yet.", list: citizens.filter((c) => c.homeId === selectedPlace.id).map((c) => person(c, roleText(c, placeById))) }
+      ? {
+          title: "Who lives here",
+          empty: "Nobody yet.",
+          list: citizens
+            .filter((c) => c.homeId === selectedPlace.id)
+            .map((c) => person(c, roleText(c, placeById))),
+        }
       : selectedPlace.school
         ? {
             title: "Students",
-            empty: "No students yet. Children in homes connected by road come here.",
-            list: citizens.filter((c) => c.schoolId === selectedPlace.id).map((c) => person(c, `Lives in a ${placeById.get(c.homeId)?.name ?? "home"}`)),
+            empty:
+              "No students yet. Children in homes connected by road come here.",
+            list: citizens
+              .filter((c) => c.schoolId === selectedPlace.id)
+              .map((c) =>
+                person(
+                  c,
+                  `Lives in a ${placeById.get(c.homeId)?.name ?? "home"}`,
+                ),
+              ),
           }
         : selectedPlace.jobs > 0
           ? {
               title: "Who works here",
-              empty: selectedPlace.entrance ? "Nobody yet. Build homes so people can take these jobs." : "Nobody can get here without a road.",
-              list: citizens.filter((c) => c.workId === selectedPlace.id).map((c) => person(c, `Lives in a ${placeById.get(c.homeId)?.name ?? "home"}`)),
+              empty: selectedPlace.entrance
+                ? "Nobody yet. Build homes so people can take these jobs."
+                : "Nobody can get here without a road.",
+              list: citizens
+                .filter((c) => c.workId === selectedPlace.id)
+                .map((c) =>
+                  person(
+                    c,
+                    `Lives in a ${placeById.get(c.homeId)?.name ?? "home"}`,
+                  ),
+                ),
             }
           : undefined;
   const selectedPanel = selected ? (
@@ -830,12 +1337,24 @@ export function CityBoard(props: {
             ? `Not enough workers: businesses are ${Math.round(stats.staffing * 100)}% staffed. Build homes so they can hire.`
             : undefined
       }
-      canRotate={selectedType?.category !== "landscape" && selectedType?.category !== "road" && nextFacing(selected, roads) !== null}
+      canRotate={
+        selectedType?.category !== "landscape" &&
+        selectedType?.category !== "road" &&
+        nextFacing(selected, roads) !== null
+      }
       onRotate={() => rotate(selected)}
       upgrade={upgradeInfo(selected)}
       onUpgrade={() => upgrade(selected)}
-      canMove={selectedType?.category !== "road" && selectedType?.category !== "landscape"}
-      canTurn={!!selectedType && selectedType.w !== selectedType.d && selectedType.category !== "road" && selectedType.category !== "landscape"}
+      canMove={
+        selectedType?.category !== "road" &&
+        selectedType?.category !== "landscape"
+      }
+      canTurn={
+        !!selectedType &&
+        selectedType.w !== selectedType.d &&
+        selectedType.category !== "road" &&
+        selectedType.category !== "landscape"
+      }
       onTurn={() => turnInPlace(selected)}
       onMove={() => setMode({ kind: "move", id: selected.id })}
       onSell={() => sell(selected)}
@@ -847,7 +1366,9 @@ export function CityBoard(props: {
       onClose={() => setMode({ kind: "idle" })}
       roadChange={roadChangeFor(selected)}
       colors={
-        selectedType && selectedType.category !== "road" && selectedType.category !== "landscape"
+        selectedType &&
+        selectedType.category !== "road" &&
+        selectedType.category !== "landscape"
           ? {
               current: selected.color_seed ?? null,
               onPick: (seed) =>
@@ -863,7 +1384,9 @@ export function CityBoard(props: {
 
   // Just a pause button (no clock): pausing makes it easy to tap a car or a person.
   const clockPill = (className: string) => (
-    <div className={`flex items-center rounded-full bg-surface/95 p-1 shadow ring-1 ring-line ${className}`}>
+    <div
+      className={`flex items-center rounded-full bg-surface/95 p-1 shadow ring-1 ring-line ${className}`}
+    >
       <button
         type="button"
         onClick={() => setPaused((p) => !p)}
@@ -871,7 +1394,11 @@ export function CityBoard(props: {
         title={paused ? "Resume" : "Pause (then tap a car or a person)"}
         className={`flex size-8 items-center justify-center rounded-full ${paused ? "bg-accent text-on-accent" : "text-ink hover:bg-raised"}`}
       >
-        {paused ? <Play className="size-4" aria-hidden /> : <Pause className="size-4" aria-hidden />}
+        {paused ? (
+          <Play className="size-4" aria-hidden />
+        ) : (
+          <Pause className="size-4" aria-hidden />
+        )}
       </button>
     </div>
   );
@@ -881,8 +1408,13 @@ export function CityBoard(props: {
     const control = controlByType(t.id);
     if (control) return setMode({ kind: "control", control: control.kind });
     const landmark = landmarkState(t);
-    if (landmark?.locked) return say(`${t.name}: ${landmark.note.toLowerCase()}.`, "bad");
-    setMode(isPaint(t.id) ? { kind: "paint", typeId: t.id } : { kind: "place", typeId: t.id });
+    if (landmark?.locked)
+      return say(`${t.name}: ${landmark.note.toLowerCase()}.`, "bad");
+    setMode(
+      isPaint(t.id)
+        ? { kind: "paint", typeId: t.id }
+        : { kind: "place", typeId: t.id },
+    );
   }
 
   return (
@@ -890,144 +1422,238 @@ export function CityBoard(props: {
       {confirmDialog}
       <div className="-mb-1">
         <CityName name={props.cityName} />
-        <p aria-live="polite" className={`text-sm empty:hidden ${message?.tone === "bad" ? "text-bad" : "text-good"}`}>
+        <p
+          aria-live="polite"
+          className={`text-sm empty:hidden ${message?.tone === "bad" ? "text-bad" : "text-good"}`}
+        >
           {message?.text}
         </p>
       </div>
 
       <div>
         <div className="min-w-0 space-y-3">
-
-            <div
-              ref={mapBox}
-              data-map={mode.kind === "paint" || mode.kind === "bulldoze" ? "paint" : full ? "full" : "browse"}
-              className={
-                full
-                  ? "fixed inset-0 z-50 h-dvh w-screen overflow-hidden bg-raised"
-                  : "relative h-[50vh] max-h-[720px] min-h-[300px] overflow-hidden sm:h-[58vh] rounded-2xl border-4 border-line bg-raised shadow-inner"
+          <div
+            ref={mapBox}
+            data-map={
+              mode.kind === "paint" || mode.kind === "bulldoze"
+                ? "paint"
+                : full
+                  ? "full"
+                  : "browse"
+            }
+            className={
+              full
+                ? "fixed inset-0 z-50 h-dvh w-screen overflow-hidden bg-raised"
+                : "relative h-[50vh] max-h-[720px] min-h-[300px] overflow-hidden sm:h-[58vh] rounded-2xl border-4 border-line bg-raised shadow-inner"
+            }
+            role={full ? "dialog" : undefined}
+            aria-modal={full || undefined}
+            aria-label={full ? `${props.cityName}, full screen` : undefined}
+            data-scenic={scenic || undefined}
+          >
+            <City3D
+              ref={city3d}
+              size={size}
+              lots={lots}
+              needsRoad={needsRoad}
+              understaffed={stats.understaffed}
+              selectedId={selected?.id}
+              dimmedId={movingLot?.id}
+              input={
+                mode.kind === "paint" || mode.kind === "bulldoze"
+                  ? "stroke"
+                  : "point"
               }
-              role={full ? "dialog" : undefined}
-              aria-modal={full || undefined}
-              aria-label={full ? `${props.cityName}, full screen` : undefined}
-              data-scenic={scenic || undefined}
-            >
-              <City3D
-                ref={city3d}
-                size={size}
-                lots={lots}
-                needsRoad={needsRoad}
-                understaffed={stats.understaffed}
-                selectedId={selected?.id}
-                dimmedId={movingLot?.id}
-                input={mode.kind === "paint" || mode.kind === "bulldoze" ? "stroke" : "point"}
-                ghostDims={draftDims}
-                ghostOk={(x, y) => !!draftDims && lotFree(size, { x, y, ...draftDims }, lots, movingLot?.id) && (!placingType || balance >= placingType.cost)}
-                strokeOk={(tiles) => (mode.kind === "paint" ? planPaint(tiles, mode.typeId).ok : true)}
-                strokeColor={mode.kind === "bulldoze" ? "demolish" : "build"}
-                paintTypeId={mode.kind === "paint" ? mode.typeId : mode.kind === "control" ? "control" : undefined}
-                controls={controls}
-                onTile={onTile}
-                onStroke={onStroke}
-                onStrokeChange={setStroke}
-                ghostAt={draftSpot}
-                onGhostMove={(t) => { if (fitsAt(t.x, t.y)) setDraftSpot(t); }}
-                previewTiles={
-                  mode.kind === "control"
-                    ? [...crossings].filter((k) => controls.get(k) !== mode.control).map((k) => ({ x: Number(k.split(",")[0]), y: Number(k.split(",")[1]) }))
-                    : draftTiles
-                }
-                previewOk={draftPlan ? draftPlan.ok : true}
-                overlay={full ? layerCells : null}
-                sim={sim}
-                minutes={12 * 60}
-                showGrid={!scenic}
-              />
-              {strokeInfo && (
-                <div
-                  className={`pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-sm font-bold shadow ${full ? "top-16" : "top-3"} ${
-                    strokeInfo.bad ? "bg-red-600 text-white" : "bg-surface text-ink"
-                  }`}
-                >
-                  {strokeInfo.text}
+              ghostDims={draftDims}
+              ghostOk={(x, y) =>
+                !!draftDims &&
+                lotFree(size, { x, y, ...draftDims }, lots, movingLot?.id) &&
+                (!placingType || balance >= placingType.cost)
+              }
+              strokeOk={(tiles) =>
+                mode.kind === "paint" ? planPaint(tiles, mode.typeId).ok : true
+              }
+              strokeColor={mode.kind === "bulldoze" ? "demolish" : "build"}
+              paintTypeId={
+                mode.kind === "paint"
+                  ? mode.typeId
+                  : mode.kind === "control"
+                    ? "control"
+                    : undefined
+              }
+              controls={controls}
+              onTile={onTile}
+              onStroke={onStroke}
+              onStrokeChange={setStroke}
+              ghostAt={draftSpot}
+              onGhostMove={(t) => {
+                if (fitsAt(t.x, t.y)) setDraftSpot(t);
+              }}
+              previewTiles={
+                mode.kind === "control"
+                  ? [...crossings]
+                      .filter((k) => controls.get(k) !== mode.control)
+                      .map((k) => ({
+                        x: Number(k.split(",")[0]),
+                        y: Number(k.split(",")[1]),
+                      }))
+                  : draftTiles
+              }
+              previewOk={draftPlan ? draftPlan.ok : true}
+              overlay={full ? layerCells : null}
+              sim={sim}
+              minutes={12 * 60}
+              showGrid={!scenic}
+            />
+            {strokeInfo && (
+              <div
+                className={`pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-sm font-bold shadow ${full ? "top-16" : "top-3"} ${
+                  strokeInfo.bad
+                    ? "bg-red-600 text-white"
+                    : "bg-surface text-ink"
+                }`}
+              >
+                {strokeInfo.text}
+              </div>
+            )}
+            {pending && (
+              <div
+                className={`pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-ink shadow ${full ? "top-28" : "top-12"}`}
+              >
+                Saving…
+              </div>
+            )}
+            {scenic && (
+              <button
+                type="button"
+                data-keep
+                onClick={() => setScenic(false)}
+                className="absolute top-[max(0.5rem,env(safe-area-inset-top))] right-2 flex min-h-10 items-center gap-1.5 rounded-xl bg-surface/90 px-3 text-sm font-semibold text-ink shadow ring-1 ring-line backdrop-blur"
+              >
+                <EyeOff className="size-4" aria-hidden /> Show menus
+              </button>
+            )}
+            {draftBar && (
+              <div
+                className={`absolute left-1/2 z-10 flex w-[min(26rem,calc(100%-1rem))] -translate-x-1/2 flex-wrap items-center justify-end gap-2 rounded-2xl bg-surface/95 p-2 pl-3 text-ink shadow-xl ring-1 ring-line backdrop-blur ${
+                  full
+                    ? "bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))]"
+                    : "bottom-2"
+                }`}
+                role="group"
+                aria-label="Confirm building"
+              >
+                {/* The text wraps instead of being cut off; on narrow screens the buttons drop to a row of their own. */}
+                <div className="min-w-0 flex-1 basis-56">
+                  <p className="text-sm font-bold break-words">
+                    {draftBar.title}
+                  </p>
+                  <p
+                    className={`text-xs break-words ${draftBar.problem ? "text-bad" : "text-muted"}`}
+                  >
+                    {draftBar.problem ?? draftBar.detail}
+                  </p>
                 </div>
-              )}
-              {pending && (
-                <div className={`pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-ink shadow ${full ? "top-28" : "top-12"}`}>Saving…</div>
-              )}
-              {scenic && (
-                <button
-                  type="button"
-                  data-keep
-                  onClick={() => setScenic(false)}
-                  className="absolute top-[max(0.5rem,env(safe-area-inset-top))] right-2 flex min-h-10 items-center gap-1.5 rounded-xl bg-surface/90 px-3 text-sm font-semibold text-ink shadow ring-1 ring-line backdrop-blur"
-                >
-                  <EyeOff className="size-4" aria-hidden /> Show menus
-                </button>
-              )}
-              {draftBar && (
-                <div
-                  className={`absolute left-1/2 z-10 flex w-[min(26rem,calc(100%-1rem))] -translate-x-1/2 items-center gap-2 rounded-2xl bg-surface/95 p-2 pl-3 text-ink shadow-xl ring-1 ring-line backdrop-blur ${
-                    full ? "bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))]" : "bottom-2"
-                  }`}
-                  role="group"
-                  aria-label="Confirm building"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold">{draftBar.title}</p>
-                    <p className={`truncate text-xs ${draftBar.problem ? "text-bad" : "text-muted"}`}>{draftBar.problem ?? draftBar.detail}</p>
-                  </div>
+                <div className="ml-auto flex shrink-0 gap-2">
                   {draftBar.onTurn && (
-                    <button type="button" className="btn-secondary min-h-10 shrink-0 px-3 py-1 text-sm" onClick={draftBar.onTurn} aria-label="Turn the building">
+                    <button
+                      type="button"
+                      className="btn-secondary min-h-10 shrink-0 px-3 py-1 text-sm"
+                      onClick={draftBar.onTurn}
+                      aria-label="Turn the building"
+                    >
                       <RotateCw className="size-4" aria-hidden /> Turn
                     </button>
                   )}
-                  <button type="button" className="btn-secondary min-h-10 shrink-0 px-3 py-1 text-sm" onClick={draftBar.onCancel}>
+                  <button
+                    type="button"
+                    className="btn-secondary min-h-10 shrink-0 px-3 py-1 text-sm"
+                    onClick={draftBar.onCancel}
+                  >
                     Cancel
                   </button>
-                  <button type="button" className="btn-primary min-h-10 shrink-0 px-3 py-1 text-sm" disabled={!!draftBar.problem || pending} onClick={draftBar.onConfirm}>
+                  <button
+                    type="button"
+                    className="btn-primary min-h-10 shrink-0 px-3 py-1 text-sm"
+                    disabled={!!draftBar.problem || pending}
+                    onClick={draftBar.onConfirm}
+                  >
                     {draftBar.confirmLabel}
                   </button>
                 </div>
-              )}
-              {citizenInfo && !draftBar && (
-                <div
-                  className={`absolute left-2 w-[min(20rem,calc(100%-4.5rem))] rounded-2xl bg-surface/95 p-3 text-ink shadow-xl ring-1 ring-line backdrop-blur ${
-                    full ? "bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))]" : "bottom-2"
-                  }`}
-                  role="status"
-                  aria-label={`${citizenInfo.name}: ${citizenInfo.status}`}
-                >
-                  <div className="flex items-start gap-2">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-raised text-xl" aria-hidden>
-                      {citizenInfo.mode === "car" ? <Car className="size-5" aria-hidden /> : citizenInfo.mode === "walk" ? <Footprints className="size-5" aria-hidden /> : <House className="size-5" aria-hidden />}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-bold">
-                        {citizenInfo.name}, {citizenInfo.age}
-                      </p>
-                      <p className="truncate text-xs text-muted">{citizenInfo.role}</p>
-                    </div>
-                    <button type="button" onClick={() => setCitizenId(null)} aria-label="Close" className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-raised">
-                      ×
-                    </button>
+              </div>
+            )}
+            {citizenInfo && !draftBar && (
+              <div
+                className={`absolute left-2 w-[min(20rem,calc(100%-4.5rem))] rounded-2xl bg-surface/95 p-3 text-ink shadow-xl ring-1 ring-line backdrop-blur ${
+                  full
+                    ? "bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))]"
+                    : "bottom-2"
+                }`}
+                role="status"
+                aria-label={`${citizenInfo.name}: ${citizenInfo.status}`}
+              >
+                <div className="flex items-start gap-2">
+                  <span
+                    className="flex size-10 shrink-0 items-center justify-center rounded-full bg-raised text-xl"
+                    aria-hidden
+                  >
+                    {citizenInfo.mode === "car" ? (
+                      <Car className="size-5" aria-hidden />
+                    ) : citizenInfo.mode === "walk" ? (
+                      <Footprints className="size-5" aria-hidden />
+                    ) : (
+                      <House className="size-5" aria-hidden />
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold">
+                      {citizenInfo.name}, {citizenInfo.age}
+                    </p>
+                    <p className="truncate text-xs text-muted">
+                      {citizenInfo.role}
+                    </p>
                   </div>
-                  <p className="mt-2 text-sm font-semibold">{citizenInfo.status}</p>
-                  {citizenInfo.detail && <p className="text-xs text-muted">{citizenInfo.detail}</p>}
+                  <button
+                    type="button"
+                    onClick={() => setCitizenId(null)}
+                    aria-label="Close"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-raised"
+                  >
+                    ×
+                  </button>
                 </div>
-              )}
-              {full && (
-                <div className="absolute inset-x-0 top-0 flex flex-col gap-1.5 p-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+                <p className="mt-2 text-sm font-semibold">
+                  {citizenInfo.status}
+                </p>
+                {citizenInfo.detail && (
+                  <p className="text-xs text-muted">{citizenInfo.detail}</p>
+                )}
+              </div>
+            )}
+            {full && (
+              <div className="absolute inset-x-0 top-0 flex flex-col gap-1.5 p-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 rounded-2xl bg-surface/95 px-3 py-1.5 shadow ring-1 ring-line backdrop-blur">
                     {props.visit ? (
                       <div className="min-w-0">
-                        <p className="text-xs break-words text-muted">{props.visit.owner ? `${props.visit.owner}'s city` : "Visiting"}</p>
-                        <p className="text-sm leading-tight font-bold break-words">{props.cityName}</p>
+                        <p className="text-xs break-words text-muted">
+                          {props.visit.owner
+                            ? `${props.visit.owner}'s city`
+                            : "Visiting"}
+                        </p>
+                        <p className="text-sm leading-tight font-bold break-words">
+                          {props.cityName}
+                        </p>
                       </div>
                     ) : (
                       <div className="min-w-0 text-sm leading-tight font-bold">
-                        <div className="min-w-0 break-words"><CityName name={props.cityName} compact /></div>
-                        <div className="text-xs text-coin"><CoinIcon className="size-3" /> {formatCoins(balance)}</div>
+                        <div className="min-w-0 break-words">
+                          <CityName name={props.cityName} compact />
+                        </div>
+                        <div className="text-xs text-coin">
+                          <CoinIcon className="size-3" /> {formatCoins(balance)}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1036,7 +1662,13 @@ export function CityBoard(props: {
                       <button
                         type="button"
                         className="btn-secondary min-h-10 px-3 py-1 text-sm shadow"
-                        onClick={() => setMode(movingLot ? { kind: "selected", id: movingLot.id } : { kind: "idle" })}
+                        onClick={() =>
+                          setMode(
+                            movingLot
+                              ? { kind: "selected", id: movingLot.id }
+                              : { kind: "idle" },
+                          )
+                        }
                       >
                         Cancel
                       </button>
@@ -1045,11 +1677,17 @@ export function CityBoard(props: {
                       type="button"
                       onClick={toggleMusic}
                       aria-pressed={music}
-                      aria-label={music ? "Turn the music off" : "Turn the music on"}
+                      aria-label={
+                        music ? "Turn the music off" : "Turn the music on"
+                      }
                       title={music ? "Music on" : "Music off"}
                       className={`min-h-10 rounded-xl px-3 py-1 text-sm font-semibold shadow ${music ? "bg-accent text-on-accent" : "bg-surface/95 text-ink ring-1 ring-line"}`}
                     >
-                      {music ? <Music className="size-4" aria-hidden /> : <VolumeX className="size-4" aria-hidden />}
+                      {music ? (
+                        <Music className="size-4" aria-hidden />
+                      ) : (
+                        <VolumeX className="size-4" aria-hidden />
+                      )}
                     </button>
                     <button
                       type="button"
@@ -1058,7 +1696,8 @@ export function CityBoard(props: {
                       title="Scenic view"
                       className="min-h-10 rounded-xl bg-surface/95 px-3 py-1 text-sm font-semibold text-ink shadow ring-1 ring-line"
                     >
-                      <Eye className="size-4" aria-hidden /> <span className="hidden sm:inline">View</span>
+                      <Eye className="size-4" aria-hidden />{" "}
+                      <span className="hidden sm:inline">View</span>
                     </button>
                     <button
                       type="button"
@@ -1070,7 +1709,8 @@ export function CityBoard(props: {
                       aria-label="Layers"
                       className={`min-h-10 rounded-xl px-3 py-1 text-sm font-semibold shadow ${layersOpen || layer ? "bg-accent text-on-accent" : "bg-surface/95 text-ink ring-1 ring-line"}`}
                     >
-                      <Layers className="size-4" aria-hidden /> <span className="hidden sm:inline">Layers</span>
+                      <Layers className="size-4" aria-hidden />{" "}
+                      <span className="hidden sm:inline">Layers</span>
                     </button>
                     <button
                       type="button"
@@ -1082,184 +1722,287 @@ export function CityBoard(props: {
                       aria-label="Stats"
                       className={`min-h-10 rounded-xl px-3 py-1 text-sm font-semibold shadow ${statsOpen ? "bg-accent text-on-accent" : "bg-surface/95 text-ink ring-1 ring-line"}`}
                     >
-                      <ChartColumn className="size-4" aria-hidden /> <span className="hidden sm:inline">Stats</span>
+                      <ChartColumn className="size-4" aria-hidden />{" "}
+                      <span className="hidden sm:inline">Stats</span>
                     </button>
                     {props.visit && (
-                      <button type="button" onClick={invite} className="min-h-10 rounded-xl bg-coin px-3 py-1 text-sm font-semibold text-on-coin shadow">
-                        <UserPlus className="size-4" aria-hidden /> <span className="hidden sm:inline">Invite friends</span>
+                      <button
+                        type="button"
+                        onClick={invite}
+                        className="min-h-10 rounded-xl bg-coin px-3 py-1 text-sm font-semibold text-on-coin shadow"
+                      >
+                        <UserPlus className="size-4" aria-hidden />{" "}
+                        <span className="hidden sm:inline">Invite friends</span>
                       </button>
                     )}
-                    <button type="button" onClick={exitFull} className="btn-primary min-h-10 px-3 py-1 text-sm shadow">
-                      <X className="size-4" aria-hidden /> {props.visit ? "Back" : "Exit"}
+                    <button
+                      type="button"
+                      onClick={exitFull}
+                      className="btn-primary min-h-10 px-3 py-1 text-sm shadow"
+                    >
+                      <X className="size-4" aria-hidden />{" "}
+                      {props.visit ? "Back" : "Exit"}
                     </button>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {citizens.length > 0 && clockPill("shrink-0 whitespace-nowrap")}
-                    {/* Only problems and how-to lines here; routine updates ("Built a House…") aren't shown in full screen. */}
-                    {message?.text && message.tone === "bad" ? (
-                      <p aria-live="polite" className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-bad shadow ring-1 ring-line">{message.text}</p>
-                    ) : (
-                      mode.kind === "place" && placingType ? (
-                        <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">Placing {placingType.name}: tap a spot, then Build here.</p>
-                      ) : mode.kind === "move" ? (
-                        <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">Moving: tap where it should go, then Move here.</p>
-                      ) : mode.kind === "paint" && paintType ? (
-                        <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">Drag to draw {paintType.name.toLowerCase()}, then Build.{isRoadType(mode.typeId) ? " Across water it builds a bridge." : ""}</p>
-                      ) : mode.kind === "bulldoze" ? (
-                        <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">Drag a box over things to demolish everything inside it.</p>
-                      ) : null
-                    )}
-                </div>
-                </div>
-              )}
-              {full && mode.kind === "shift" && (
-                <div
-                  className="absolute left-1/2 z-10 w-[min(18rem,calc(100%-1rem))] -translate-x-1/2 rounded-2xl bg-surface/95 p-3 text-ink shadow-xl ring-1 ring-line backdrop-blur bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))]"
-                  role="group"
-                  aria-label="Move the whole city"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-bold">
-                      <Move className="size-4" aria-hidden /> Move city
+                  {citizens.length > 0 &&
+                    clockPill("shrink-0 whitespace-nowrap")}
+                  {/* Only problems and how-to lines here; routine updates ("Built a House…") aren't shown in full screen. */}
+                  {message?.text && message.tone === "bad" ? (
+                    <p
+                      aria-live="polite"
+                      className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-bad shadow ring-1 ring-line"
+                    >
+                      {message.text}
                     </p>
-                    <button type="button" className="btn-secondary min-h-9 px-3 py-1 text-sm" onClick={() => setMode({ kind: "idle" })}>
-                      Done
-                    </button>
-                  </div>
-                  <p className="mt-1 text-xs text-muted">Slide everything you&apos;ve built one tile at a time (free). Arrow keys work too.</p>
-                  {edges ? (
-                    <div className="mx-auto mt-2 grid w-max grid-cols-3 gap-1.5 text-center text-xs">
-                      {[
-                        { at: "col-start-2", dx: 0, dy: -1, room: edges.top, Icon: ArrowUp, label: "Up" },
-                        { at: "col-start-1", dx: -1, dy: 0, room: edges.left, Icon: ArrowLeft, label: "Left" },
-                        { at: "col-start-3", dx: 1, dy: 0, room: edges.right, Icon: ArrowRight, label: "Right" },
-                        { at: "col-start-2", dx: 0, dy: 1, room: edges.bottom, Icon: ArrowDown, label: "Down" },
-                      ].map((b) => (
-                        <button
-                          key={b.label}
-                          type="button"
-                          disabled={b.room <= 0 || pending}
-                          onClick={() => shift(b.dx, b.dy)}
-                          aria-label={`Move the city ${b.label.toLowerCase()} (${b.room} tile${b.room === 1 ? "" : "s"} to the edge)`}
-                          className={`${b.at} ${b.label === "Left" ? "row-start-2" : b.label === "Right" ? "row-start-2" : ""} flex size-14 flex-col items-center justify-center rounded-xl bg-raised font-semibold ring-1 ring-line hover:bg-accent-soft disabled:opacity-40`}
-                        >
-                          <b.Icon className="size-5" aria-hidden />
-                          <span className="text-[10px] font-normal text-muted">{b.room} to edge</span>
-                        </button>
-                      ))}
-                      <div className="col-start-2 row-start-2 flex size-14 items-center justify-center rounded-xl text-[10px] text-muted">
-                        {size}×{size}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-sm text-muted">Build something first.</p>
-                  )}
+                  ) : mode.kind === "place" && placingType ? (
+                    <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">
+                      Placing {placingType.name}: tap a spot, then Build here.
+                    </p>
+                  ) : mode.kind === "move" ? (
+                    <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">
+                      Moving: tap where it should go, then Move here.
+                    </p>
+                  ) : mode.kind === "paint" && paintType ? (
+                    <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">
+                      Drag to draw {paintType.name.toLowerCase()}, then Build.
+                      {isRoadType(mode.typeId)
+                        ? " Across water it builds a bridge."
+                        : ""}
+                    </p>
+                  ) : mode.kind === "bulldoze" ? (
+                    <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">
+                      Drag a box over things to demolish everything inside it.
+                    </p>
+                  ) : null}
                 </div>
-              )}
-              {full && selected && (
-                <div className="absolute inset-x-0 bottom-0 flex justify-center p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-                  <div className="max-h-[50dvh] w-full max-w-md overflow-y-auto rounded-2xl shadow-2xl">
-                    {selectedPanel}
-                  </div>
-                </div>
-              )}
-              {full && !selected && mode.kind !== "move" && !props.visit && (
-                <BuildOverlay
-                  types={menuTypes}
-                  landmarkState={landmarkState}
-                  progress={progress}
-                  balance={balance}
-                  activeId={placingType?.id ?? (mode.kind === "paint" ? mode.typeId : mode.kind === "control" ? ROAD_CONTROLS.find((c) => c.kind === mode.control)!.typeId : undefined)}
-                  tools={tools}
-                  activeTool={activeTool}
-                  onTool={(id) => {
-                    setMessage(null);
-                    setMode(tools.find((t) => t.id === id)!.mode);
-                  }}
-                  onPick={pick}
-                  land={size < MAX_CITY_SIZE ? { price: landPrice(props.landPurchases), onBuy: expand } : undefined}
-                />
-              )}
-              {/* City page: just a picture of the whole city; tapping it (or the button) opens full screen, where you build. */}
-              {!full && (
-                <>
-                  <button type="button" tabIndex={-1} aria-hidden onClick={enterFull} className="absolute inset-0 cursor-pointer" />
+              </div>
+            )}
+            {full && mode.kind === "shift" && (
+              <div
+                className="absolute left-1/2 z-10 w-[min(18rem,calc(100%-1rem))] -translate-x-1/2 rounded-2xl bg-surface/95 p-3 text-ink shadow-xl ring-1 ring-line backdrop-blur bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))]"
+                role="group"
+                aria-label="Move the whole city"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-bold">
+                    <Move className="size-4" aria-hidden /> Move city
+                  </p>
                   <button
                     type="button"
-                    onClick={enterFull}
-                    className="absolute right-3 bottom-3 flex min-h-10 items-center gap-1.5 rounded-xl bg-surface/95 px-3 text-sm font-semibold text-ink shadow ring-1 ring-line hover:bg-raised"
+                    className="btn-secondary min-h-9 px-3 py-1 text-sm"
+                    onClick={() => setMode({ kind: "idle" })}
                   >
-                    <Maximize2 className="size-4" aria-hidden /> Full screen
+                    Done
                   </button>
-                </>
-              )}
-              {full && layersOpen && (
-                <div
-                  role="dialog"
-                  aria-label="Map layers"
-                  className="absolute top-[max(4.5rem,calc(env(safe-area-inset-top)+4rem))] right-2 z-10 max-h-[calc(100%-11rem)] w-[min(20rem,calc(100%-1rem))] overflow-y-auto rounded-2xl bg-surface/95 p-2 text-ink shadow-2xl ring-1 ring-line backdrop-blur"
-                >
-                  <div className="flex items-center justify-between px-2 py-1">
-                    <h2 className="font-bold">Map layers</h2>
-                    <button type="button" onClick={() => setLayersOpen(false)} aria-label="Close map layers" className="flex size-8 items-center justify-center rounded-lg text-muted hover:bg-raised">
-                      <X className="size-4" aria-hidden />
-                    </button>
-                  </div>
-                  <ul>
-                    {[{ id: null, label: "Off" } as const, ...LAYERS].map((l) => (
-                      <li key={l.id ?? "off"}>
-                        <button
-                          type="button"
-                          aria-pressed={layer === l.id}
-                          onClick={() => {
-                            setLayer(l.id);
-                            setLayersOpen(false);
-                          }}
-                          className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm ${layer === l.id ? "bg-accent text-on-accent" : "hover:bg-raised"}`}
-                        >
-                          <LayerIcon id={l.id} />
-                          <span className="font-medium">{l.label}</span>
-                        </button>
-                      </li>
+                </div>
+                <p className="mt-1 text-xs text-muted">
+                  Slide everything you&apos;ve built one tile at a time (free).
+                  Arrow keys work too.
+                </p>
+                {edges ? (
+                  <div className="mx-auto mt-2 grid w-max grid-cols-3 gap-1.5 text-center text-xs">
+                    {[
+                      {
+                        at: "col-start-2",
+                        dx: 0,
+                        dy: -1,
+                        room: edges.top,
+                        Icon: ArrowUp,
+                        label: "Up",
+                      },
+                      {
+                        at: "col-start-1",
+                        dx: -1,
+                        dy: 0,
+                        room: edges.left,
+                        Icon: ArrowLeft,
+                        label: "Left",
+                      },
+                      {
+                        at: "col-start-3",
+                        dx: 1,
+                        dy: 0,
+                        room: edges.right,
+                        Icon: ArrowRight,
+                        label: "Right",
+                      },
+                      {
+                        at: "col-start-2",
+                        dx: 0,
+                        dy: 1,
+                        room: edges.bottom,
+                        Icon: ArrowDown,
+                        label: "Down",
+                      },
+                    ].map((b) => (
+                      <button
+                        key={b.label}
+                        type="button"
+                        disabled={b.room <= 0 || pending}
+                        onClick={() => shift(b.dx, b.dy)}
+                        aria-label={`Move the city ${b.label.toLowerCase()} (${b.room} tile${b.room === 1 ? "" : "s"} to the edge)`}
+                        className={`${b.at} ${b.label === "Left" ? "row-start-2" : b.label === "Right" ? "row-start-2" : ""} flex size-14 flex-col items-center justify-center rounded-xl bg-raised font-semibold ring-1 ring-line hover:bg-accent-soft disabled:opacity-40`}
+                      >
+                        <b.Icon className="size-5" aria-hidden />
+                        <span className="text-[10px] font-normal text-muted">
+                          {b.room} to edge
+                        </span>
+                      </button>
                     ))}
-                  </ul>
-                </div>
-              )}
-              {full && layerInfo && !layersOpen && !statsOpen && (
-                <div className="absolute left-2 bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))] z-10 w-[min(20rem,calc(100%-1rem))] rounded-2xl bg-surface/95 p-3 text-ink shadow-xl ring-1 ring-line backdrop-blur">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-bold">
-                      <LayerIcon id={layerInfo.id} /> {layerInfo.label}
-                    </p>
-                    <button type="button" onClick={() => setLayer(null)} aria-label="Hide layer" className="flex size-8 items-center justify-center rounded-lg text-muted hover:bg-raised">
-                      <X className="size-4" aria-hidden />
-                    </button>
+                    <div className="col-start-2 row-start-2 flex size-14 items-center justify-center rounded-xl text-[10px] text-muted">
+                      {size}×{size}
+                    </div>
                   </div>
-                  <div className="mt-2 h-2.5 rounded-full" style={{ background: "linear-gradient(to right, #22c55e, #eab308, #ef4444)" }} aria-hidden />
-                  <div className="mt-1 flex justify-between text-xs text-muted">
-                    <span>{layerInfo.good}</span>
-                    <span>{layerInfo.bad}</span>
-                  </div>
-                  <p className="mt-1.5 text-xs text-muted">{layerInfo.about}</p>
+                ) : (
+                  <p className="mt-2 text-sm text-muted">
+                    Build something first.
+                  </p>
+                )}
+              </div>
+            )}
+            {full && selected && (
+              <div className="absolute inset-x-0 bottom-0 flex justify-center p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+                <div className="max-h-[50dvh] w-full max-w-md overflow-y-auto rounded-2xl shadow-2xl">
+                  {selectedPanel}
                 </div>
-              )}
-              {full && statsOpen && (
-                <div className="absolute top-[max(4.5rem,calc(env(safe-area-inset-top)+4rem))] right-2 bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))] z-10 w-[min(30rem,calc(100%-1rem))] overflow-y-auto rounded-2xl shadow-2xl">
-<CityStatsPanel stats={stats} onClose={() => setStatsOpen(false)} />
-                  <div className={props.visit ? "hidden" : "mt-3"}>
-                    <MilestonesPanel
-                      population={stats.population}
-                      claimed={props.claimedMilestones ?? []}
-                      placed={placedTypes}
-                      names={new Map(types.map((t) => [t.id, t.name]))}
-                      pending={pending}
-                      onClaim={claimMilestone}
-                    />
-                  </div>
+              </div>
+            )}
+            {full && !selected && mode.kind !== "move" && !props.visit && (
+              <BuildOverlay
+                types={menuTypes}
+                landmarkState={landmarkState}
+                progress={progress}
+                balance={balance}
+                activeId={
+                  placingType?.id ??
+                  (mode.kind === "paint"
+                    ? mode.typeId
+                    : mode.kind === "control"
+                      ? ROAD_CONTROLS.find((c) => c.kind === mode.control)!
+                          .typeId
+                      : undefined)
+                }
+                tools={tools}
+                activeTool={activeTool}
+                onTool={(id) => {
+                  setMessage(null);
+                  setMode(tools.find((t) => t.id === id)!.mode);
+                }}
+                onPick={pick}
+                land={
+                  size < MAX_CITY_SIZE
+                    ? { price: landPrice(props.landPurchases), onBuy: expand }
+                    : undefined
+                }
+              />
+            )}
+            {/* City page: just a picture of the whole city; tapping it (or the button) opens full screen, where you build. */}
+            {!full && (
+              <>
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-hidden
+                  onClick={enterFull}
+                  className="absolute inset-0 cursor-pointer"
+                />
+                <button
+                  type="button"
+                  onClick={enterFull}
+                  className="absolute right-3 bottom-3 flex min-h-10 items-center gap-1.5 rounded-xl bg-surface/95 px-3 text-sm font-semibold text-ink shadow ring-1 ring-line hover:bg-raised"
+                >
+                  <Maximize2 className="size-4" aria-hidden /> Full screen
+                </button>
+              </>
+            )}
+            {full && layersOpen && (
+              <div
+                role="dialog"
+                aria-label="Map layers"
+                className="absolute top-[max(4.5rem,calc(env(safe-area-inset-top)+4rem))] right-2 z-10 max-h-[calc(100%-11rem)] w-[min(20rem,calc(100%-1rem))] overflow-y-auto rounded-2xl bg-surface/95 p-2 text-ink shadow-2xl ring-1 ring-line backdrop-blur"
+              >
+                <div className="flex items-center justify-between px-2 py-1">
+                  <h2 className="font-bold">Map layers</h2>
+                  <button
+                    type="button"
+                    onClick={() => setLayersOpen(false)}
+                    aria-label="Close map layers"
+                    className="flex size-8 items-center justify-center rounded-lg text-muted hover:bg-raised"
+                  >
+                    <X className="size-4" aria-hidden />
+                  </button>
                 </div>
-              )}
-            </div>
+                <ul>
+                  {[{ id: null, label: "Off" } as const, ...LAYERS].map((l) => (
+                    <li key={l.id ?? "off"}>
+                      <button
+                        type="button"
+                        aria-pressed={layer === l.id}
+                        onClick={() => {
+                          setLayer(l.id);
+                          setLayersOpen(false);
+                        }}
+                        className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm ${layer === l.id ? "bg-accent text-on-accent" : "hover:bg-raised"}`}
+                      >
+                        <LayerIcon id={l.id} />
+                        <span className="font-medium">{l.label}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {full && layerInfo && !layersOpen && !statsOpen && (
+              <div className="absolute left-2 bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))] z-10 w-[min(20rem,calc(100%-1rem))] rounded-2xl bg-surface/95 p-3 text-ink shadow-xl ring-1 ring-line backdrop-blur">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-bold">
+                    <LayerIcon id={layerInfo.id} /> {layerInfo.label}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setLayer(null)}
+                    aria-label="Hide layer"
+                    className="flex size-8 items-center justify-center rounded-lg text-muted hover:bg-raised"
+                  >
+                    <X className="size-4" aria-hidden />
+                  </button>
+                </div>
+                <div
+                  className="mt-2 h-2.5 rounded-full"
+                  style={{
+                    background:
+                      "linear-gradient(to right, #22c55e, #eab308, #ef4444)",
+                  }}
+                  aria-hidden
+                />
+                <div className="mt-1 flex justify-between text-xs text-muted">
+                  <span>{layerInfo.good}</span>
+                  <span>{layerInfo.bad}</span>
+                </div>
+                <p className="mt-1.5 text-xs text-muted">{layerInfo.about}</p>
+              </div>
+            )}
+            {full && statsOpen && (
+              <div className="absolute top-[max(4.5rem,calc(env(safe-area-inset-top)+4rem))] right-2 bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))] z-10 w-[min(30rem,calc(100%-1rem))] overflow-y-auto rounded-2xl shadow-2xl">
+                <CityStatsPanel
+                  stats={stats}
+                  onClose={() => setStatsOpen(false)}
+                />
+                <div className={props.visit ? "hidden" : "mt-3"}>
+                  <MilestonesPanel
+                    population={stats.population}
+                    claimed={props.claimedMilestones ?? []}
+                    placed={placedTypes}
+                    names={new Map(types.map((t) => [t.id, t.name]))}
+                    pending={pending}
+                    onClaim={claimMilestone}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
           <CityStatsPanel stats={stats} />
           <MilestonesPanel
             population={stats.population}
@@ -1270,7 +2013,6 @@ export function CityBoard(props: {
             onClaim={claimMilestone}
           />
         </div>
-
       </div>
     </div>
   );

@@ -653,6 +653,9 @@ _Last updated: 2026-11-28_
   Migration `20261128060000_reset_clears_milestones.sql` (applied live); 1 more pgTAP test. The milestones/friends test now accepts
   the friend request before visiting (340 pgTAP checks pass).
 
+- **Build confirmation bar**: its text wraps instead of being cut off ("Draw more, tap a highlighted tile to take it out, or
+  Build."), and on narrow phones Cancel / Build move to a row of their own under it.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
