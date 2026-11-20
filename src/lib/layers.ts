@@ -23,19 +23,25 @@ export type LayerCell = { x: number; y: number; w: number; h: number; v: number;
 
 type TypeInfo = Pick<BuildingTypeRow, "id" | "category" | "population" | "jobs">;
 
-const ROAD_CAPACITY: Record<string, number> = { dirt_road: 3, road: 8, bridge: 8, avenue: 20 };
+/** Daily trips a road tile carries before it starts to jam (the layer and the jam score use 1 − e^(−0.8 × trips / capacity)). */
+const ROAD_CAPACITY: Record<string, number> = { dirt_road: 20, road: 60, bridge: 60, avenue: 150 };
 /** How much traffic a crossing lets through, compared with a plain stretch of the same road. */
 export const CROSSING_FACTOR: Record<"none" | "stop" | "light", number> = { none: 0.4, stop: 1.2, light: 2.4 };
 /** Roads within 2 tiles of a stop sign / traffic light carry this much more (traffic is kept moving). */
 const CALMED: Record<"stop" | "light", number> = { stop: 1.3, light: 1.6 };
 
 /**
- * How busy the roads are because of how people get around: 1.4 with no transport buildings (everyone drives); bus
- * stations, parking garages, gas stations and an airport bring it down (to 0.55 at best).
+ * How busy the roads are because of how people get around: 1.5 with no transport buildings (everyone drives); bus
+ * stations, parking garages, gas stations and an airport bring it down (to 0.35 at best).
  */
 export function transportFactor(lots: Pick<Lot, "type_id">[]): number {
   const n = (id: string) => lots.filter((l) => l.type_id === id).length;
-  return Math.max(0.55, 1.4 - 0.22 * Math.min(3, n("bus_station")) - 0.12 * Math.min(3, n("parking")) - 0.06 * Math.min(2, n("gas_station")) - 0.15 * Math.min(1, n("airport")));
+  return Math.max(0.35, 1.5 - 0.3 * Math.min(3, n("bus_station")) - 0.15 * Math.min(3, n("parking")) - 0.08 * Math.min(2, n("gas_station")) - 0.2 * Math.min(1, n("airport")));
+}
+
+/** Share of would-be car trips taken by bus instead (0 with no transport buildings, up to 70%), for the moving traffic. */
+export function transitShare(lots: Pick<Lot, "type_id">[]): number {
+  return clamp((1.5 - transportFactor(lots)) / (1.5 - 0.35)) * 0.7;
 }
 const POLLUTERS: Record<string, number> = {
   factory: 1, distribution: 0.8, workshop: 0.6, small_factory: 0.5, warehouse: 0.4, gas_station: 0.35, airport: 1,
@@ -173,7 +179,7 @@ export function computeLayer(
           for (const c of controlled) if (Math.abs(c.x - l.x) + Math.abs(c.y - l.y) <= 2) calm = Math.max(calm, CALMED[c.kind]);
           factor *= calm;
         }
-        value.set(k, ((counts.get(k) ?? 0) * busy) / ((ROAD_CAPACITY[l.type_id] ?? 8) * factor) / 2);
+        value.set(k, 1 - Math.exp((-0.8 * (counts.get(k) ?? 0) * busy) / ((ROAD_CAPACITY[l.type_id] ?? 60) * factor)));
       }
       const spilled = new Map(value);
       for (const l of roadTiles) {

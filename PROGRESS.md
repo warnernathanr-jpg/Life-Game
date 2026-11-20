@@ -813,6 +813,13 @@ _Last updated: 2026-11-28_
   the road), end turned in toward the building on its driveway (stopping 0.2 tiles short of the lot so they stay clear of the
   model), and on the way back turn into the station and disappear, like everyday cars.
 
+- **Transport really eases traffic** (2026-11-28): the Traffic layer was saturated (any real commute scored every road at the
+  maximum, so cutting traffic changed nothing). Roads now carry 20 / 60 / 150 daily trips (dirt / 2-lane or bridge / 4-lane) and
+  a tile's jam is `1 − e^(−0.8 × trips × busy / capacity)`, so it rises smoothly. `transportFactor()` is 1.5 with no transport
+  and goes down to 0.35 (bus station −0.3 up to 3, parking −0.15 up to 3, gas −0.08 up to 2, airport −0.2). In the moving city,
+  `transitShare()` (up to 70%) of would-be drivers take the bus: they travel off the road (card: "Riding the bus to work"), so
+  there are visibly fewer cars. Unit test: three bus stations cut the busiest road's jam by more than 0.15.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

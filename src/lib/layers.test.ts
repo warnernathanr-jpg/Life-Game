@@ -77,8 +77,24 @@ describe("map layers", () => {
   });
 
   it("transport buildings lighten traffic; none makes it busier", () => {
-    expect(transportFactor([])).toBeCloseTo(1.4);
-    expect(transportFactor([{ type_id: "bus_station" }, { type_id: "parking" }])).toBeCloseTo(1.06);
-    expect(transportFactor(Array.from({ length: 9 }, () => ({ type_id: "bus_station" })).concat([{ type_id: "airport" }, { type_id: "parking" }, { type_id: "parking" }]))).toBe(0.55);
+    expect(transportFactor([])).toBeCloseTo(1.5);
+    expect(transportFactor([{ type_id: "bus_station" }, { type_id: "parking" }])).toBeCloseTo(1.05);
+    expect(transportFactor(Array.from({ length: 9 }, () => ({ type_id: "bus_station" })).concat([{ type_id: "airport" }, { type_id: "parking" }, { type_id: "parking" }]))).toBe(0.35);
   });
+
+  it("a busy road jams less with bus stations", () => {
+    const apt = { id: "apartments", name: "Apt", category: "residential" as const, population: 20, jobs: 0 };
+    const bus = { id: "bus_station", name: "Bus", category: "commercial" as const, population: 0, jobs: 0 };
+    const t2 = [...types, apt, bus];
+    const base = [...road, ...[0, 1, 2].map((x) => L(`a${x}`, "apartments", x, 4)), L("f", "factory", 10, 4, 2, 1)];
+    const busiest = (lots: Lot[]) => {
+      const places = placesFrom(lots, t2);
+      return Math.max(...computeLayer("traffic", lots, t2, { size: 12, places, citizens: citizensFrom(places), connected: new Set(lots.map((l) => l.id)) }).map((c) => c.v));
+    };
+    const none = busiest(base);
+    const three = busiest([...base, L("b1", "bus_station", 5, 4), L("b2", "bus_station", 6, 6), L("b3", "bus_station", 7, 4)]);
+    expect(none).toBeLessThan(1);
+    expect(three).toBeLessThan(none - 0.15);
+  });
+
 });

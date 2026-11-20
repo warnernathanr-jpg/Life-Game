@@ -6,7 +6,7 @@ import { forwardRef, useCallback, useImperativeHandle, useLayoutEffect, useMemo,
 import * as THREE from "three";
 import type { MapControls as MapControlsImpl } from "three-stdlib";
 import { AVENUE_TYPE, BRIDGE_TYPE, DIRT_ROAD_TYPE, effectiveFacing, isRoadType, FACING_ROTATION, key, rowJoins, roadSet, roadShape, ROAD_TYPE, strokePath, boxPath, type Lot, type Tile } from "@/lib/roads";
-import { layerColor, type LayerCell } from "@/lib/layers";
+import { layerColor, transitShare, type LayerCell } from "@/lib/layers";
 import { MAX_CITY_SIZE, worldOffset } from "@/lib/game";
 import { Clouds } from "./clouds";
 import { Buses } from "./buses";
@@ -142,6 +142,7 @@ export default City3D;
 function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle> }) {
   const { size, lots, needsRoad, understaffed, input } = props;
   const roads = useMemo(() => roadSet(lots), [lots]);
+  const transit = useMemo(() => transitShare(lots), [lots]);
   const buildings = useMemo(() => lots.filter((l) => !isRoadType(l.type_id) && l.type_id !== WATER_TYPE), [lots]);
   // Bridges stand on water, so the pond keeps flowing underneath them.
   const waterTiles = useMemo(() => lots.filter((l) => l.type_id === WATER_TYPE || l.type_id === BRIDGE_TYPE), [lots]);
@@ -352,7 +353,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
         <Bridges tiles={bridgeTiles} roads={roads} typeAt={byTile} />
         <StreetLights lots={lots} roads={roads} minutes={props.minutes ?? 12 * 60} />
         {props.controls && props.controls.size > 0 && <RoadControls controls={props.controls} />}
-        {props.sim && <Traffic sim={props.sim} roads={roads} controls={props.controls} />}
+        {props.sim && <Traffic sim={props.sim} roads={roads} controls={props.controls} transit={transit} />}
         {props.sim && <Buses places={props.sim.places} roads={roads} paused={props.sim.paused} />}
         {props.sim && <Emergencies places={props.sim.places} roads={roads} paused={props.sim.paused} onNews={props.sim.onNews} />}
         {props.overlay && <LayerOverlay cells={props.overlay} byTile={byTile} />}

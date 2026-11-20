@@ -62,6 +62,8 @@ type Trip = {
   purpose: Purpose; fromId: string; toId: string; path: Tile[]; mode: "car" | "walk"; start: number; u: number; waited: number;
   /** The crossing this car has been let into (green light, or done stopping at the stop sign). */
   passKey?: string;
+  /** Riding the bus instead of driving (not drawn; transit share from transport buildings). */
+  transit?: boolean;
   /** Seconds stopped at a stop sign so far. */
   stopWait?: number;
   /** Seconds left squeezing through after being stuck (gridlock breaker). */
@@ -148,7 +150,7 @@ export function pointAt(path: Tile[], u: number, side: number) {
   return { x, z, heading: Math.atan2(tx, tz) };
 }
 
-export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<string>; controls?: Map<string, RoadControlKind> }) {
+export function Traffic({ sim, roads, controls, transit = 0 }: { sim: SimProps; roads: Set<string>; controls?: Map<string, RoadControlKind>; transit?: number }) {
   const { invalidate, camera, gl } = useThree();
   const places = useMemo(() => new Map(sim.places.map((p) => [p.id, p])), [sim.places]);
   const states = useRef(new Map<string, State>());
@@ -196,7 +198,7 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
     if (s.trip) {
       const to = places.get(s.trip.toId);
       const from = places.get(s.trip.fromId);
-      const verb = s.trip.mode === "car" ? "Driving" : "Walking";
+      const verb = s.trip.transit ? "Riding the bus" : s.trip.mode === "car" ? "Driving" : "Walking";
       const where = s.trip.purpose === "home" ? "home" : `to ${purposeWord(s.trip.purpose)}${to ? ` at ${to.name}` : ""}`;
       return {
         ...base,
@@ -238,11 +240,16 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
       return false;
     }
     const mode = travelMode(path.length - 2, plan.purpose, c.age);
+    // With bus stations, parking and so on, some would-be drivers take the bus (they're off the road while travelling).
+    if (mode === "car" && random.current() < transit) {
+      states.current.set(c.id, { at: null, until: 0, trip: { purpose: plan.purpose, fromId: s.at, toId: plan.toId, path, mode, start: t, u: START_U, waited: 0, transit: true } });
+      return true;
+    }
     // Don't pull out on top of another car: wait a moment until the start of the road is clear.
     if (mode === "car") {
       const startPt = pointAt(path, START_U + 0.4, SIDE.car);
       const crowded = [...states.current.values()].some((o) => {
-        if (!o.trip || o.trip.mode !== "car") return false;
+        if (!o.trip || o.trip.mode !== "car" || o.trip.transit) return false;
         const q = pointAt(o.trip.path, o.trip.u, SIDE.car);
         return Math.hypot(q.x - startPt.x, q.z - startPt.z) < GAP;
       });
@@ -306,7 +313,7 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
       const travelling: { id: string; trip: Trip; x: number; z: number; hx: number; hz: number }[] = [];
       for (const c of sim.citizens) {
         const s = states.current.get(c.id);
-        if (!s?.trip || s.trip.mode !== "car") continue;
+        if (!s?.trip || s.trip.mode !== "car" || s.trip.transit) continue;
         const p = pointAt(s.trip.path, s.trip.u, SIDE.car);
         travelling.push({ id: c.id, trip: s.trip, x: p.x, z: p.z, hx: Math.sin(p.heading), hz: Math.cos(p.heading) });
       }
@@ -321,7 +328,7 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
         if (!s?.trip) continue;
         const trip = s.trip;
         const step = dt * SPEED[trip.mode];
-        if (trip.mode === "walk") {
+        if (trip.mode === "walk" || trip.transit) {
           trip.u += step;
           continue;
         }
@@ -408,7 +415,7 @@ export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<st
     let selectedPos: THREE.Vector3 | null = null;
     for (const c of sim.citizens) {
       const s = states.current.get(c.id);
-      if (!s?.trip) continue;
+      if (!s?.trip || s.trip.transit) continue;
       const isCar = s.trip.mode === "car";
       const slot = isCar ? car : walk;
       if (slot >= (isCar ? CAR_SLOTS : WALK_SLOTS)) continue;
