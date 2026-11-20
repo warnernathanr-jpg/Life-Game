@@ -840,6 +840,14 @@ _Last updated: 2026-11-28_
   Its clock was a flat white disc half sticking out of the tower; the tower now has a real clock face on all four sides
   (`clockFaces()` in `models-catalog.tsx`: rim, dial, hour marks, hands).
 
+### 60. Educated workers; "Education" build group (2026-11-28)
+- **Skilled jobs need graduates** (`cityStats()`): offices and banks 60% of their jobs, hospitals and the university 70%, city hall
+  50% (`SKILLED_SHARE`). Graduates come from homes near a high school (up to 45% of residents within 12 tiles, fading with
+  distance) or a university (75% within 18) (`GRADUATES`). Skilled jobs nobody qualifies for stay empty: they're taken off the
+  city's jobs (so unemployment can rise), those workplaces get the worker-shortage marker, and with 5+ skilled jobs short there's
+  "Not enough educated workers" (up to −12) with a tip to build a high school or university near the neighborhoods. 1 unit test.
+- The build menu's **Knowledge** group is now **Education** (the Knowledge life area for tasks keeps its name).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

@@ -122,7 +122,7 @@ export const BUILD_GROUPS: { id: BuildGroupId; label: string; tile: string }[] =
   { id: "commercial", label: "Commercial", tile: "bg-sky-100 border-sky-300" },
   { id: "industrial", label: "Industrial", tile: "bg-stone-200 border-stone-400" },
   { id: "service", label: "Services", tile: "bg-violet-100 border-violet-300" },
-  { id: "knowledge", label: "Knowledge", tile: "bg-amber-100 border-amber-300" },
+  { id: "knowledge", label: "Education", tile: "bg-amber-100 border-amber-300" },
   { id: "recreation", label: "Recreation", tile: "bg-lime-100 border-lime-400" },
   { id: "transport", label: "Transport", tile: "bg-cyan-100 border-cyan-300" },
   { id: "landmark", label: "Landmarks", tile: "bg-teal-100 border-teal-300" },
@@ -208,6 +208,10 @@ export const GOODS_PER_INDUSTRY_JOB = 1.5;
 /** School places by school (children are about 22% of residents). */
 export const SCHOOL_SEATS: Record<string, number> = { school: 40, high_school: 60, university: 100 };
 export const CHILD_SHARE = 0.22;
+/** Share of each skilled workplace's jobs that need graduates. */
+export const SKILLED_SHARE: Record<string, number> = { office: 0.6, bank: 0.6, hospital: 0.7, university: 0.7, city_hall: 0.5 };
+/** Graduates come from homes near a high school (up to 45% of residents within 12 tiles) or a university (75% within 18). */
+export const GRADUATES = { high_school: { share: 0.45, radius: 12 }, university: { share: 0.75, radius: 18 } } as const;
 
 /** Most happiness trees and water can add. */
 export const NATURE_CAP = 10;
@@ -281,10 +285,35 @@ export function cityStats(
     }
   }
 
+  // Skilled jobs need graduates: residents of homes near a high school or university. Skilled jobs nobody qualifies for stay
+  // empty (they don't count as jobs, and those workplaces show the worker-shortage marker).
+  const live = lots.filter((b) => connected.has(b.id));
+  const edgeGap = (a: { x: number; y: number; w: number; h: number }, o: { x: number; y: number; w: number; h: number }) =>
+    Math.max(0, o.x - (a.x + a.w), a.x - (o.x + o.w)) + Math.max(0, o.y - (a.y + a.h), a.y - (o.y + o.h));
+  const schoolsOf = (id: keyof typeof GRADUATES) => live.filter((b) => b.type_id === id);
+  let graduates = 0;
+  let skilledNeed = 0;
+  const skilledBuildings: string[] = [];
+  for (const b of live) {
+    const t = byId.get(b.type_id);
+    if (!t) continue;
+    if (SKILLED_SHARE[t.id]) {
+      skilledNeed += t.jobs * SKILLED_SHARE[t.id];
+      skilledBuildings.push(b.id);
+    }
+    if (t.category !== "residential" || t.population <= 0) continue;
+    let share = 0;
+    for (const id of ["high_school", "university"] as const) {
+      for (const s of schoolsOf(id)) share = Math.max(share, GRADUATES[id].share * Math.max(0, 1 - edgeGap(b, s) / GRADUATES[id].radius));
+    }
+    graduates += t.population * share;
+  }
+  const unfilledSkilled = Math.max(0, Math.round(skilledNeed - graduates));
+  jobs -= unfilledSkilled;
   const employed = Math.min(population, jobs);
   const unemployed = Math.max(0, population - jobs);
   const staffing = jobs > 0 ? Math.min(1, population / jobs) : 1;
-  const understaffed = new Set(staffing < 1 ? jobBuildings : []);
+  const understaffed = new Set([...(staffing < 1 ? jobBuildings : []), ...(unfilledSkilled > 0 ? skilledBuildings : [])]);
 
   const factors: HappinessFactor[] = [];
   const add = (f: HappinessFactor) => factors.push(f);
@@ -379,6 +408,14 @@ export function cityStats(
       label: "Factories can't sell their goods",
       value: -Math.min(8, Math.round(shopJobs > 0 ? (goods / shopJobs - 2) * 3 : 8)),
       tip: "Industry makes far more than your shops can sell. Build shops (stores, a grocery, a mall) so factories have buyers.",
+    });
+  }
+  if (skilledNeed >= 5 && graduates < skilledNeed) {
+    add({
+      key: "educated",
+      label: "Not enough educated workers",
+      value: -Math.round(12 * (1 - graduates / skilledNeed)),
+      tip: `${unfilledSkilled} skilled job${unfilledSkilled === 1 ? "" : "s"} at offices, banks, hospitals, city hall or the university can't be filled. Graduates come from homes within 12 tiles of a high school or 18 of a university: build one near your neighborhoods.`,
     });
   }
   // Schooling: children need school places.

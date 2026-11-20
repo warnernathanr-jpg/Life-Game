@@ -21,6 +21,8 @@ const types = [
   type({ id: "grocery", category: "commercial", jobs: 12 }),
   type({ id: "apartments", population: 40 }),
   type({ id: "school", category: "service", jobs: 8, happiness: 6 }),
+  type({ id: "office", category: "commercial", jobs: 30 }),
+  type({ id: "university", category: "service", jobs: 10 }),
 ];
 
 let n = 0;
@@ -84,6 +86,15 @@ describe("cityStats", () => {
     expect(supplied.factors.find((f) => f.key.startsWith("goods"))?.key).toBe("goods_surplus"); // 45 goods for 12 shop jobs
     const balanced = cityStats([...street, at("grocery", 0, 1), at("grocery", 2, 1), at("factory", 4, 1)], types);
     expect(balanced.factors.some((f) => f.key.startsWith("goods"))).toBe(false); // 45 goods for 24 shop jobs
+  });
+  it("skilled jobs need graduates from homes near a high school or university", () => {
+    const none = cityStats([...street, at("apartments", 0, 1), at("office", 2, 1)], types);
+    expect(none.factors.find((f) => f.key === "educated")?.value).toBe(-12);
+    expect(none.jobs).toBe(30 - 18); // 60% of the office's 30 jobs stay empty
+    expect(none.understaffed.size).toBe(1);
+    const uni = cityStats([...street, at("apartments", 0, 1), at("office", 2, 1), at("university", 1, 1)], types);
+    expect(uni.factors.some((f) => f.key === "educated")).toBe(false); // 40 × 75% = 30 graduates for 18 + 7 skilled jobs
+    expect(uni.jobs).toBe(40);
   });
   it("children need school places", () => {
     const none = cityStats([...street, at("apartments", 0, 1)], types);
