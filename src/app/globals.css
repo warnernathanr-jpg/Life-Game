@@ -219,3 +219,9 @@ h1, h2, h3, .font-display {
 [data-scenic] > :not(:first-child):not([data-keep]) {
   display: none !important;
 }
+
+/* No rubber-band bounce at the ends of the page: on iPhones the bounce dragged the fixed bottom menu up with it. */
+html,
+body {
+  overscroll-behavior-y: none;
+}

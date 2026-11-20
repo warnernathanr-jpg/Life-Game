@@ -37,6 +37,10 @@ select is((select length(mine) from codes), 6, 'every city has a 6-character cod
 select set_config('request.jwt.claims', '{"sub":"a2222222-2222-2222-2222-222222222222"}', true);
 select throws_ok($$ select * from public.friend_city('a1111111-1111-1111-1111-111111111111') $$, '42501', 'not_a_friend', 'not visible before adding');
 select results_eq(format('select friend_id from public.add_friend(%L)', lower((select mine from codes))), $$ values ('a1111111-1111-1111-1111-111111111111'::uuid) $$, 'add a friend by code (any case)');
+-- That sends a request; once the other player accepts, both can visit.
+select set_config('request.jwt.claims', '{"sub":"a1111111-1111-1111-1111-111111111111"}', true);
+select public.accept_friend_request('a2222222-2222-2222-2222-222222222222');
+select set_config('request.jwt.claims', '{"sub":"a2222222-2222-2222-2222-222222222222"}', true);
 select is((select jsonb_array_length(public.friend_city('a1111111-1111-1111-1111-111111111111') -> 'placed')), 22, 'see their city');
 select is((select population from public.my_friends()), 52, 'friends list with population');
 select throws_ok($$ select * from public.add_friend('ZZZZZZ') $$, 'P0002', 'unknown_city_code', 'unknown code');

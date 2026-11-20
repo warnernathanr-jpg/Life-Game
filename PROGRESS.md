@@ -636,9 +636,9 @@ _Last updated: 2026-11-28_
 - **New players' city name** is "Click Here to Name City" (column default; migration `20261128050000_default_city_name.sql`,
   applied live). Existing "My City" names were left as they are.
 - **Roads** is the first group in the build bar (`BUILD_GROUPS`).
-- **Bottom menu really stays put on phones**: the game layout is a fixed frame on small screens (header, a scrolling content area,
-  then the tab bar as a normal part of the frame), so neither the browser bar hiding nor the end-of-scroll bounce can move the
-  menu. Wide screens scroll the page as before. The 3D view's pause-while-scrolling check listens for scrolling inside the frame.
+- **Bottom menu on phones**: a fixed frame (only the content scrolling) kept Safari's bottom bar from ever hiding, so the menu sat
+  too high; reverted to normal page scrolling with the fixed tab bar, plus `overscroll-behavior-y: none` on html/body so the
+  end-of-scroll bounce can't drag the menu up. The page's bottom padding includes the home-indicator area.
 
 ### 44. Leaving the scenic view, sound effects (2026-11-28)
 - **Scenic view** was hard to leave (a faint eye icon in the bottom corner): now a clear **Show menus** button at the top right,
@@ -647,6 +647,11 @@ _Last updated: 2026-11-28_
   full-screen map, a pop when something is built (buildings, roads, upgrades, moves, stop signs), a crunch when demolishing,
   and a rising chime for buying land, the first building and claiming a milestone. On by default; **Settings → Sounds** switches
   them off (remembered per device, `lifecity.sfx`). `say()` in `city-board.tsx` takes an optional sound.
+
+### 45. Start over clears milestones (2026-11-28)
+- `reset_progress()` also deletes the player's city milestones (bonuses can be earned again) and road controls; Settings says so.
+  Migration `20261128060000_reset_clears_milestones.sql` (applied live); 1 more pgTAP test. The milestones/friends test now accepts
+  the friend request before visiting (340 pgTAP checks pass).
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
