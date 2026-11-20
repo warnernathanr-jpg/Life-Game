@@ -173,24 +173,65 @@ export function pick<T>(list: readonly T[], seed: number, salt: number): T {
   return list[(h >>> 0) % list.length];
 }
 
+/** The colors a building's model uses for its main parts. */
+export type Colors = {
+  wall: string; roof: string; facade: string; awning: string; band: string; glass: string; glassTop: string;
+  siding: string; sidingDark: string; accent: string;
+};
+
 /**
- * Color schemes the player can pick for a building: one per roof color, each with a different wall color (seeds for
- * the same palettes the automatic colors use, so every model reacts). `main` / `second` show on the swatch.
+ * Color schemes the player can pick for a building (by seed; the seeds are what's saved, so they never change). Each is one
+ * color family: the walls, roof, trim, awnings, glass, industrial siding and accent all come in matching shades, so the whole
+ * building follows the swatch while keeping several colors. Doors, trees and tents still vary.
  */
-export const COLOR_CHOICES: { seed: number; main: string; second: string }[] = (() => {
-  const out: { seed: number; main: string; second: string }[] = [];
-  const roofs = new Set<string>();
-  const walls = new Set<string>();
-  for (let seed = 1; seed < 20000 && out.length < PALETTE.roofs.length; seed++) {
-    const roof = pick(PALETTE.roofs, seed, 2);
-    const wall = pick(PALETTE.walls, seed, 1);
-    if (roofs.has(roof) || walls.has(wall)) continue;
-    roofs.add(roof);
-    walls.add(wall);
-    out.push({ seed, main: wall, second: roof });
-  }
-  return out;
-})();
+const SCHEMES: Record<number, Colors> = {
+  // Terracotta
+  1: { wall: "#fde7c8", roof: "#9a3412", facade: "#fed7aa", awning: "#ea580c", band: "#9a3412", glass: "#fdba74", glassTop: "#ea580c", siding: "#c9a48a", sidingDark: "#9a6f55", accent: "#ea580c" },
+  // Slate
+  3: { wall: "#e2e8f0", roof: "#334155", facade: "#cbd5e1", awning: "#475569", band: "#1e293b", glass: "#94a3b8", glassTop: "#64748b", siding: "#9ca3af", sidingDark: "#6b7280", accent: "#475569" },
+  // Purple
+  4: { wall: "#ede9fe", roof: "#6b21a8", facade: "#e9d5ff", awning: "#7c3aed", band: "#5b21b6", glass: "#a78bfa", glassTop: "#7c3aed", siding: "#a99bbf", sidingDark: "#7b6a94", accent: "#9333ea" },
+  // Forest green
+  6: { wall: "#dcfce7", roof: "#166534", facade: "#bbf7d0", awning: "#16a34a", band: "#166534", glass: "#4ade80", glassTop: "#16a34a", siding: "#a3b1a0", sidingDark: "#6f7f6b", accent: "#16a34a" },
+  // Stone
+  10: { wall: "#e7e5e4", roof: "#57534e", facade: "#d6d3d1", awning: "#78716c", band: "#44403c", glass: "#a8a29e", glassTop: "#78716c", siding: "#a8a29e", sidingDark: "#78716c", accent: "#78716c" },
+  // Sunny yellow
+  13: { wall: "#fef9c3", roof: "#a16207", facade: "#fde68a", awning: "#ca8a04", band: "#854d0e", glass: "#fbbf24", glassTop: "#b45309", siding: "#c4b17a", sidingDark: "#937f4b", accent: "#eab308" },
+  // Teal
+  14: { wall: "#ccfbf1", roof: "#0f766e", facade: "#99f6e4", awning: "#0d9488", band: "#115e59", glass: "#2dd4bf", glassTop: "#0d9488", siding: "#93b5ae", sidingDark: "#5f857d", accent: "#0891b2" },
+  // Blue
+  30: { wall: "#dbeafe", roof: "#1e3a8a", facade: "#bfdbfe", awning: "#2563eb", band: "#1e40af", glass: "#60a5fa", glassTop: "#2563eb", siding: "#9fb3c8", sidingDark: "#6b84a0", accent: "#2563eb" },
+  // Coral red
+  63: { wall: "#fee2e2", roof: "#b91c1c", facade: "#fecaca", awning: "#dc2626", band: "#991b1b", glass: "#fca5a5", glassTop: "#dc2626", siding: "#c4a0a0", sidingDark: "#946a6a", accent: "#dc2626" },
+  // Rose
+  182: { wall: "#fce7f3", roof: "#9d174d", facade: "#fbcfe8", awning: "#db2777", band: "#9d174d", glass: "#f9a8d4", glassTop: "#db2777", siding: "#bfa0b0", sidingDark: "#8f6a7e", accent: "#db2777" },
+};
+
+/** Whether a seed is one of the schemes a player picked (not the automatic mix). */
+export function isChosenScheme(seed: number): boolean {
+  return seed in SCHEMES;
+}
+
+/** Buildings whose colors are part of what they are (they don't offer the Colors menu). */
+export const FIXED_COLOR_IDS = new Set(["bank", "museum", "police", "hospital", "fire_station", "pool", "founders_statue"]);
+
+/** The main colors for a seed: a picked scheme, or the automatic mix from the palettes. */
+export function colorsFor(seed: number): Colors {
+  const chosen = SCHEMES[seed];
+  if (chosen) return chosen;
+  const [awning, band] = pick(PALETTE.awnings, seed, 5);
+  const [glass, glassTop] = pick(PALETTE.glass, seed, 6);
+  const [siding, sidingDark] = pick(PALETTE.siding, seed, 7);
+  return {
+    wall: pick(PALETTE.walls, seed, 1), roof: pick(PALETTE.roofs, seed, 2), facade: pick(PALETTE.facades, seed, 4),
+    awning, band, glass, glassTop, siding, sidingDark, accent: pick(PALETTE.accents, seed, 8),
+  };
+}
+
+/** The choices shown under Colors: swatch = the scheme's roof over its walls, with its accent as a dot. */
+export const COLOR_CHOICES: { seed: number; main: string; second: string; accent: string }[] = Object.entries(SCHEMES).map(
+  ([seed, c]) => ({ seed: Number(seed), main: c.wall, second: c.roof, accent: c.awning }),
+);
 
 /** Rough top height of each model, for markers floating above it. */
 export const MODEL_HEIGHT: Record<string, number> = {
@@ -202,14 +243,9 @@ export const MODEL_HEIGHT: Record<string, number> = {
 function Model({ typeId, seed, join }: { typeId: string; seed: number; join?: { left: boolean; right: boolean } }) {
   const catalog = CATALOG_MODELS[typeId];
   if (catalog) return catalog(seed);
-  const wall = pick(PALETTE.walls, seed, 1);
-  const roof = pick(PALETTE.roofs, seed, 2);
+  const { wall, roof, facade, awning, band, glass, glassTop, siding, sidingDark, accent } = colorsFor(seed);
   const door = pick(PALETTE.doors, seed, 3);
-  const facade = pick(PALETTE.facades, seed, 4);
-  const [awning, band] = pick(PALETTE.awnings, seed, 5);
-  const [glass, glassTop] = pick(PALETTE.glass, seed, 6);
-  const [siding, sidingDark] = pick(PALETTE.siding, seed, 7);
-  const accent = pick(PALETTE.accents, seed, 8);
+  const chosen = isChosenScheme(seed); // civic buildings keep their own colors unless a scheme is picked
   const tent = pick(PALETTE.tents, seed, 9);
   const crown = pick(PALETTE.crowns, seed, 10);
   switch (typeId) {
@@ -432,8 +468,8 @@ function Model({ typeId, seed, join }: { typeId: string; seed: number; join?: { 
     case "clinic":
       return (
         <>
-          <B p={[0, 0, 0]} s={[0.76, 0.48, 0.64]} c="#f8fafc" />
-          <B p={[0, 0.48, 0]} s={[0.78, 0.04, 0.66]} c="#cbd5e1" />
+          <B p={[0, 0, 0]} s={[0.76, 0.48, 0.64]} c={chosen ? wall : "#f8fafc"} />
+          <B p={[0, 0.48, 0]} s={[0.78, 0.04, 0.66]} c={chosen ? roof : "#cbd5e1"} />
           <B p={[0, 0.52, 0]} s={[0.3, 0.04, 0.09]} c="#dc2626" />
           <B p={[0, 0.52, 0]} s={[0.09, 0.04, 0.3]} c="#dc2626" />
           <B p={[0, 0, 0.321]} s={[0.22, 0.24, 0.02]} c="#93c5fd" />
@@ -477,8 +513,8 @@ function Model({ typeId, seed, join }: { typeId: string; seed: number; join?: { 
     case "community":
       return (
         <>
-          <B p={[0, 0, 0]} s={[0.84, 0.03, 0.84]} c="#e9d5ff" />
-          <mesh geometry={TENT} material={mat(tent)} position={[0, 0.38, 0]} scale={[0.78, 0.7, 0.78]} castShadow />
+          <B p={[0, 0, 0]} s={[0.84, 0.03, 0.84]} c={chosen ? facade : "#e9d5ff"} />
+          <mesh geometry={TENT} material={mat(chosen ? awning : tent)} position={[0, 0.38, 0]} scale={[0.78, 0.7, 0.78]} castShadow />
           <Cyl p={[0, 0.7, 0]} r={0.015} h={0.14} c="#f8fafc" />
           <B p={[0, 0.03, 0.37]} s={[0.16, 0.2, 0.02]} c="#4c1d95" />
         </>

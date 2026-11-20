@@ -296,6 +296,7 @@ export function SelectedPanel({
                 style={{ background: c.main }}
               >
                 <span aria-hidden className="absolute inset-x-0 top-0 h-1/2" style={{ background: c.second }} />
+                <span aria-hidden className="absolute bottom-1 left-1/2 size-2 -translate-x-1/2 rounded-full ring-1 ring-white/70" style={{ background: c.accent }} />
               </button>
             ))}
           </div>

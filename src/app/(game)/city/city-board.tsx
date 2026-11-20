@@ -1,5 +1,7 @@
 "use client";
 
+import { FIXED_COLOR_IDS } from "./models";
+
 import {
   Ban,
   Car,
@@ -1417,7 +1419,8 @@ export function CityBoard(props: {
       colors={
         selectedType &&
         selectedType.category !== "road" &&
-        selectedType.category !== "landscape"
+        selectedType.category !== "landscape" &&
+        !FIXED_COLOR_IDS.has(selectedType.id)
           ? {
               current: selected.color_seed ?? null,
               onPick: (seed) =>

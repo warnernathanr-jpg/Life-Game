@@ -749,6 +749,15 @@ _Last updated: 2026-11-28_
   and a pond's grassy bank is no longer drawn across road tiles at a bridge's ends.
 - **Build menu** lists every group by coin price (landmarks by their population milestone), without a separate Locked group.
 
+### 55. Color schemes match their swatches (2026-11-28)
+- The 10 choices under **Colors** are now color families (Terracotta, Slate, Purple, Forest green, Stone, Sunny yellow, Teal,
+  Blue, Coral red, Rose; `SCHEMES` / `colorsFor()` in `models.tsx`). A picked family sets the walls, roof, trim, shop awnings,
+  tower glass, industrial siding and accent in matching shades, so the whole building follows the swatch while keeping several
+  colors; doors, trees and tents still vary. Swatch = roof over walls with the awning color as a dot. Saved seeds are unchanged
+  (each old choice maps to the family nearest its old roof). Auto keeps the random mix.
+- Clinic and community center follow a picked family too. **Bank, museum, police, hospital, fire station, pool and Founders'
+  Statue** keep their own colors and don't show the Colors menu (`FIXED_COLOR_IDS`).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

@@ -4,7 +4,7 @@
 // along z, with its front (doors, signs) facing +z. Colors come from one small palette per building (picked by its
 // seed), so the same building always looks the same. Nothing here runs at import time (models.tsx imports this file).
 import type { ReactNode } from "react";
-import { B, BOX, Cyl, PALETTE, PYRAMID, Roof, Tree, mat, pick } from "./models";
+import { B, BOX, Cyl, PALETTE, PYRAMID, Roof, Tree, colorsFor, mat, pick } from "./models";
 
 /** A two-sided roof along x (ridge in the middle), w × d, with its eaves at height y. */
 function SlopedRoof({ x, z, y, w, d, c }: { x: number; z: number; y: number; w: number; d: number; c: string }) {
@@ -20,15 +20,12 @@ function SlopedRoof({ x, z, y, w, d, c }: { x: number; z: number; y: number; w: 
 }
 
 /** One color set per building. */
-export type Pal = { wall: string; roof: string; trim: string; accent: string; glass: string; door: string };
+export type Pal = { wall: string; roof: string; trim: string; accent: string; glass: string; door: string; siding: string; awning: string };
 
 export function palFor(seed: number): Pal {
+  const c = colorsFor(seed);
   return {
-    wall: pick(PALETTE.walls, seed, 1),
-    roof: pick(PALETTE.roofs, seed, 2),
-    trim: pick(PALETTE.facades, seed, 3),
-    accent: pick(PALETTE.accents, seed, 4),
-    glass: pick(PALETTE.glass, seed, 5)[0],
+    wall: c.wall, roof: c.roof, trim: c.facade, accent: c.accent, glass: c.glass, siding: c.siding, awning: c.awning,
     door: pick(PALETTE.doors, seed, 6),
   };
 }
@@ -254,7 +251,7 @@ const MODELS: Record<string, Maker> = {
   small_factory: (p) => (
     <>
       <B p={[0, 0, 0]} s={[0.86, 0.02, 0.86]} c={CONCRETE} />
-      <B p={[-0.05, 0, -0.05]} s={[0.62, 0.36, 0.56]} c={pick(PALETTE.siding, Math.round(p.wall.length * 7), 1)[0]} />
+      <B p={[-0.05, 0, -0.05]} s={[0.62, 0.36, 0.56]} c={p.siding} />
       {[-0.22, 0, 0.22].map((x) => (
         <Roof key={x} p={[x - 0.05, 0.36, -0.05]} s={[0.22, 0.16, 0.58]} c={p.roof} />
       ))}
@@ -265,7 +262,7 @@ const MODELS: Record<string, Maker> = {
   warehouse: (p) => (
     <>
       <B p={[0, 0, 0]} s={[1.9, 0.02, 0.96]} c={CONCRETE} />
-      <B p={[0, 0, -0.08]} s={[1.7, 0.5, 0.66]} c={pick(PALETTE.siding, p.roof.charCodeAt(2), 1)[0]} />
+      <B p={[0, 0, -0.08]} s={[1.7, 0.5, 0.66]} c={p.siding} />
       <B p={[0, 0.5, -0.08]} s={[1.76, 0.05, 0.72]} c={p.roof} />
       {[-0.55, 0, 0.55].map((x) => (
         <B key={x} p={[x, 0, 0.261]} s={[0.36, 0.34, 0.02]} c="#a8a29e" />
@@ -278,7 +275,7 @@ const MODELS: Record<string, Maker> = {
   distribution: (p) => (
     <>
       <B p={[0, 0, 0]} s={[2.9, 0.02, 2.9]} c={ASPHALT} />
-      <B p={[0, 0, -0.45]} s={[2.6, 0.7, 1.7]} c={pick(PALETTE.siding, p.door.charCodeAt(3), 2)[0]} />
+      <B p={[0, 0, -0.45]} s={[2.6, 0.7, 1.7]} c={p.siding} />
       <B p={[0, 0.7, -0.45]} s={[2.66, 0.05, 1.76]} c={p.roof} />
       {Array.from({ length: 6 }, (_, i) => (
         <B key={i} p={[-1.05 + i * 0.42, 0, 0.411]} s={[0.3, 0.38, 0.02]} c="#a8a29e" />
