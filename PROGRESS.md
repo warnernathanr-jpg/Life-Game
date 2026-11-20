@@ -494,6 +494,24 @@ _Last updated: 2026-11-27_
   out at every check. `outing()` in `sim.ts`; trip starting moved into `start()` in `traffic.tsx`.
 - Cars have **headlights and taillights** that glow after dark.
 
+### 37. Stop signs and traffic lights (2026-11-27)
+- **Roads build group** has **Stop Sign** (10 coins) and **Traffic Light** (40) (`ROAD_CONTROLS` / `roadControlTypes()` in
+  `game.ts`, mirroring `public.road_control_price`). Picking one highlights the crossings (road tiles, not bridges, where 3–4 roads
+  meet); tap one and confirm. Tapping a crossing road tile shows a **Crossing** card: what's there, put up the other kind
+  (a light replaces a stop sign), or **Remove** (half back).
+- **3D** (`road-controls.tsx`): red stop signs on the four corners; traffic lights on corner poles with red / yellow / green lamps
+  for each direction, changing with the game clock (`lightFor()` in `traffic.tsx`: a 16-game-minute cycle, 6.5 green + 1.5 yellow
+  per direction).
+- **Cars**: at a stop sign they stand still briefly, then take turns as before; at a light they wait for green in their direction,
+  and then every car going that way crosses together (no one-at-a-time hold). Plain crossings keep the one-at-a-time rule.
+- **Traffic layer / happiness**: crossings carry 0.5× a plain road without control, 0.75× with a stop sign, 1.5× with a light
+  (`CROSSING_FACTOR` in `layers.ts`), and a jammed crossing backs up onto its neighbours, so jams (and the "Traffic jams"
+  unhappiness) drop when busy crossings get a light. 1 unit test.
+- Database: migration `20261127020000_road_controls.sql`: `road_controls` (RLS read own, no direct writes),
+  `place_road_control()`, `remove_road_control()`, a trigger removing a control with its road; 11 pgTAP tests (284 total).
+  **Live: the table and `place_road_control()` are applied; `remove_road_control()` and the trigger are not yet** (the
+  Supabase approval for statements with DELETE didn't come through from the owner's phone). Until then, Remove shows an error.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

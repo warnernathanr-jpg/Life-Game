@@ -23,6 +23,7 @@ import {
   type Purpose,
 } from "@/lib/sim";
 import { BOX, mat } from "./models";
+import type { RoadControlKind } from "@/lib/database.types";
 import { TAIL_COLOR } from "./day-night";
 
 const HEADLIGHT = mat("#fef3c7");
@@ -53,7 +54,13 @@ export type SimProps = {
 };
 
 /** u: progress along the path in tiles (0 … path.length); waited: real seconds spent held at an intersection. */
-type Trip = { purpose: Purpose; fromId: string; toId: string; path: Tile[]; mode: "car" | "walk"; start: number; u: number; waited: number };
+type Trip = {
+  purpose: Purpose; fromId: string; toId: string; path: Tile[]; mode: "car" | "walk"; start: number; u: number; waited: number;
+  /** The crossing this car has been let into (green light, or done stopping at the stop sign). */
+  passKey?: string;
+  /** Seconds stopped at a stop sign so far. */
+  stopWait?: number;
+};
 type State = { at: string; until: number; trip: null } | { at: null; until: number; trip: Trip };
 
 /** The game starts at 7:15 AM on day 1, just as the morning commute begins. */
@@ -65,6 +72,19 @@ const SPEED = { car: 2.2, walk: 0.6 };
 
 /** Game clock shared across remounts (so changing the city doesn't send everyone back to 7:15). */
 const clock = { t: START };
+
+/** The game clock now (minutes since the start of day 1). */
+export const gameClock = () => clock.t;
+
+/**
+ * Traffic light state for traffic moving along x ("x") or along y ("y") at game time t: a 16-minute cycle, x first
+ * (green 6.5, yellow 1.5, then red while y has its turn).
+ */
+export function lightFor(axis: "x" | "y", t: number): "green" | "yellow" | "red" {
+  const p = ((t % 16) + 16) % 16;
+  const q = axis === "x" ? p : (p + 8) % 16;
+  return q < 6.5 ? "green" : q < 8 ? "yellow" : "red";
+}
 
 /** Jump the game clock (minutes since the start of day 1), e.g. for previews of the city at night. */
 export function setGameClock(minutes: number) {
@@ -82,6 +102,8 @@ const SIDE = { car: 0.2, walk: 0.43 };
 const GAP = 0.42;
 /** Give up waiting at an intersection after this many real seconds (avoids gridlock). */
 const MAX_WAIT = 4;
+/** Real seconds a car stands still at a stop sign. */
+const STOP_SECONDS = 0.45;
 
 type Dir = { x: number; z: number };
 const dirOf = (a: Tile, b: Tile): Dir => ({ x: Math.sign(b.x - a.x), z: Math.sign(b.y - a.y) });
@@ -121,7 +143,7 @@ function pointAt(path: Tile[], u: number, side: number) {
   return { x, z, heading: Math.atan2(tx, tz) };
 }
 
-export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
+export function Traffic({ sim, roads, controls }: { sim: SimProps; roads: Set<string>; controls?: Map<string, RoadControlKind> }) {
   const { invalidate, camera, gl } = useThree();
   const places = useMemo(() => new Map(sim.places.map((p) => [p.id, p])), [sim.places]);
   const states = useRef(new Map<string, State>());
@@ -313,9 +335,31 @@ export function Traffic({ sim, roads }: { sim: SimProps; roads: Set<string> }) {
         let mayGo = !blocked;
         if (mayGo && next && trip.u - k > 0.55 && isJunction(next)) {
           const nk = key(next.x, next.y);
-          const holder = holds.get(nk);
-          if (holder && holder !== c.id && trip.waited < MAX_WAIT) mayGo = false;
-          else holds.set(nk, c.id);
+          const control = controls?.get(nk);
+          const here = trip.path[k];
+          if (control === "light") {
+            // Traffic light: wait for green in your direction; then everyone going your way crosses together.
+            if (trip.passKey !== nk) {
+              const axis = next.x !== here.x ? "x" : "y";
+              if (lightFor(axis, t) !== "green" && trip.waited < MAX_WAIT * 3) mayGo = false;
+              else trip.passKey = nk;
+            }
+          } else {
+            // Stop sign: a full stop for a moment first, then take turns as usual.
+            if (control === "stop" && trip.passKey !== nk) {
+              trip.stopWait = (trip.stopWait ?? 0) + dt;
+              if (trip.stopWait < STOP_SECONDS) mayGo = false;
+              else {
+                trip.passKey = nk;
+                trip.stopWait = 0;
+              }
+            }
+            if (mayGo) {
+              const holder = holds.get(nk);
+              if (holder && holder !== c.id && trip.waited < MAX_WAIT) mayGo = false;
+              else holds.set(nk, c.id);
+            }
+          }
         }
         if (mayGo) {
           const before = Math.floor(trip.u);

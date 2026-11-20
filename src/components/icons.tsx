@@ -2,6 +2,7 @@
 // Use these instead of emojis. Icons are decorative (aria-hidden) unless given a label.
 import {
   Award,
+  OctagonMinus,
   Backpack,
   BookOpen,
   Brain,
@@ -126,6 +127,14 @@ export const BasketballIcon = createLucideIcon("basketball", [
   ["path", { d: "M5 4.9c3.4 3.3 3.4 10.9 0 14.2", key: "l" }],
   ["path", { d: "M19 4.9c-3.4 3.3-3.4 10.9 0 14.2", key: "r" }],
 ]);
+/** Traffic light: a signal head with three lamps on a pole (Lucide has no traffic light). */
+export const TrafficLightIcon = createLucideIcon("traffic-light", [
+  ["rect", { x: "8", y: "2", width: "8", height: "15", rx: "2", key: "head" }],
+  ["circle", { cx: "12", cy: "6", r: "1.2", key: "r" }],
+  ["circle", { cx: "12", cy: "9.5", r: "1.2", key: "y" }],
+  ["circle", { cx: "12", cy: "13", r: "1.2", key: "g" }],
+  ["path", { d: "M12 17v5", key: "pole" }],
+]);
 /** Bridge: a road deck over water. */
 export const BridgeRoadIcon = createLucideIcon("bridge-road", [
   ["path", { d: "M2 10h20", key: "deck" }],
@@ -209,6 +218,8 @@ const BUILDING: Record<string, LucideIcon> = {
   road: TwoLaneRoadIcon,
   avenue: FourLaneRoadIcon,
   bridge: BridgeRoadIcon,
+  stop_sign: OctagonMinus,
+  traffic_light: TrafficLightIcon,
   tree: TreePine,
   water: Droplets,
 };

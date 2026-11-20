@@ -401,3 +401,22 @@ export function lotFree(
 export function formatCoins(n: number): string {
   return new Intl.NumberFormat("en-US").format(n);
 }
+
+/**
+ * Stop signs and traffic lights for crossings (mirrors public.road_control_price). Shown in the Roads build group as
+ * extra items; they're not building types (they sit on a road tile, in public.road_controls).
+ */
+export const ROAD_CONTROLS = [
+  { kind: "stop", typeId: "stop_sign", name: "Stop Sign", cost: 10, description: "For a crossing: cars stop, look, then take turns. Eases jams a little." },
+  { kind: "light", typeId: "traffic_light", name: "Traffic Light", cost: 40, description: "For a busy crossing: each direction gets a green in turn, so several cars cross at once." },
+] as const;
+export type RoadControlTypeId = (typeof ROAD_CONTROLS)[number]["typeId"];
+export const controlByType = (id: string) => ROAD_CONTROLS.find((c) => c.typeId === id);
+
+/** The two controls as build-menu items (category road, no unlock needed). */
+export function roadControlTypes(): BuildingTypeRow[] {
+  return ROAD_CONTROLS.map((c, i) => ({
+    id: c.typeId, name: c.name, category: "road", icon: "", description: c.description, cost: c.cost, size: 1, w: 1, d: 1,
+    population: 0, jobs: 0, happiness: 0, unlock_area: null, unlock_points: null, upgrades_to: null, sort_order: 9000 + i,
+  }));
+}

@@ -195,6 +195,26 @@ export async function setFacing(buildingId: string, facing: "south" | "east" | "
   return { ok: true };
 }
 
+/** Put a stop sign or traffic light on a crossing (replacing the other kind if there is one). */
+export async function placeRoadControl(x: number, y: number, kind: "stop" | "light"): Promise<ActionResult<{ cost: number }>> {
+  if (!Number.isInteger(x) || !Number.isInteger(y) || !["stop", "light"].includes(kind)) return { ok: false, error: gameError(null) };
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("place_road_control", { p_x: x, p_y: y, p_kind: kind }).single();
+  if (error || !data) return { ok: false, error: gameError(error) };
+  refresh();
+  return { ok: true, cost: Number(data.cost) };
+}
+
+/** Take a stop sign or traffic light away (half its price back). */
+export async function removeRoadControl(x: number, y: number): Promise<ActionResult<{ refund: number }>> {
+  if (!Number.isInteger(x) || !Number.isInteger(y)) return { ok: false, error: gameError(null) };
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("remove_road_control", { p_x: x, p_y: y }).single();
+  if (error || !data) return { ok: false, error: gameError(error) };
+  refresh();
+  return { ok: true, refund: Number(data.refund) };
+}
+
 /** Pick a building's color scheme (a seed for its palettes), or null for its automatic colors. Free. */
 export async function setBuildingColor(buildingId: string, seed: number | null): Promise<ActionResult> {
   if (!uuid.safeParse(buildingId).success || (seed !== null && (!Number.isInteger(seed) || seed < 0 || seed > 4294967295))) {

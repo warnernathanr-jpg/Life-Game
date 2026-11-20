@@ -5,7 +5,7 @@ import { X, ArrowUp, Briefcase, Frown, Lock, Meh, Smile, Star, TriangleAlert, Us
 import { useRef, useState, useTransition } from "react";
 import { AreaIcon, BuildingIcon, CoinIcon, GroupIcon } from "@/components/icons";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
-import { AREA_BY_ID, BUILD_GROUPS, CATEGORY_BY_ID, buildGroupOf, formatCoins, sizeText, type BuildGroupId, pointsToUnlock, sellRefund, type CityStats } from "@/lib/game";
+import { AREA_BY_ID, BUILD_GROUPS, CATEGORY_BY_ID, buildGroupOf, controlByType, formatCoins, sizeText, type BuildGroupId, pointsToUnlock, sellRefund, type CityStats } from "@/lib/game";
 import { renameCity } from "../actions";
 import { COLOR_CHOICES } from "./models";
 
@@ -160,7 +160,7 @@ export function Shop({
                   <span className="flex items-center justify-between gap-2">
                     <span className="font-medium">{t.name}</span>
                     <span className={`shrink-0 text-sm font-bold ${short && !locked ? "text-bad" : "text-coin"}`}>
-                      <CoinIcon className="size-3.5" /> {formatCoins(t.cost)}{t.category === "road" ? <span className="font-normal"> / tile</span> : null}
+                      <CoinIcon className="size-3.5" /> {formatCoins(t.cost)}{t.category === "road" && !controlByType(t.id) ? <span className="font-normal"> / tile</span> : null}
                     </span>
                   </span>
                   {locked ? (
@@ -220,6 +220,8 @@ export function SelectedPanel({
   /** For a road tile: the other road kinds it can become, for this tile or its whole street. */
   roadChange?: {
     street: number;
+    /** On a crossing: the stop sign / traffic light here, and what can be put up instead. */
+    control?: { current: string | null; options: { name: string; cost: number; onPick: () => void }[]; onRemove?: () => void; refund: number };
     options: { to: BuildingTypeRow; up: boolean; tileCost: number; streetCost: number; onTile: () => void; onStreet: () => void }[];
   };
 }) {
@@ -273,6 +275,29 @@ export function SelectedPanel({
                 <span aria-hidden className="absolute inset-x-0 top-0 h-1/2" style={{ background: c.second }} />
               </button>
             ))}
+          </div>
+        </div>
+      )}
+      {roadChange?.control && (
+        <div className="mt-4 rounded-xl border border-line bg-raised p-3">
+          <p className="text-sm font-semibold">Crossing{roadChange.control.current ? ` · ${roadChange.control.current}` : ""}</p>
+          <p className="text-xs text-muted">
+            {roadChange.control.current
+              ? "Cars follow it here."
+              : "No stop sign or light: cars squeeze through one at a time, and busy crossings jam."}
+          </p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {roadChange.control.options.map((o) => (
+              <button key={o.name} type="button" className="btn-primary flex-col gap-0 py-1.5 leading-tight" disabled={pending} onClick={o.onPick}>
+                <span>{o.name}</span>
+                <span className="text-xs font-semibold"><CoinIcon className="size-3.5" /> {formatCoins(o.cost)}</span>
+              </button>
+            ))}
+            {roadChange.control.onRemove && (
+              <button type="button" className="btn-secondary text-bad" disabled={pending} onClick={roadChange.control.onRemove}>
+                Remove (+{formatCoins(roadChange.control.refund)})
+              </button>
+            )}
           </div>
         </div>
       )}

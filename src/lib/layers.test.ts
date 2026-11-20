@@ -49,6 +49,21 @@ describe("map layers", () => {
     expect(busiest("dirt_road")).toBeGreaterThan(busiest("road"));
   });
 
+  it("a crossing jams without a stop sign or light, less with a stop sign, least with a traffic light", () => {
+    // Homes on the west, a big workplace on the east: everyone drives through the crossing at (6,5).
+    const side = [L("n", "road", 6, 4), L("s", "road", 6, 6)];
+    const homes = [L("h0", "cottage", 0, 4)];
+    const lots = [...road, ...side, ...homes, L("f", "factory", 10, 6, 2, 2)];
+    const at = (controls?: Map<string, "stop" | "light">) =>
+      computeLayer("traffic", lots, types, { ...extras(lots), controls }).find((c) => c.x === 6 && c.y === 5)!.v;
+    const none = at();
+    const stop = at(new Map([["6,5", "stop"]]));
+    const light = at(new Map([["6,5", "light"]]));
+    expect(none).toBeGreaterThan(0);
+    expect(stop).toBeLessThan(none);
+    expect(light).toBeLessThan(stop);
+  });
+
   it("colors run green to red", () => {
     expect(layerColor(0)).toBe("#22c55e");
     expect(layerColor(1)).toBe("#ef4444");

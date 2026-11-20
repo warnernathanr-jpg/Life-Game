@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 import { LandPlot, Lock } from "lucide-react";
 import { BuildingIcon, CoinIcon, GroupIcon } from "@/components/icons";
 import type { BuildingTypeRow, ProgressRow } from "@/lib/database.types";
-import { AREA_BY_ID, BUILD_GROUPS, buildGroupOf, formatCoins, pointsToUnlock, sizeText, type BuildGroupId } from "@/lib/game";
+import { AREA_BY_ID, BUILD_GROUPS, buildGroupOf, controlByType, formatCoins, pointsToUnlock, sizeText, type BuildGroupId } from "@/lib/game";
 
 type Tool = { id: string; label: string; icon: ReactNode };
 
@@ -90,7 +90,7 @@ export function BuildOverlay({
                     ) : (
                       <span className={`text-xs font-bold ${short ? "text-bad" : "text-coin"}`}>
                         <CoinIcon className="size-3.5" /> {formatCoins(t.cost)}
-                        {t.category === "road" || t.category === "landscape" ? " / tile" : ""}
+                        {(t.category === "road" || t.category === "landscape") && !controlByType(t.id) ? " / tile" : ""}
                       </span>
                     )}
                     {t.size > 1 && <span className="text-[11px] text-muted">{sizeText(t)}</span>}

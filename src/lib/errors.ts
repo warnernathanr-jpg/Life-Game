@@ -31,6 +31,8 @@ const MESSAGES: Record<string, string> = {
   focus_too_early: "Not quite yet. Keep going!",
   bad_tiles: "Those tiles couldn't be read. Please try again.",
   too_many_tiles: "That's too long. Do it in shorter pieces (up to 200 tiles).",
+  not_a_crossing: "Stop signs and traffic lights go on crossings, where three or four roads meet.",
+  already_there: "There's already one here.",
 };
 
 export function gameError(error: { message?: string } | null | undefined): string {

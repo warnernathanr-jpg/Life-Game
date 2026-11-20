@@ -107,6 +107,9 @@ export type PlacedBuildingRow = {
   created_at: string;
 };
 
+export type RoadControlKind = "stop" | "light";
+export type RoadControlRow = { user_id: string; x: number; y: number; kind: RoadControlKind; price_paid: number; created_at: string };
+
 export type LedgerRow = {
   id: number;
   user_id: string;
@@ -201,6 +204,7 @@ export type Database = {
       building_types: Table<BuildingTypeRow, never, never>;
       placed_buildings: Table<PlacedBuildingRow, never, never>;
       focus_sessions: Table<FocusSessionRow, never, never>;
+      road_controls: Table<RoadControlRow, never, never>;
       user_rewards: Table<{ user_id: string; reward: "home_screen" | "notifications"; coins: number; claimed_at: string }, never, never>;
     };
     Views: Record<string, never>;
@@ -220,6 +224,8 @@ export type Database = {
       complete_goal: { Args: { p_goal_id: string }; Returns: { coins: number; balance: number }[] };
       reopen_goal: { Args: { p_goal_id: string }; Returns: { coins: number; balance: number }[] };
       upgrade_building: { Args: { p_building_id: string }; Returns: { building_id: string; cost: number; balance: number }[] };
+      place_road_control: { Args: { p_x: number; p_y: number; p_kind: RoadControlKind }; Returns: { cost: number; balance: number }[] };
+      remove_road_control: { Args: { p_x: number; p_y: number }; Returns: { refund: number; balance: number }[] };
       set_building_color: { Args: { p_building_id: string; p_seed: number | null }; Returns: undefined };
       set_building_facing: { Args: { p_building_id: string; p_facing: string | null }; Returns: undefined };
       buy_roads: { Args: { p_tiles: [number, number][] }; Returns: { built: number; cost: number; balance: number }[] };

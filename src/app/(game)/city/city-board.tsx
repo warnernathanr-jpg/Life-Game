@@ -5,10 +5,10 @@ import dynamic from "next/dynamic";
 import { BuildingIcon, BulldozeIcon, CoinIcon } from "@/components/icons";
 import { cityExposure, computeLayer, LAYERS, type LayerId } from "@/lib/layers";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
-import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, sellRefund } from "@/lib/game";
+import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow, RoadControlKind } from "@/lib/database.types";
+import { MAX_CITY_SIZE, MAX_STROKE_TILES, ROAD_CONTROLS, cityStats, controlByType, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, roadControlTypes, sellRefund } from "@/lib/game";
 import { BRIDGE_TYPE, ROAD_TIERS, connectedIds, isRoadType, key, nextFacing, roadSet, streetOf, type Lot, type Tile } from "@/lib/roads";
-import { buyBuilding, buyLand, buyTiles, moveBuilding, sellBuilding, sellMany, setBuildingColor, setFacing, upgradeBuilding } from "../actions";
+import { buyBuilding, buyLand, buyTiles, moveBuilding, placeRoadControl, removeRoadControl, sellBuilding, sellMany, setBuildingColor, setFacing, upgradeBuilding } from "../actions";
 import type { City3DHandle } from "./city-3d";
 import { useConfirm } from "@/components/confirm";
 import { citizensFrom, clockText, minuteOfDay, placesFrom, roleText } from "@/lib/sim";
@@ -60,7 +60,8 @@ export type Mode =
   | { kind: "selected"; id: string }
   | { kind: "move"; id: string }
   | { kind: "paint"; typeId: PaintType }
-  | { kind: "bulldoze" };
+  | { kind: "bulldoze" }
+  | { kind: "control"; control: RoadControlKind };
 
 const VIEW_BUTTONS = [
   { action: "in", label: "Zoom in", Icon: ZoomIn },
@@ -75,6 +76,8 @@ export function CityBoard(props: {
   size: number;
   landPurchases: number;
   placed: Placed[];
+  /** Stop signs and traffic lights on crossings. */
+  controls?: { x: number; y: number; kind: RoadControlKind }[];
   types: BuildingTypeRow[];
   progress: ProgressRow | null;
   balance: number;
@@ -90,6 +93,19 @@ export function CityBoard(props: {
     [placed, typeById],
   );
   const roads = useMemo(() => roadSet(lots), [lots]);
+  const controls = useMemo(() => new Map((props.controls ?? []).map((c) => [key(c.x, c.y), c.kind])), [props.controls]);
+  // Crossings: road tiles (not bridges) where 3 or 4 roads meet; the only places for stop signs and lights.
+  const crossings = useMemo(() => {
+    const out = new Set<string>();
+    for (const l of lots) {
+      if (!isRoadType(l.type_id) || l.type_id === BRIDGE_TYPE) continue;
+      let n = 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (roads.has(key(l.x + dx, l.y + dy))) n++;
+      if (n >= 3) out.add(key(l.x, l.y));
+    }
+    return out;
+  }, [lots, roads]);
+  const menuTypes = useMemo(() => [...types, ...roadControlTypes()], [types]);
 
   // Buildings (not roads or landscaping) without a road beside them.
   const needsRoad = useMemo(() => {
@@ -122,7 +138,8 @@ export function CityBoard(props: {
   const [draftSpot, setDraftSpot] = useState<Tile | null>(null);
   const [draftTiles, setDraftTiles] = useState<Tile[]>([]);
   const [draftRot, setDraftRot] = useState(false);
-  const modeKey = mode.kind === "paint" ? `paint:${mode.typeId}` : mode.kind === "place" ? `place:${mode.typeId}` : mode.kind === "move" ? `move:${mode.id}` : mode.kind;
+  const modeKey =
+    mode.kind === "paint" ? `paint:${mode.typeId}` : mode.kind === "place" ? `place:${mode.typeId}` : mode.kind === "move" ? `move:${mode.id}` : mode.kind === "control" ? `control:${mode.control}` : mode.kind;
   const [draftFor, setDraftFor] = useState(modeKey);
   if (draftFor !== modeKey) {
     // Switching tools or buildings drops the preview.
@@ -137,7 +154,10 @@ export function CityBoard(props: {
   const citizens = useMemo(() => citizensFrom(places), [places]);
   const placeById = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
   // Pollution at homes and traffic jams lower happiness (same models as the map layers).
-  const exposure = useMemo(() => cityExposure(lots, types, { size, places, citizens, connected: connectedIds(lots) }), [lots, types, size, places, citizens]);
+  const exposure = useMemo(
+    () => cityExposure(lots, types, { size, places, citizens, connected: connectedIds(lots), controls }),
+    [lots, types, size, places, citizens, controls],
+  );
   const stats = useMemo(() => cityStats(placed, types, progress, exposure), [placed, types, progress, exposure]);
   const [paused, setPaused] = useState(false);
   const [simClock, setSimClock] = useState(7 * 60 + 15);
@@ -147,7 +167,7 @@ export function CityBoard(props: {
   const [layer, setLayer] = useState<LayerId | null>(null);
   const [layersOpen, setLayersOpen] = useState(false);
   const layerCells = useMemo(
-    () => (layer ? computeLayer(layer, lots, types, { size, places, citizens, connected: connectedIds(lots) }) : null),
+    () => (layer ? computeLayer(layer, lots, types, { size, places, citizens, connected: connectedIds(lots), controls }) : null),
     [layer, lots, types, size, places, citizens],
   );
   const layerInfo = LAYERS.find((l) => l.id === layer);
@@ -261,6 +281,7 @@ export function CityBoard(props: {
   // (e.g. while zooming with two fingers).
   function onTile(x: number, y: number) {
     if (mode.kind === "paint") return onStroke([{ x, y }]);
+    if (mode.kind === "control") return void putControl(x, y, mode.control);
     if (mode.kind === "place" || mode.kind === "move") {
       // The preview only goes where the building fits (never on roads, water or other buildings): the tapped spot,
       // or the nearest free spot that still covers or touches it.
@@ -454,6 +475,39 @@ export function CityBoard(props: {
     });
   }
 
+  /** Put a stop sign or traffic light on a crossing (with a confirm). */
+  async function putControl(x: number, y: number, kind: RoadControlKind) {
+    const info = ROAD_CONTROLS.find((c) => c.kind === kind)!;
+    if (!crossings.has(key(x, y))) return say("Tap a highlighted crossing (where three or four roads meet).", "bad");
+    if (controls.get(key(x, y)) === kind) return say(`There's already a ${info.name.toLowerCase()} here.`, "bad");
+    if (balance < info.cost) return say(`A ${info.name.toLowerCase()} costs ${formatCoins(info.cost)} coins. You have ${formatCoins(balance)}.`, "bad");
+    const replacing = controls.get(key(x, y));
+    const ok = await confirm({
+      title: `Put a ${info.name.toLowerCase()} here?`,
+      message: `${formatCoins(info.cost)} coins.${replacing ? " It replaces the stop sign." : ""}`,
+      confirmLabel: `Build · ${formatCoins(info.cost)}`,
+    });
+    if (!ok) return;
+    start(async () => {
+      const r = await placeRoadControl(x, y, kind);
+      if (!r.ok) return say(r.error, "bad");
+      say(`${info.name} built for ${formatCoins(r.cost)} coins.`);
+      setMode({ kind: "idle" });
+    });
+  }
+  async function takeControl(x: number, y: number) {
+    const kind = controls.get(key(x, y));
+    if (!kind) return;
+    const info = ROAD_CONTROLS.find((c) => c.kind === kind)!;
+    const ok = await confirm({ title: `Remove the ${info.name.toLowerCase()}?`, message: `You get ${formatCoins(Math.floor(info.cost / 2))} coins back.`, confirmLabel: "Remove", tone: "danger" });
+    if (!ok) return;
+    start(async () => {
+      const r = await removeRoadControl(x, y);
+      if (!r.ok) return say(r.error, "bad");
+      say(`Removed. +${formatCoins(r.refund)} coins back.`);
+    });
+  }
+
   /** Swap road tiles to another kind of road (paying the new kind's price per tile). */
   async function changeRoad(tiles: Tile[], to: BuildingTypeRow) {
     const cost = tiles.length * to.cost;
@@ -487,7 +541,17 @@ export function CityBoard(props: {
         onStreet: () => void changeRoad(street, t),
       }))
       .sort((a, b) => Number(b.up) - Number(a.up));
-    return { street: street.length, options };
+    const k = key(lot.x, lot.y);
+    const here2 = controls.get(k);
+    const control = crossings.has(k)
+      ? {
+          current: here2 ? ROAD_CONTROLS.find((c) => c.kind === here2)!.name : null,
+          options: ROAD_CONTROLS.filter((c) => c.kind !== here2).map((c) => ({ name: c.name, cost: c.cost, onPick: () => void putControl(lot.x, lot.y, c.kind) })),
+          onRemove: here2 ? () => void takeControl(lot.x, lot.y) : undefined,
+          refund: here2 ? Math.floor(ROAD_CONTROLS.find((c) => c.kind === here2)!.cost / 2) : 0,
+        }
+      : undefined;
+    return { street: street.length, options, control };
   }
 
   async function expand() {
@@ -676,6 +740,8 @@ export function CityBoard(props: {
 
   function pick(t: BuildingTypeRow) {
     setMessage(null);
+    const control = controlByType(t.id);
+    if (control) return setMode({ kind: "control", control: control.kind });
     setMode(isPaint(t.id) ? { kind: "paint", typeId: t.id } : { kind: "place", typeId: t.id });
   }
 
@@ -753,13 +819,18 @@ export function CityBoard(props: {
                 ghostOk={(x, y) => !!draftDims && lotFree(size, { x, y, ...draftDims }, lots, movingLot?.id) && (!placingType || balance >= placingType.cost)}
                 strokeOk={(tiles) => (mode.kind === "paint" ? planPaint(tiles, mode.typeId).ok : true)}
                 strokeColor={mode.kind === "bulldoze" ? "demolish" : "build"}
-                paintTypeId={mode.kind === "paint" ? mode.typeId : undefined}
+                paintTypeId={mode.kind === "paint" ? mode.typeId : mode.kind === "control" ? "control" : undefined}
+                controls={controls}
                 onTile={onTile}
                 onStroke={onStroke}
                 onStrokeChange={setStroke}
                 ghostAt={draftSpot}
                 onGhostMove={(t) => { if (fitsAt(t.x, t.y)) setDraftSpot(t); }}
-                previewTiles={draftTiles}
+                previewTiles={
+                  mode.kind === "control"
+                    ? [...crossings].filter((k) => controls.get(k) !== mode.control).map((k) => ({ x: Number(k.split(",")[0]), y: Number(k.split(",")[1]) }))
+                    : draftTiles
+                }
                 previewOk={draftPlan ? draftPlan.ok : true}
                 overlay={full ? layerCells : null}
                 sim={sim}
@@ -902,10 +973,10 @@ export function CityBoard(props: {
               )}
               {full && !selected && mode.kind !== "move" && (
                 <BuildOverlay
-                  types={types}
+                  types={menuTypes}
                   progress={progress}
                   balance={balance}
-                  activeId={placingType?.id ?? (mode.kind === "paint" ? mode.typeId : undefined)}
+                  activeId={placingType?.id ?? (mode.kind === "paint" ? mode.typeId : mode.kind === "control" ? ROAD_CONTROLS.find((c) => c.kind === mode.control)!.typeId : undefined)}
                   tools={[tools[0], tools[tools.length - 1]]}
                   activeTool={activeTool}
                   onTool={(id) => {
@@ -1023,10 +1094,10 @@ export function CityBoard(props: {
             selectedPanel
           ) : (
             <Shop
-              types={types}
+              types={menuTypes}
               progress={progress}
               balance={balance}
-              activeId={placingType?.id ?? (mode.kind === "paint" ? mode.typeId : undefined)}
+              activeId={placingType?.id ?? (mode.kind === "paint" ? mode.typeId : mode.kind === "control" ? ROAD_CONTROLS.find((c) => c.kind === mode.control)!.typeId : undefined)}
               onPick={pick}
             />
           )}

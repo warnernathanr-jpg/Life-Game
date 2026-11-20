@@ -10,6 +10,8 @@ import { layerColor, type LayerCell } from "@/lib/layers";
 import { Traffic, type SimProps } from "./traffic";
 import { LotDressing } from "./lot-dressing";
 import { DayNight, GRID_MAT, StreetLights } from "./day-night";
+import { RoadControls } from "./road-controls";
+import type { RoadControlKind } from "@/lib/database.types";
 import { BOX, BuildingModel, CROWN, MODEL_HEIGHT, NoRoadMarker, OCTA, WorkerMarker, colorSeed, mat } from "./models";
 
 export type Preview = { tiles: Tile[]; ok: boolean; height?: number } | null;
@@ -46,6 +48,8 @@ export type City3DProps = {
   overlay?: LayerCell[] | null;
   /** Citizens travelling around the city (cars and walkers), with pause and tap-to-inspect. */
   sim?: SimProps;
+  /** Stop signs and traffic lights by tile key. */
+  controls?: Map<string, RoadControlKind>;
   /** City clock (minutes since midnight) for daylight and night lights. */
   minutes?: number;
 };
@@ -302,7 +306,8 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
         <Water tiles={waterTiles} />
         <Bridges tiles={bridgeTiles} roads={roads} />
         <StreetLights lots={lots} roads={roads} minutes={props.minutes ?? 12 * 60} />
-        {props.sim && <Traffic sim={props.sim} roads={roads} />}
+        {props.controls && props.controls.size > 0 && <RoadControls controls={props.controls} />}
+        {props.sim && <Traffic sim={props.sim} roads={roads} controls={props.controls} />}
         {props.overlay && <LayerOverlay cells={props.overlay} byTile={byTile} />}
         <Wilds size={size} occupied={byTile} />
         {buildings.map((b) => (

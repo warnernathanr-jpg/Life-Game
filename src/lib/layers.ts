@@ -9,7 +9,7 @@ import { roadPath, type Citizen, type Place } from "./sim";
 export type LayerId = "traffic" | "fire" | "crime" | "education" | "health" | "pollution" | "land_value";
 
 export const LAYERS: { id: LayerId; label: string; good: string; bad: string; about: string }[] = [
-  { id: "traffic", label: "Traffic", good: "Quiet", bad: "Jammed", about: "How busy each road is: daily trips compared with what the road can carry. Wider roads carry more." },
+  { id: "traffic", label: "Traffic", good: "Quiet", bad: "Jammed", about: "How busy each road is: daily trips compared with what it can carry. Wider roads carry more; busy crossings jam unless they have a stop sign or, better, a traffic light." },
   { id: "fire", label: "Fire hazard", good: "Safe", bad: "Risky", about: "Factories and dense buildings are riskier. A fire station nearby brings it down." },
   { id: "crime", label: "Crime", good: "Safe", bad: "High", about: "Shops and dense housing see more crime. A police station nearby brings it down." },
   { id: "education", label: "Education", good: "Well served", bad: "No schools", about: "How well each home is served by schools, the high school, the university and libraries." },
@@ -24,6 +24,8 @@ export type LayerCell = { x: number; y: number; w: number; h: number; v: number;
 type TypeInfo = Pick<BuildingTypeRow, "id" | "category" | "population" | "jobs">;
 
 const ROAD_CAPACITY: Record<string, number> = { dirt_road: 3, road: 8, bridge: 8, avenue: 20 };
+/** How much traffic a crossing lets through, compared with a plain stretch of the same road. */
+export const CROSSING_FACTOR: Record<"none" | "stop" | "light", number> = { none: 0.5, stop: 0.75, light: 1.5 };
 const POLLUTERS: Record<string, number> = {
   factory: 1, distribution: 0.8, workshop: 0.6, small_factory: 0.5, warehouse: 0.4, gas_station: 0.35, airport: 1,
 };
@@ -48,7 +50,7 @@ export function computeLayer(
   layer: LayerId,
   lots: Lot[],
   types: TypeInfo[],
-  extras: { size: number; places: Place[]; citizens: Citizen[]; connected: Set<string> },
+  extras: { size: number; places: Place[]; citizens: Citizen[]; connected: Set<string>; controls?: Map<string, "stop" | "light"> },
 ): LayerCell[] {
   const typeOf = new Map(types.map((t) => [t.id, t]));
   const buildings = lots.filter((l) => {
@@ -143,9 +145,28 @@ export function computeLayer(
         if (!path) continue;
         for (const t of path) counts.set(key(t.x, t.y), (counts.get(key(t.x, t.y)) ?? 0) + 2); // there and back
       }
-      return lots
-        .filter((l) => isRoadType(l.type_id))
-        .map((l) => ({ x: l.x, y: l.y, w: 1, h: 1, v: clamp((counts.get(key(l.x, l.y)) ?? 0) / (ROAD_CAPACITY[l.type_id] ?? 8) / 2) }));
+      // Crossings are bottlenecks: without a stop sign or light cars squeeze through one at a time; a stop sign helps a
+      // little, a traffic light lets a whole direction go at once. A jammed crossing backs up onto the roads next to it.
+      const roadTiles = lots.filter((l) => isRoadType(l.type_id));
+      const value = new Map<string, number>();
+      for (const l of roadTiles) {
+        const k = key(l.x, l.y);
+        let n = 0;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (roads.has(key(l.x + dx, l.y + dy))) n++;
+        const control = extras.controls?.get(k);
+        const factor = n >= 3 ? CROSSING_FACTOR[control ?? "none"] : 1;
+        value.set(k, (counts.get(k) ?? 0) / ((ROAD_CAPACITY[l.type_id] ?? 8) * factor) / 2);
+      }
+      const spilled = new Map(value);
+      for (const l of roadTiles) {
+        const v = value.get(key(l.x, l.y)) ?? 0;
+        if (v <= 0.5) continue;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nk = key(l.x + dx, l.y + dy);
+          if (spilled.has(nk)) spilled.set(nk, Math.max(spilled.get(nk)!, v * 0.75));
+        }
+      }
+      return roadTiles.map((l) => ({ x: l.x, y: l.y, w: 1, h: 1, v: clamp(spilled.get(key(l.x, l.y)) ?? 0) }));
     }
   }
 }
@@ -168,7 +189,7 @@ export function layerColor(v: number): string {
 export function cityExposure(
   lots: Lot[],
   types: TypeInfo[],
-  extras: { size: number; places: Place[]; citizens: Citizen[]; connected: Set<string> },
+  extras: { size: number; places: Place[]; citizens: Citizen[]; connected: Set<string>; controls?: Map<string, "stop" | "light"> },
 ): { pollution: number; traffic: number } {
   const typeOf = new Map(types.map((t) => [t.id, t]));
   const pollutionAt = new Map(computeLayer("pollution", lots, types, extras).map((c) => [key(c.x, c.y), c.v]));
