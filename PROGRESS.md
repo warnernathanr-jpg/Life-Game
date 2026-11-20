@@ -820,6 +820,13 @@ _Last updated: 2026-11-28_
   `transitShare()` (up to 70%) of would-be drivers take the bus: they travel off the road (card: "Riding the bus to work"), so
   there are visibly fewer cars. Unit test: three bus stations cut the busiest road's jam by more than 0.15.
 
+- **A balanced city** (2026-11-28): two new happiness factors in `cityStats()` beside unemployment (up to −20) and worker
+  shortage (up to −10). **Goods**: industry makes what shops sell; each industry job supplies 1.5 shop jobs
+  (`GOODS_PER_INDUSTRY_JOB`; offices, banks, hotels and cinemas don't need goods). With 8+ shop jobs and too few goods: "Shops
+  short of goods", up to −15; with goods over twice what shops sell (and 15+): "Factories can't sell their goods", up to −8.
+  **Schooling**: children are about 22% of residents; school places are 40 / 60 / 100 (elementary / high school / university,
+  `SCHOOL_SEATS`); with 30+ people and too few places: "Not enough school places", up to −12. Each comes with a tip. 2 unit tests.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

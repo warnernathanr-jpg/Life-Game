@@ -201,6 +201,14 @@ export type CityStats = {
   tips: string[];
 };
 
+/** Shops that sell goods made by industry (offices, banks, hotels and cinemas don't need them). */
+export const GOODS_SHOP_EXCLUDE = new Set(["office", "bank", "hotel", "cinema"]);
+/** Each industry job supplies goods for this many shop jobs. */
+export const GOODS_PER_INDUSTRY_JOB = 1.5;
+/** School places by school (children are about 22% of residents). */
+export const SCHOOL_SEATS: Record<string, number> = { school: 40, high_school: 60, university: 100 };
+export const CHILD_SHARE = 0.22;
+
 /** Most happiness trees and water can add. */
 export const NATURE_CAP = 10;
 
@@ -233,6 +241,9 @@ export function cityStats(
   let roads = 0;
   let landscape = 0;
   let unconnected = 0;
+  let shopJobs = 0;
+  let industryJobs = 0;
+  let schoolSeats = 0;
   const jobBuildings: string[] = [];
   for (const b of lots) {
     const t = byId.get(b.type_id);
@@ -253,6 +264,9 @@ export function cityStats(
     }
     population += t.population;
     jobs += t.jobs;
+    if (t.category === "commercial" && !GOODS_SHOP_EXCLUDE.has(t.id)) shopJobs += t.jobs;
+    if (t.category === "industrial") industryJobs += t.jobs;
+    schoolSeats += SCHOOL_SEATS[t.id] ?? 0;
     if (t.category === "service") {
       services += 1;
       servicePoints += Math.max(0, t.happiness);
@@ -348,6 +362,33 @@ export function cityStats(
       label: "Not enough workers",
       value: -Math.min(10, Math.round(((jobs - population) / jobs) * 10)),
       tip: `Businesses are only ${Math.round(staffing * 100)}% staffed. Build homes so they can hire.`,
+    });
+  }
+  // Goods: industry makes the products shops sell. Too little industry leaves shelves empty; too much has nobody to sell to.
+  const goods = industryJobs * GOODS_PER_INDUSTRY_JOB;
+  if (shopJobs >= 8 && goods < shopJobs) {
+    add({
+      key: "goods_short",
+      label: "Shops short of goods",
+      value: -Math.round(15 * (1 - goods / shopJobs)),
+      tip: `Shops only get ${Math.round((goods / shopJobs) * 100)}% of the goods they need. Build industry (workshops, factories, warehouses) to supply them.`,
+    });
+  } else if (goods >= 15 && goods > shopJobs * 2) {
+    add({
+      key: "goods_surplus",
+      label: "Factories can't sell their goods",
+      value: -Math.min(8, Math.round(shopJobs > 0 ? (goods / shopJobs - 2) * 3 : 8)),
+      tip: "Industry makes far more than your shops can sell. Build shops (stores, a grocery, a mall) so factories have buyers.",
+    });
+  }
+  // Schooling: children need school places.
+  const children = Math.round(population * CHILD_SHARE);
+  if (population >= 30 && children > schoolSeats) {
+    add({
+      key: "schooling",
+      label: "Not enough school places",
+      value: -Math.round(12 * (1 - schoolSeats / children)),
+      tip: `About ${children} children but ${schoolSeats} school places. Build an elementary school, high school or university.`,
     });
   }
   if (population >= 20 && services === 0) {

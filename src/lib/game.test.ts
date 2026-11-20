@@ -18,6 +18,9 @@ const types = [
   type({ id: "clinic", category: "service", jobs: 6, happiness: 6, unlock_area: "health", unlock_points: 250 }),
   type({ id: "road", category: "road" }),
   type({ id: "tree", category: "landscape", happiness: 1 }),
+  type({ id: "grocery", category: "commercial", jobs: 12 }),
+  type({ id: "apartments", population: 40 }),
+  type({ id: "school", category: "service", jobs: 8, happiness: 6 }),
 ];
 
 let n = 0;
@@ -73,6 +76,20 @@ describe("cityStats", () => {
     // 40 + services 13 (park 5 for 8 people: 30 × (1 − e^(−5/8.4))) + shop 1 − unemployment (4 of 8 → 10) = 44
     expect(s.happiness).toBe(44);
     expect(s.factors.find((f) => f.key === "unemployment")?.tip).toMatch(/4 residents can't find work/);
+  });
+  it("shops need goods from industry; too much industry has nobody to sell to", () => {
+    const short = cityStats([...street, at("grocery", 0, 1), at("cottage", 2, 1), at("cottage", 3, 1), at("cottage", 4, 1)], types);
+    expect(short.factors.find((f) => f.key === "goods_short")?.value).toBe(-15);
+    const supplied = cityStats([...street, at("grocery", 0, 1), at("factory", 2, 1)], types);
+    expect(supplied.factors.find((f) => f.key.startsWith("goods"))?.key).toBe("goods_surplus"); // 45 goods for 12 shop jobs
+    const balanced = cityStats([...street, at("grocery", 0, 1), at("grocery", 2, 1), at("factory", 4, 1)], types);
+    expect(balanced.factors.some((f) => f.key.startsWith("goods"))).toBe(false); // 45 goods for 24 shop jobs
+  });
+  it("children need school places", () => {
+    const none = cityStats([...street, at("apartments", 0, 1)], types);
+    expect(none.factors.find((f) => f.key === "schooling")?.value).toBe(-12);
+    const school = cityStats([...street, at("apartments", 0, 1), at("school", 1, 1)], types);
+    expect(school.factors.some((f) => f.key === "schooling")).toBe(false);
   });
   it("buildings away from a road don't count", () => {
     const s = cityStats([...street, at("cottage", 0, 1), at("cottage", 5, 5), at("factory", 7, 7)], types);
