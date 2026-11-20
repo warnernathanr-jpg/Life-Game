@@ -58,6 +58,34 @@ function windowsAround(n: number, width: number, y: number, z: number, size = 0.
   return windows(n, width, y, z, size, color).filter((_, i) => Math.abs(n === 1 ? 0 : -width / 2 + (width * i) / (n - 1)) > gap);
 }
 
+/**
+ * A clock face on each side of a square tower: dark rim, white dial, four hour marks and hands at ten past ten.
+ * y = height of the clock's centre, half = half the tower's width, r = the dial's radius (rim included).
+ */
+function clockFaces(y: number, half: number, r: number, pin = "#b45309"): ReactNode {
+  const k = r / 0.15;
+  return [0, 1, 2, 3].map((i) => (
+    <group key={`clock${i}`} rotation-y={(i * Math.PI) / 2}>
+      <group position={[0, y, half]} rotation-x={Math.PI / 2}>
+        <Cyl p={[0, 0, 0]} r={r} h={0.012} c="#1f2937" />
+        <Cyl p={[0, 0.012, 0]} r={0.13 * k} h={0.01} c="#f8fafc" />
+      </group>
+      {[0, 1, 2, 3].map((m) => (
+        <group key={m} position={[0, y, half + 0.023]} rotation-z={(m * Math.PI) / 2}>
+          <B p={[0, 0.095 * k, 0]} s={[0.014 * k, 0.03 * k, 0.004]} c="#1f2937" />
+        </group>
+      ))}
+      <group position={[0, y, half + 0.026]} rotation-z={Math.PI / 3}>
+        <B p={[0, 0, 0]} s={[0.016 * k, 0.07 * k, 0.004]} c="#111827" />
+      </group>
+      <group position={[0, y, half + 0.029]} rotation-z={-Math.PI / 3}>
+        <B p={[0, 0, 0]} s={[0.011 * k, 0.105 * k, 0.004]} c="#111827" />
+      </group>
+      <Cyl p={[0, y, half + 0.03]} r={0.012 * k} h={0.004} c={pin} />
+    </group>
+  ));
+}
+
 /** A flat sign above a door. */
 function sign(y: number, z: number, w: number, c: string) {
   return <B p={[0, y, z]} s={[w, 0.08, 0.03]} c={c} />;
@@ -346,7 +374,7 @@ const MODELS: Record<string, Maker> = {
       {/* Roof over the hall (back at -0.65) and the portico columns (front at about 0.24), centred between them. */}
       <Roof p={[0, 0.72, -0.2]} s={[1.4, 0.22, 1.0]} c={p.roof} />
       <B p={[0, 0.72, -0.25]} s={[0.36, 0.7, 0.36]} c="#f5f5f4" />
-      <Cyl p={[0, 0.98, -0.065]} r={0.11} h={0.02} c="#f8fafc" />
+      <group position={[0, 0, -0.25]}>{clockFaces(1.17, 0.18, 0.12, p.roof)}</group>
       <Roof p={[0, 1.42, -0.25]} s={[0.46, 0.4, 0.46]} c={p.roof} />
       <Cyl p={[0.7, 0.02, 0.7]} r={0.015} h={0.8} c="#e5e7eb" />
       <B p={[0.78, 0.65, 0.7]} s={[0.16, 0.1, 0.01]} c={p.accent} />

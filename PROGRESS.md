@@ -837,6 +837,8 @@ _Last updated: 2026-11-28_
   their distance from cars and buses (`clearAhead()` from `buses.tsx`, positions shared in `vehicles.ts`). Browser check: two
   depots, taxis on the road in 70 of 100 samples, no errors.
 - **City Hall**: its roof was centred in front of the building; it now covers the hall and the portico columns evenly.
+  Its clock was a flat white disc half sticking out of the tower; the tower now has a real clock face on all four sides
+  (`clockFaces()` in `models-catalog.tsx`: rim, dial, hour marks, hands).
 
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
