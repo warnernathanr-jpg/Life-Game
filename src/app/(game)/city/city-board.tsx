@@ -1,8 +1,9 @@
 "use client";
 
-import { Car, ChartColumn, Footprints, House, LocateFixed, Maximize2, Minimize2, Moon, MousePointer2, Pause, Play, RotateCcw, RotateCw, Sun, Sunrise, Sunset, X, ZoomIn, ZoomOut } from "lucide-react";
+import { Ban, Car, ChartColumn, Flame, GraduationCap, HeartPulse, Layers, Route as RouteIcon, ShieldAlert, Factory as FactoryIcon, Gem as GemIcon, TrafficCone, Footprints, House, LocateFixed, Maximize2, Minimize2, Moon, MousePointer2, Pause, Play, RotateCcw, RotateCw, Sun, Sunrise, Sunset, X, ZoomIn, ZoomOut } from "lucide-react";
 import dynamic from "next/dynamic";
 import { BuildingIcon, BulldozeIcon, CoinIcon } from "@/components/icons";
+import { computeLayer, LAYERS, type LayerId } from "@/lib/layers";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
 import { MAX_CITY_SIZE, MAX_STROKE_TILES, cityStats, footprint, formatCoins, landPrice, lotFree, pointsToUnlock, sellRefund } from "@/lib/game";
@@ -26,6 +27,21 @@ type Placed = Pick<PlacedBuildingRow, "id" | "type_id" | "x" | "y" | "price_paid
 const PAINT_TYPES = ["dirt_road", "road", "avenue", "tree", "water"] as const;
 type PaintType = (typeof PAINT_TYPES)[number];
 const isPaint = (id: string): id is PaintType => (PAINT_TYPES as readonly string[]).includes(id);
+
+/** Icons for the map layers. */
+function LayerIcon({ id }: { id: LayerId | null }) {
+  const Icon =
+    id === "traffic" ? TrafficCone
+    : id === "fire" ? Flame
+    : id === "crime" ? ShieldAlert
+    : id === "education" ? GraduationCap
+    : id === "health" ? HeartPulse
+    : id === "pollution" ? FactoryIcon
+    : id === "land_value" ? GemIcon
+    : id === "roads" ? RouteIcon
+    : Ban;
+  return <Icon className="inline size-4 shrink-0" aria-hidden />;
+}
 
 /** Load a page fresh (deliberately not client-side navigation: see enterFull). */
 function hardNavigate(path: string) {
@@ -125,6 +141,14 @@ export function CityBoard(props: {
   const [simClock, setSimClock] = useState(7 * 60 + 15);
   const [citizenId, setCitizenId] = useState<string | null>(null);
   const [citizenInfo, setCitizenInfo] = useState<CitizenInfo | null>(null);
+  // Map layers (full screen): which one is shown, and whether the list is open.
+  const [layer, setLayer] = useState<LayerId | null>(null);
+  const [layersOpen, setLayersOpen] = useState(false);
+  const layerCells = useMemo(
+    () => (layer ? computeLayer(layer, lots, types, { size, places, citizens, connected: connectedIds(lots) }) : null),
+    [layer, lots, types, size, places, citizens],
+  );
+  const layerInfo = LAYERS.find((l) => l.id === layer);
   const sim = useMemo(
     () => ({
       places,
@@ -634,6 +658,7 @@ export function CityBoard(props: {
                 onGhostMove={setDraftSpot}
                 previewTiles={draftTiles}
                 previewOk={draftPlan ? draftPlan.ok : true}
+                overlay={full ? layerCells : null}
                 sim={sim}
               />
               {strokeInfo && (
@@ -746,7 +771,21 @@ export function CityBoard(props: {
                     )}
                     <button
                       type="button"
-                      onClick={() => setStatsOpen((o) => !o)}
+                      onClick={() => {
+                        setLayersOpen((o) => !o);
+                        setStatsOpen(false);
+                      }}
+                      aria-pressed={layersOpen || !!layer}
+                      className={`min-h-10 rounded-xl px-3 py-1 text-sm font-semibold shadow ${layersOpen || layer ? "bg-accent text-on-accent" : "bg-surface/95 text-ink ring-1 ring-line"}`}
+                    >
+                      <Layers className="size-4" aria-hidden /> Layers
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatsOpen((o) => !o);
+                        setLayersOpen(false);
+                      }}
                       aria-pressed={statsOpen}
                       className={`min-h-10 rounded-xl px-3 py-1 text-sm font-semibold shadow ${statsOpen ? "bg-accent text-on-accent" : "bg-surface/95 text-ink ring-1 ring-line"}`}
                     >
@@ -823,17 +862,59 @@ export function CityBoard(props: {
                 ))}
               </div>
               )}
+              {full && layersOpen && (
+                <div
+                  role="dialog"
+                  aria-label="Map layers"
+                  className="absolute top-[max(4.5rem,calc(env(safe-area-inset-top)+4rem))] right-2 z-10 max-h-[calc(100%-11rem)] w-[min(20rem,calc(100%-1rem))] overflow-y-auto rounded-2xl bg-surface/95 p-2 text-ink shadow-2xl ring-1 ring-line backdrop-blur"
+                >
+                  <div className="flex items-center justify-between px-2 py-1">
+                    <h2 className="font-bold">Map layers</h2>
+                    <button type="button" onClick={() => setLayersOpen(false)} aria-label="Close map layers" className="flex size-8 items-center justify-center rounded-lg text-muted hover:bg-raised">
+                      <X className="size-4" aria-hidden />
+                    </button>
+                  </div>
+                  <ul>
+                    {[{ id: null, label: "Off" } as const, ...LAYERS].map((l) => (
+                      <li key={l.id ?? "off"}>
+                        <button
+                          type="button"
+                          aria-pressed={layer === l.id}
+                          onClick={() => {
+                            setLayer(l.id);
+                            setLayersOpen(false);
+                          }}
+                          className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm ${layer === l.id ? "bg-accent text-on-accent" : "hover:bg-raised"}`}
+                        >
+                          <LayerIcon id={l.id} />
+                          <span className="font-medium">{l.label}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {full && layerInfo && !layersOpen && !statsOpen && (
+                <div className="absolute left-2 bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))] z-10 w-[min(20rem,calc(100%-1rem))] rounded-2xl bg-surface/95 p-3 text-ink shadow-xl ring-1 ring-line backdrop-blur">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-bold">
+                      <LayerIcon id={layerInfo.id} /> {layerInfo.label}
+                    </p>
+                    <button type="button" onClick={() => setLayer(null)} aria-label="Hide layer" className="flex size-8 items-center justify-center rounded-lg text-muted hover:bg-raised">
+                      <X className="size-4" aria-hidden />
+                    </button>
+                  </div>
+                  <div className="mt-2 h-2.5 rounded-full" style={{ background: "linear-gradient(to right, #22c55e, #eab308, #ef4444)" }} aria-hidden />
+                  <div className="mt-1 flex justify-between text-xs text-muted">
+                    <span>{layerInfo.good}</span>
+                    <span>{layerInfo.bad}</span>
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted">{layerInfo.about}</p>
+                </div>
+              )}
               {full && statsOpen && (
                 <div className="absolute top-[max(4.5rem,calc(env(safe-area-inset-top)+4rem))] right-2 bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))] z-10 w-[min(30rem,calc(100%-1rem))] overflow-y-auto rounded-2xl shadow-2xl">
-                  <button
-                    type="button"
-                    onClick={() => setStatsOpen(false)}
-                    aria-label="Close City Stats"
-                    className="absolute top-3 right-3 z-10 flex size-9 items-center justify-center rounded-lg bg-raised text-muted hover:bg-line"
-                  >
-                    ×
-                  </button>
-                  <CityStatsPanel stats={stats} />
+<CityStatsPanel stats={stats} onClose={() => setStatsOpen(false)} />
                 </div>
               )}
             </div>

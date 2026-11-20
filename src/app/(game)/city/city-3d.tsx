@@ -7,6 +7,7 @@ import * as THREE from "three";
 import type { MapControls as MapControlsImpl } from "three-stdlib";
 import { THEME_EVENT } from "@/lib/themes";
 import { AVENUE_TYPE, BRIDGE_TYPE, DIRT_ROAD_TYPE, effectiveFacing, isRoadType, FACING_ROTATION, key, rowJoins, roadSet, roadShape, ROAD_TYPE, strokePath, type Lot, type Tile } from "@/lib/roads";
+import { layerColor, type LayerCell } from "@/lib/layers";
 import { Traffic, type SimProps } from "./traffic";
 import { BOX, BuildingModel, CROWN, MODEL_HEIGHT, NoRoadMarker, OCTA, WorkerMarker, colorSeed, mat } from "./models";
 
@@ -40,6 +41,8 @@ export type City3DProps = {
   /** Painted tiles waiting for Confirm (shown highlighted). */
   previewTiles?: Tile[];
   previewOk?: boolean;
+  /** A map layer to show (green good … red bad), or null. */
+  overlay?: LayerCell[] | null;
   /** Citizens travelling around the city (cars and walkers), with pause and tap-to-inspect. */
   sim?: SimProps;
 };
@@ -326,6 +329,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
         <Water tiles={waterTiles} />
         <Bridges tiles={bridgeTiles} roads={roads} />
         {props.sim && <Traffic sim={props.sim} roads={roads} />}
+        {props.overlay && <LayerOverlay cells={props.overlay} byTile={byTile} />}
         <Wilds size={size} occupied={byTile} />
         {buildings.map((b) => (
           <group key={b.id} position={[b.x + b.w / 2, 0, b.y + b.h / 2]} userData={{ lotId: b.id }}>
@@ -667,6 +671,56 @@ function Roads({ tiles, roads, variant }: { tiles: Lot[]; roads: Set<string>; va
           {variant === "four" && <Boxes list={parts.white} material={ROAD_PARTS.white} />}
         </>
       )}
+    </>
+  );
+}
+
+const LAYER_FLAT = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.6, depthWrite: false });
+const LAYER_BOX = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.45, depthWrite: false });
+
+/**
+ * A map layer: tinted patches on land and roads, and see-through colored boxes around buildings (as tall as the
+ * building, so the color shows through the model). Colors run green (good) to red (bad).
+ */
+function LayerOverlay({ cells, byTile }: { cells: LayerCell[]; byTile: Map<string, Lot> }) {
+  const flatRef = useRef<THREE.InstancedMesh>(null);
+  const boxRef = useRef<THREE.InstancedMesh>(null);
+  const { invalidate } = useThree();
+  const parts = useMemo(() => {
+    const flat: { m: THREE.Matrix4; c: THREE.Color }[] = [];
+    const box: { m: THREE.Matrix4; c: THREE.Color }[] = [];
+    const q = new THREE.Quaternion();
+    for (const cell of cells) {
+      const color = new THREE.Color(layerColor(cell.v));
+      if (cell.raise) {
+        const lot = byTile.get(key(cell.x, cell.y));
+        const h = (lot ? MODEL_HEIGHT[lot.type_id] : undefined) ?? 0.8;
+        box.push({ m: new THREE.Matrix4().compose(new THREE.Vector3(cell.x + cell.w / 2, (h + 0.1) / 2, cell.y + cell.h / 2), q, new THREE.Vector3(cell.w - 0.06, h + 0.1, cell.h - 0.06)), c: color });
+      } else {
+        flat.push({ m: new THREE.Matrix4().compose(new THREE.Vector3(cell.x + cell.w / 2, 0.08, cell.y + cell.h / 2), q, new THREE.Vector3(cell.w - 0.04, 0.01, cell.h - 0.04)), c: color });
+      }
+    }
+    return { flat, box };
+  }, [cells, byTile]);
+  useLayoutEffect(() => {
+    for (const [ref, list] of [[flatRef, parts.flat], [boxRef, parts.box]] as const) {
+      const mesh = ref.current;
+      if (!mesh) continue;
+      list.forEach((it, i) => {
+        mesh.setMatrixAt(i, it.m);
+        mesh.setColorAt(i, it.c);
+      });
+      mesh.count = list.length;
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      mesh.computeBoundingSphere();
+    }
+    invalidate();
+  }, [parts, invalidate]);
+  return (
+    <>
+      <instancedMesh key={`f${parts.flat.length}`} ref={flatRef} args={[BOX, LAYER_FLAT, Math.max(1, parts.flat.length)]} raycast={() => null} renderOrder={2} />
+      <instancedMesh key={`b${parts.box.length}`} ref={boxRef} args={[BOX, LAYER_BOX, Math.max(1, parts.box.length)]} raycast={() => null} renderOrder={3} />
     </>
   );
 }

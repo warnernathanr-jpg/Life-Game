@@ -376,6 +376,22 @@ _Last updated: 2026-11-25_
 - Browser check on a 3×3 street grid with ~25 cars for 15 s: 0 overlapping pairs (closest 0.22 tiles; 37 overlaps before the
   tie-break and departure check), cars caught mid-turn in 54 of 60 samples.
 
+### 25. Map layers (2026-11-26)
+- **Layers** button in full screen (`/play`) opens a list; the chosen layer tints the map **green (good) → red (bad)** with a legend
+  (scale, good/bad words, what it means). Layers (`src/lib/layers.ts`, `computeLayer()`):
+  - **Traffic**: daily commute trips (each citizen to work or school and back) counted per road tile, against capacity (dirt 3,
+    2-lane / bridge 8, 4-lane 20).
+  - **Fire hazard** / **Crime**: a base risk per building (industry, dense housing, shops higher), cut by fire station / police
+    coverage (fades over 9 tiles).
+  - **Education**: elementary (8 tiles), high school (12), university (18), library (8) coverage for each home.
+  - **Health care**: clinic (7) or hospital (14) coverage for each home.
+  - **Pollution & noise**: from factories, warehouses, distribution, gas stations and the airport, fading over 6 tiles, on every
+    land tile. **Land value**: parks/recreation, landmarks, water and trees raise it, pollution lowers it.
+  - **Road access**: connected or not.
+  Buildings get a see-through colored box as tall as the model; land and roads get flat tinted patches (`LayerOverlay`, instanced).
+- City Stats: the close button sits in the header row (it covered the "Thriving" label); the happiness face no longer collapses.
+- 5 unit tests (`layers.test.ts`).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

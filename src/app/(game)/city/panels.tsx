@@ -1,7 +1,7 @@
 "use client";
 
 // Side panels and small pieces of the city screen.
-import { ArrowUp, Briefcase, Frown, Lock, Meh, Smile, Star, TriangleAlert, Users, type LucideIcon } from "lucide-react";
+import { X, ArrowUp, Briefcase, Frown, Lock, Meh, Smile, Star, TriangleAlert, Users, type LucideIcon } from "lucide-react";
 import { useState, useTransition } from "react";
 import { AreaIcon, BuildingIcon, CoinIcon, GroupIcon } from "@/components/icons";
 import type { BuildingTypeRow, PlacedBuildingRow, ProgressRow } from "@/lib/database.types";
@@ -265,7 +265,7 @@ function healthTone(stats: CityStats) {
 }
 
 /** Everything about how the city is doing: health, numbers, what drives happiness, and what to do next. */
-export function CityStatsPanel({ stats }: { stats: CityStats }) {
+export function CityStatsPanel({ stats, onClose }: { stats: CityStats; onClose?: () => void }) {
   const tone = healthTone(stats);
   const Mood = stats.happiness >= 70 ? Smile : stats.happiness >= 45 ? Meh : Frown;
   const numbers = [
@@ -278,7 +278,14 @@ export function CityStatsPanel({ stats }: { stats: CityStats }) {
     <section className="card space-y-5 sm:p-6" aria-labelledby="city-stats-h" id="city-stats">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <h2 id="city-stats-h" className="text-xl font-bold">City Stats</h2>
-        <span className={`text-sm font-semibold ${tone.text}`}>{stats.healthLabel}</span>
+        <span className="flex items-center gap-2">
+          <span className={`text-sm font-semibold ${tone.text}`}>{stats.healthLabel}</span>
+          {onClose && (
+            <button type="button" onClick={onClose} aria-label="Close City Stats" className="flex size-9 items-center justify-center rounded-lg bg-raised text-muted hover:bg-line">
+              <X className="size-4" aria-hidden />
+            </button>
+          )}
+        </span>
       </div>
 
       <div className="rounded-2xl bg-raised p-4">
@@ -312,7 +319,7 @@ export function CityStatsPanel({ stats }: { stats: CityStats }) {
         {numbers.map((n) => (
           <div key={n.label} className="rounded-2xl bg-raised p-4">
             <dt className="text-sm text-muted">{n.label}</dt>
-            <dd className="mt-1 flex items-center gap-2 text-3xl font-black tabular-nums"><n.Icon className="size-6 text-muted" aria-hidden /> {n.value}</dd>
+            <dd className="mt-1 flex items-center gap-2 text-3xl font-black tabular-nums"><n.Icon className="size-6 shrink-0 text-muted" aria-hidden /> {n.value}</dd>
             <dd className="mt-0.5 text-xs text-muted">{n.note}</dd>
           </div>
         ))}
