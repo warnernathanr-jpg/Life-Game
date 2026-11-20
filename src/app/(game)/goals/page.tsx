@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
 import { GoalsBoard } from "./goals-board";
 
-export const metadata: Metadata = { title: "Goals · Life City" };
+export const metadata: Metadata = { title: "Goals · LifeCity" };
 
 async function GoalsContent() {
   const { supabase } = await requireUser();

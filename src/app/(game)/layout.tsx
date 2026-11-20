@@ -14,7 +14,7 @@ export default function GameLayout({ children }: LayoutProps<"/">) {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
           <Link href="/city" className="flex items-center gap-1.5 font-bold">
             <Building2 className="size-5" aria-hidden />
-            <span>Life City</span>
+            <span>LifeCity</span>
           </Link>
           <TopNav />
           <div className="ml-auto flex items-center gap-2">

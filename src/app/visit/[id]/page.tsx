@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth";
 import type { PlacedBuildingRow, RoadControlKind } from "@/lib/database.types";
 import { CityBoard } from "../../(game)/city/city-board";
 
-export const metadata: Metadata = { title: "Visiting a friend · Life City" };
+export const metadata: Metadata = { title: "Visiting a friend · LifeCity" };
 
 type FriendCity = {
   city_name: string;

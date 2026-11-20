@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
 import { FocusTimer } from "./focus-timer";
 
-export const metadata: Metadata = { title: "Focus · Life City" };
+export const metadata: Metadata = { title: "Focus · LifeCity" };
 
 async function FocusPageContent() {
   const { supabase } = await requireUser();

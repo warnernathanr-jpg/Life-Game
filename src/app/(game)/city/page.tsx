@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CityLoader } from "./load";
 
-export const metadata: Metadata = { title: "City · Life City" };
+export const metadata: Metadata = { title: "City · LifeCity" };
 
 async function CityPageContent({ searchParams }: { searchParams: PageProps<"/city">["searchParams"] }) {
   const { place } = await searchParams;

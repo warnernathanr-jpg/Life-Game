@@ -1,4 +1,4 @@
-// Life City service worker: shows push notifications and opens the app when one is tapped. It caches nothing.
+// LifeCity service worker: shows push notifications and opens the app when one is tapped. It caches nothing.
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
@@ -9,7 +9,7 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { body: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "Life City";
+  const title = data.title || "LifeCity";
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",

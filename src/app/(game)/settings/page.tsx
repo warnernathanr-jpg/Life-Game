@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
 import { SettingsForms } from "./settings-forms";
 
-export const metadata: Metadata = { title: "Settings · Life City" };
+export const metadata: Metadata = { title: "Settings · LifeCity" };
 
 async function SettingsContent() {
   const { email, supabase } = await requireUser();

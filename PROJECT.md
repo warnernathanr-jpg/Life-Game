@@ -2,7 +2,7 @@
 
 ## Product summary
 
-**Life City**: a personal life dashboard with a city-building game.
+**LifeCity**: a personal life dashboard with a city-building game.
 
 - **Life tracker:** tasks (one-off, daily, weekly, monthly, quarterly, yearly, on certain weekdays, or N times a
   week/month) in four life areas: Health, Work, Knowledge, Personal. Recurring tasks are habits: gentle consistency

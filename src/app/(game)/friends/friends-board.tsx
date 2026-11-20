@@ -75,11 +75,11 @@ export function FriendsBoard({
   }
 
   async function share() {
-    const text = `I'm building ${cityName} by getting things done in Life City. Come build your own city and add me: my code is ${code}.`;
+    const text = `I'm building ${cityName} by getting things done in LifeCity. Come build your own city and add me: my code is ${code}.`;
     try {
       if (navigator.share)
         return await navigator.share({
-          title: "Life City",
+          title: "LifeCity",
           text,
           url: inviteUrl,
         });
@@ -201,7 +201,7 @@ export function FriendsBoard({
 
       <section className="card" aria-labelledby="invite-h">
         <h2 id="invite-h" className="font-semibold">
-          Invite friends to Life City
+          Invite friends to LifeCity
         </h2>
         <p className="text-sm text-muted">
           Send a link: when they sign up with it, you get a friend request from

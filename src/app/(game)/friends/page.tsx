@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
 import { FriendsBoard } from "./friends-board";
 
-export const metadata: Metadata = { title: "Friends · Life City" };
+export const metadata: Metadata = { title: "Friends · LifeCity" };
 
 async function FriendsContent() {
   const { supabase } = await requireUser();

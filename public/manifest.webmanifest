@@ -1,6 +1,6 @@
 {
-  "name": "Life City",
-  "short_name": "Life City",
+  "name": "LifeCity",
+  "short_name": "LifeCity",
   "description": "Get things done. Watch your city grow.",
   "start_url": "/city?source=home-screen",
   "scope": "/",

@@ -1,4 +1,4 @@
-# Life City
+# LifeCity
 
 Track your tasks, earn coins, build a city. See [PROJECT.md](./PROJECT.md) for the product and rules and
 [PROGRESS.md](./PROGRESS.md) for what's built.

@@ -12,7 +12,7 @@ import { TaskList } from "./task-list";
 import { CalendarBar, DayView, MonthView, WeekView, viewRange } from "./calendar";
 import type { CalendarView } from "@/lib/task-calendar";
 
-export const metadata: Metadata = { title: "Tasks · Life City" };
+export const metadata: Metadata = { title: "Tasks · LifeCity" };
 
 async function TasksPageContent({ searchParams }: { searchParams: PageProps<"/tasks">["searchParams"] }) {
   const sp = await searchParams;

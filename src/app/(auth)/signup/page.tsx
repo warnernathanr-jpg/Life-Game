@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AuthForm } from "../auth-form";
 import { InviteSaver } from "@/components/invite";
 
-export const metadata: Metadata = { title: "Create an account · Life City" };
+export const metadata: Metadata = { title: "Create an account · LifeCity" };
 
 export default function SignupPage() {
   return (

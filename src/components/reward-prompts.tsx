@@ -102,7 +102,7 @@ export function RewardPrompts({ claimed }: { claimed: string[] }) {
       try {
         const permission = await Notification.requestPermission();
         if (permission !== "granted") {
-          setError("Notifications are blocked. You can turn them on later in your phone's settings for Life City.");
+          setError("Notifications are blocked. You can turn them on later in your phone's settings for LifeCity.");
           return;
         }
         const reg = await navigator.serviceWorker.register("/sw.js");
@@ -129,24 +129,24 @@ export function RewardPrompts({ claimed }: { claimed: string[] }) {
             <div className="flex items-start gap-3">
               <Smartphone className="size-8 shrink-0 text-accent-text" aria-hidden />
               <div className="min-w-0 flex-1">
-                <h2 id="reward-h" className="font-bold">Add Life City to your home screen</h2>
+                <h2 id="reward-h" className="font-bold">Add LifeCity to your home screen</h2>
                 <p className="text-sm text-coin font-semibold">Get 200 coins</p>
               </div>
               <button type="button" aria-label="Not now" onClick={() => close("install")} className="flex size-9 items-center justify-center rounded-lg text-muted hover:bg-raised">×</button>
             </div>
             {installEvent ? (
-              <button type="button" className="btn-primary mt-4 w-full" onClick={install}>Install Life City</button>
+              <button type="button" className="btn-primary mt-4 w-full" onClick={install}>Install LifeCity</button>
             ) : plat === "ios" ? (
               <ol className="mt-3 space-y-2 text-sm">
                 <li className="flex gap-2"><span className="font-bold text-accent-text">1.</span><span>Tap the <strong>Share</strong> button <span aria-hidden>(the square with an arrow <Share className="inline size-3.5" />)</span> in Safari&apos;s toolbar.</span></li>
                 <li className="flex gap-2"><span className="font-bold text-accent-text">2.</span><span>Scroll down and tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</span></li>
-                <li className="flex gap-2"><span className="font-bold text-accent-text">3.</span><span>Open <strong>Life City</strong> from your home screen to collect your coins.</span></li>
+                <li className="flex gap-2"><span className="font-bold text-accent-text">3.</span><span>Open <strong>LifeCity</strong> from your home screen to collect your coins.</span></li>
               </ol>
             ) : plat === "android" ? (
               <ol className="mt-3 space-y-2 text-sm">
                 <li className="flex gap-2"><span className="font-bold text-accent-text">1.</span><span>Tap the <strong>⋮ menu</strong> at the top right of Chrome.</span></li>
                 <li className="flex gap-2"><span className="font-bold text-accent-text">2.</span><span>Tap <strong>Add to Home screen</strong> (or <strong>Install app</strong>).</span></li>
-                <li className="flex gap-2"><span className="font-bold text-accent-text">3.</span><span>Open <strong>Life City</strong> from your home screen to collect your coins.</span></li>
+                <li className="flex gap-2"><span className="font-bold text-accent-text">3.</span><span>Open <strong>LifeCity</strong> from your home screen to collect your coins.</span></li>
               </ol>
             ) : (
               <ol className="mt-3 space-y-2 text-sm">
@@ -162,7 +162,7 @@ export function RewardPrompts({ claimed }: { claimed: string[] }) {
         {prompt === "installed" && (
           <div className="text-center">
             <PartyPopper className="mx-auto size-10 text-good" aria-hidden />
-            <h2 id="reward-h" className="mt-1 font-bold">Thanks for adding Life City!</h2>
+            <h2 id="reward-h" className="mt-1 font-bold">Thanks for adding LifeCity!</h2>
             <p className="font-semibold text-coin">+200 coins</p>
             <button type="button" className="btn-primary mt-4 w-full" onClick={() => setPrompt(!hasNotify && "Notification" in window ? "notify" : null)}>Nice!</button>
           </div>

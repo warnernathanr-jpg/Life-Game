@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AuthForm } from "../auth-form";
 
-export const metadata: Metadata = { title: "Sign in · Life City" };
+export const metadata: Metadata = { title: "Sign in · LifeCity" };
 
 export default function LoginPage({ searchParams }: PageProps<"/login">) {
   return (

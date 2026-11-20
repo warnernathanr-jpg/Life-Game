@@ -111,7 +111,7 @@ _Last updated: 2026-11-28_
 - The sandbox's network can't reach the deployed site, so live checks need the host allowed or happen elsewhere.
 
 ### 7. Live: database, sign-in settings, end-to-end test (2026-11-23)
-- Life City is a **separate business**: the Supabase project moved to its own organization ("Life City",
+- LifeCity is a **separate business**: the Supabase project moved to its own organization ("LifeCity",
   `hazgvmhweytvjtbzevpy`; same project ref and keys). The Vercel project is still on the Laundromat Success team (next step).
 - Database set up by the owner in the SQL Editor (the MCP `apply_migration` confirmation never reached them). Verified:
   7 tables with RLS, 16 building types, all 9 repeat kinds, anon can't read tables or call game functions. Security
@@ -656,13 +656,23 @@ _Last updated: 2026-11-28_
 - **Build confirmation bar**: its text wraps instead of being cut off ("Draw more, tap a highlighted tile to take it out, or
   Build."), and on narrow phones Cancel / Build move to a row of their own under it.
 
+### 46. LifeCity name, new landing photos (2026-11-28)
+- The app is called **LifeCity** (one word) everywhere: page titles, header, sign-in pages, landing page, home-screen name
+  (`manifest.webmanifest`), notifications (`sw.js`), invite texts, reward popups, docs. Migration
+  `20261128070000_lifecity_name.sql` (applied live) updates the home-screen reward's coin-history line (older history rows keep
+  their old text).
+- **Landing photos** (`public/landing/`): `hero.webp` in the top section shows the full-screen city with its build bar *and* a
+  phone with the Tasks screen in one picture; below, `build.webp` (build menu over the city) and `tasks-goals.webp` (Tasks and
+  Goals screens on two phones). Made from real app screens with sample data (a 16×16 sample city "Maple Bay", sample tasks,
+  habits and goals), composed with PIL. The old city-only shots were removed.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
-2. **Deploys**: the `life-city` project (Life City team `team_LG1WjQ02e987XW4cCEEwM4pq`) is connected to GitHub
+2. **Deploys**: the `life-city` project (LifeCity team `team_LG1WjQ02e987XW4cCEEwM4pq`) is connected to GitHub
    `warnernathanr-jpg/life-game`; production tracks branch `claude/kind-dirac-r6ohvf`, so pushes deploy automatically.
    The Vercel MCP connector (`create_deployment` with `gitSource`) can also start one. The sandbox CLI/API token only
-   covers the Laundromat Success team: don't use `npx vercel deploy` for Life City.
+   covers the Laundromat Success team: don't use `npx vercel deploy` for LifeCity.
 3. **Phase B**: goals with big rewards (150 / 500 / 750, must be set in advance and take real time), achievement
    landmarks that can't be bought, a timeline of accomplishments. **Phase C**: the 7 city stages (Settlement → Capital)
    and the full catalog (~35 buildings + infrastructure) with 3D models. **Phase D**: construction timers, passive

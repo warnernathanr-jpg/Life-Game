@@ -422,10 +422,10 @@ export function CityBoard(props: {
     if (!props.visit) return;
     const url = props.visit.inviteUrl;
     const text =
-      "I'm building a city by getting things done in Life City. Come build yours and add me as a friend!";
+      "I'm building a city by getting things done in LifeCity. Come build yours and add me as a friend!";
     try {
       if (navigator.share)
-        return await navigator.share({ title: "Life City", text, url });
+        return await navigator.share({ title: "LifeCity", text, url });
     } catch {
       return; // share sheet closed
     }

@@ -7,7 +7,7 @@ import { describeSchedule } from "@/lib/tasks";
 import { ActivityChart } from "./activity-chart";
 import { HistoryCalendar, type DoneItem } from "./history-calendar";
 
-export const metadata: Metadata = { title: "Stats · Life City" };
+export const metadata: Metadata = { title: "Stats · LifeCity" };
 
 async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats">["searchParams"] }) {
   const { month: monthParam } = await searchParams;
