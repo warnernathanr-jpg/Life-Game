@@ -368,9 +368,12 @@ const MODELS: Record<string, Maker> = {
       {[-0.26, -0.09, 0.09, 0.26].map((x) => (
         <Cyl key={x} p={[x, 0.06, 0.22]} r={0.035} h={0.44} c="#e7e5e4" />
       ))}
-      <Roof p={[0, 0.52, 0.05]} s={[0.8, 0.16, 0.72]} c="#e7e5e4" />
+      {/* A beam across the column tops with the gold sign on it, and the roof centred over the hall (back at -0.33) and the
+          columns (front at about 0.26). */}
+      <B p={[0, 0.44, 0.13]} s={[0.7, 0.08, 0.27]} c="#e7e5e4" />
+      <B p={[0, 0.455, 0.267]} s={[0.24, 0.05, 0.01]} c="#ca8a04" />
+      <Roof p={[0, 0.52, -0.04]} s={[0.8, 0.16, 0.68]} c="#e7e5e4" />
       <B p={[0, 0.06, 0.171]} s={[0.12, 0.24, 0.02]} c={p.door} />
-      <B p={[0, 0.44, 0.39]} s={[0.24, 0.06, 0.02]} c="#ca8a04" />
     </>
   ),
   cinema: (p) => (
@@ -553,8 +556,10 @@ const MODELS: Record<string, Maker> = {
       <B p={[0, 0.03, 0.45]} s={[1.3, 0.01, 0.42]} c="#4ade80" />
       <B p={[0, 0, -0.45]} s={[1.6, 0.62, 0.8]} c={p.trim} />
       <B p={[0, 0.62, -0.45]} s={[1.66, 0.05, 0.86]} c={p.roof} />
-      {[0.15, 0.4].map((y) => windows(7, 1.3, y, -0.049, 0.11))}
-      <B p={[0, 0, -0.049]} s={[0.18, 0.26, 0.02]} c={p.door} />
+      {/* Windows stand just proud of the wall (front face at -0.05); the lower row leaves the middle free for the door. */}
+      {windowsAround(7, 1.3, 0.15, -0.042, 0.11, WIN, 0.15)}
+      {windows(7, 1.3, 0.4, -0.042, 0.11)}
+      <B p={[0, 0, -0.035]} s={[0.2, 0.27, 0.03]} c={p.door} />
       {sign(0.5, -0.03, 0.6, p.accent)}
     </>
   ),

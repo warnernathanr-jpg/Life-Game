@@ -939,6 +939,11 @@ _Last updated: 2026-11-28_
   three-car train and a station), a carousel (striped cone roof, gold trim and top, horses on poles) and a snack stand with a
   striped awning (`ParkGate`, `Coaster`, `Carousel`, `SnackStand` in `models-catalog.tsx`).
 
+- **Bank and high school fixes** (2026-11-28): the bank's roof was centred in front of the building and its gold sign floated in
+  front; now a beam runs across the column tops with the sign on it and the roof covers the hall and columns evenly. The high
+  school's door sat at the same depth as the wall (flickering) with a window over it; the door stands proud of the wall and the
+  lower window row leaves the middle free.
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).
