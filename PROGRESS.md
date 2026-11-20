@@ -729,6 +729,19 @@ _Last updated: 2026-11-28_
 - Owner's account: +500,000 test coins (balance 500,005).
 - Local preview note: the dev server kept serving an old `globals.css`; deleting `.next` entirely (not just `.next/cache`) fixed it.
 
+### 53. Tap-to-build roads, box-fill trees and water (2026-11-28)
+- **Roads on touch screens are tapped, not swiped**: with a road picked, a one-finger drag moves the map and a tap adds a point.
+  The first tap sets a yellow pin (`AnchorPin` in `city-3d.tsx`); each next tap draws a straight line or an L from the pin to the
+  tapped tile and moves the pin there; tapping the pin again ends that road (the next tap starts a new one); tapping a tile already
+  in the preview carries on (branches) from there. **Undo** in the build bar takes back the last stretch. The preview is kept as
+  stretches (`segments` + `anchor` in `city-board.tsx`). With a mouse, click-and-drag still draws (and clicking points works too).
+- **Trees and water fill a box** like the bulldozer (drag corner to corner, one finger on phones); a single tap adds or takes out
+  one tile.
+- Fix: dragged boxes on touch screens snapped back to a single tile; the tile under the finger now comes from the pointer's ray
+  meeting the ground (`GROUND_PLANE`), not the hit list kept from the touch-down (pointer capture); the stroke is also kept in a
+  ref so the finger lifting can't read a stale one.
+- The button sound ignores taps on the map itself (only real buttons).
+
 ## Next steps
 1. Run `npm run db:start`, `npm run test:db` and a full browser pass on a machine with Docker; then regenerate
    `src/lib/database.types.ts` with `npm run db:types` (currently hand-written).

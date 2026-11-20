@@ -49,6 +49,8 @@ export type City3DProps = {
   onGhostMove?: (t: Tile) => void;
   /** Painted tiles waiting for Confirm (shown highlighted). */
   previewTiles?: Tile[];
+  /** Where the next tapped stretch of road starts (a pin on the map). */
+  anchorTile?: Tile | null;
   previewOk?: boolean;
   /** A map layer to show (green good … red bad), or null. */
   overlay?: LayerCell[] | null;
@@ -73,6 +75,7 @@ const isCoarse = () => typeof window !== "undefined" && window.matchMedia("(poin
  * so a phone's scrolling never competes with the 3D view.
  */
 const motion = { on: true };
+const GROUND_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const isMoving = () => motion.on;
 
 /** True while a building preview is being dragged (the map must not pan meanwhile). */
@@ -158,7 +161,14 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
   }, [lots]);
 
   const [hover, setHover] = useState<Tile | null>(null);
-  const [stroke, setStroke] = useState<{ start: Tile; end: Tile; pointer: number } | null>(null);
+  const [stroke, setStrokeState] = useState<{ start: Tile; end: Tile; pointer: number } | null>(null);
+  // The latest stroke, also kept in a ref: on touch screens the finger can lift before React has re-rendered with the last
+  // move, and the pointer-up handler would otherwise see the stroke as it was at the start (a one-tile box).
+  const strokeRef = useRef<{ start: Tile; end: Tile; pointer: number } | null>(null);
+  const setStroke = useCallback((next: { start: Tile; end: Tile; pointer: number } | null) => {
+    strokeRef.current = next;
+    setStrokeState(next);
+  }, []);
   // Only one finger draws: a second finger (pinch/zoom) cancels the stroke, and nothing is drawn until all fingers lift.
   const multiTouch = useRef(false);
   // Dragging the held preview: grab it anywhere on its footprint and it follows the finger / mouse, tile by tile.
@@ -203,18 +213,24 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
       el.removeEventListener("touchend", onTouch);
       el.removeEventListener("touchcancel", onTouch);
     };
-  }, [gl, endGhostDrag]);
-  // Roads, trees and water follow an L-shaped path; the bulldozer clears the whole box between the two corners.
+  }, [gl, endGhostDrag, setStroke]);
+  // Roads follow an L-shaped path (tapped point to point on a touch screen); the bulldozer, trees and water fill the whole
+  // box between the two corners of a drag.
   const demolishing = props.strokeColor === "demolish";
-  const pathFor = useCallback((a: Tile, b: Tile) => (demolishing ? boxPath(a, b) : strokePath(a, b)), [demolishing]);
+  const boxMode = demolishing || props.paintTypeId === "tree" || props.paintTypeId === "water";
+  const pathFor = useCallback((a: Tile, b: Tile) => (boxMode ? boxPath(a, b) : strokePath(a, b)), [boxMode]);
   const strokeTiles = useMemo(() => (stroke ? pathFor(stroke.start, stroke.end) : null), [stroke, pathFor]);
 
   const tileFrom = useCallback(
     (e: ThreeEvent<PointerEvent | MouseEvent>): Tile | null => {
-      const hit = e.intersections.find((i) => i.object.userData.ground);
+      // Where the pointer's ray meets the ground (y = 0). Worked out from the ray itself rather than the list of meshes hit:
+      // during a touch drag the hit list can still be the one from when the finger went down (pointer capture), which
+      // made dragged boxes snap back to the starting tile.
+      const point = e.ray?.intersectPlane(GROUND_PLANE, new THREE.Vector3());
+      const hit = point ?? e.intersections.find((i) => i.object.userData.ground)?.point;
       if (!hit) return null;
-      const x = Math.floor(hit.point.x);
-      const y = Math.floor(hit.point.z);
+      const x = Math.floor(hit.x);
+      const y = Math.floor(hit.z);
       return x >= 0 && y >= 0 && x < size && y < size ? { x, y } : null;
     },
     [size],
@@ -233,8 +249,9 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
       }
       return;
     }
-    if (stroke && e.pointerId === stroke.pointer && t && (t.x !== stroke.end.x || t.y !== stroke.end.y)) {
-      const next = { ...stroke, end: t };
+    const cur = strokeRef.current;
+    if (cur && e.pointerId === cur.pointer && t && (t.x !== cur.end.x || t.y !== cur.end.y)) {
+      const next = { ...cur, end: t };
       setStroke(next);
       props.onStrokeChange(pathFor(next.start, next.end));
     }
@@ -253,9 +270,14 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
       }
       return;
     }
-    if (input !== "stroke" || e.button !== 0 || stroke || multiTouch.current) return;
+    if (input !== "stroke" || e.button !== 0 || strokeRef.current || multiTouch.current) return;
     const t = tileFrom(e);
     if (!t) return;
+    // On a touch screen roads, trees and water are drawn by tapping points (a drag moves the map); only the bulldozer drags.
+    if (e.pointerType === "touch" && !boxMode) {
+      touchTap.current = { pointer: e.pointerId, x: e.nativeEvent.clientX, y: e.nativeEvent.clientY, tile: t };
+      return;
+    }
     (e.target as Element | null)?.setPointerCapture?.(e.pointerId);
     setStroke({ start: t, end: t, pointer: e.pointerId });
     props.onStrokeChange([t]);
@@ -263,15 +285,24 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
 
   // A tap on the held preview itself doesn't move it.
   const tappedGhost = useRef(false);
+  const touchTap = useRef<{ pointer: number; x: number; y: number; tile: Tile } | null>(null);
   function onUp(e: ThreeEvent<PointerEvent>) {
     e.stopPropagation();
+    const tap = touchTap.current;
+    if (tap && e.pointerId === tap.pointer) {
+      touchTap.current = null;
+      const moved = Math.hypot(e.nativeEvent.clientX - tap.x, e.nativeEvent.clientY - tap.y);
+      if (moved < 10 && !multiTouch.current) props.onStroke([tap.tile]);
+      return;
+    }
     if (ghostDrag.current && e.pointerId === ghostDrag.current.pointer) {
       tappedGhost.current = true;
       endGhostDrag();
       return;
     }
-    if (!stroke || e.pointerId !== stroke.pointer || multiTouch.current) return;
-    const tiles = pathFor(stroke.start, stroke.end);
+    const cur = strokeRef.current;
+    if (!cur || e.pointerId !== cur.pointer || multiTouch.current) return;
+    const tiles = pathFor(cur.start, cur.end);
     setStroke(null);
     props.onStrokeChange(null);
     props.onStroke(tiles);
@@ -301,7 +332,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
 
   return (
     <>
-      <CameraRig size={size} handleRef={props.handleRef} panEnabled={input === "point"} painting={input === "stroke"} />
+      <CameraRig size={size} handleRef={props.handleRef} panEnabled={input === "point"} painting={input === "stroke" && (props.strokeColor === "demolish" || props.paintTypeId === "tree" || props.paintTypeId === "water")} />
       <DayNight minutes={props.minutes ?? 12 * 60} size={size} />
 
       <group
@@ -348,6 +379,7 @@ function Scene(props: City3DProps & { handleRef: React.ForwardedRef<City3DHandle
       {props.selectedId && <Selection lot={lots.find((l) => l.id === props.selectedId)} />}
       {props.dimmedId && <Selection lot={lots.find((l) => l.id === props.dimmedId)} color="#f59e0b" />}
       {ghost && <Footprint tiles={[{ x: ghost.x, y: ghost.y }]} w={ghost.w} h={ghost.h} ok={ghost.ok} raised />}
+      {props.anchorTile && <AnchorPin tile={props.anchorTile} />}
       {props.previewTiles && props.previewTiles.length > 0 && (
         <Footprint
           tiles={props.previewTiles}
@@ -811,6 +843,28 @@ function Footprint({
         />
       ))}
     </>
+  );
+}
+
+/** The pin marking where the next tapped stretch of road starts. */
+function AnchorPin({ tile }: { tile: Tile }) {
+  const x = tile.x + 0.5;
+  const z = tile.y + 0.5;
+  return (
+    <group position={[x, 0, z]} raycast={() => null}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.05, 0]} raycast={() => null}>
+        <ringGeometry args={[0.28, 0.42, 24]} />
+        <meshBasicMaterial color="#fbbf24" transparent opacity={0.9} />
+      </mesh>
+      <mesh position={[0, 0.3, 0]} raycast={() => null}>
+        <cylinderGeometry args={[0.025, 0.025, 0.5, 8]} />
+        <meshStandardMaterial color="#374151" />
+      </mesh>
+      <mesh position={[0, 0.6, 0]} raycast={() => null}>
+        <sphereGeometry args={[0.11, 16, 12]} />
+        <meshStandardMaterial color="#fbbf24" emissive="#f59e0b" emissiveIntensity={0.4} />
+      </mesh>
+    </group>
   );
 }
 

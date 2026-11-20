@@ -18,7 +18,7 @@ import {
   Footprints,
   House,
   Maximize2,
-  MousePointer2,
+  MousePointer2, Undo2,
   Music,
   VolumeX,
   Move,
@@ -72,6 +72,7 @@ import {
   nextFacing,
   roadSet,
   streetOf,
+  strokePath,
   touchesRoad,
   type Lot,
   type Tile,
@@ -270,7 +271,15 @@ export function CityBoard(props: {
     return () =>
       window.removeEventListener("keydown", onKey, { capture: true });
   }, [scenic]);
-  const [draftTiles, setDraftTiles] = useState<Tile[]>([]);
+  // Road / trees / water preview, built up stretch by stretch: on a phone by tapping points (each tap draws from the pin to the
+  // tapped tile), with a mouse also by dragging. Undo takes back the last stretch.
+  const [segments, setSegments] = useState<{ tiles: Tile[]; prevAnchor: Tile | null }[]>([]);
+  const [anchor, setAnchor] = useState<Tile | null>(null);
+  const draftTiles = useMemo(() => segments.flatMap((sg) => sg.tiles), [segments]);
+  const clearDraft = () => {
+    setSegments([]);
+    setAnchor(null);
+  };
   const [draftRot, setDraftRot] = useState(false);
   const modeKey =
     mode.kind === "paint"
@@ -287,7 +296,7 @@ export function CityBoard(props: {
     // Switching tools or buildings drops the preview.
     setDraftFor(modeKey);
     setDraftSpot(null);
-    setDraftTiles([]);
+    clearDraft();
     setDraftRot(
       mode.kind === "move"
         ? !!placed.find((b) => b.id === mode.id)?.rotated
@@ -399,8 +408,10 @@ export function CityBoard(props: {
     const box = mapBox.current;
     if (!box || !props.standalone) return;
     const onTap = (e: MouseEvent) => {
-      const b = (e.target as HTMLElement | null)?.closest("button");
-      if (b && !b.disabled) playSfx("click");
+      const target = e.target as HTMLElement | null;
+      if (!target || target.tagName === "CANVAS") return; // a tap on the map isn't a button press
+      const b = target.closest("button");
+      if (b && !b.disabled && box.contains(b)) playSfx("click");
     };
     box.addEventListener("click", onTap, true);
     return () => box.removeEventListener("click", onTap, true);
@@ -728,7 +739,7 @@ export function CityBoard(props: {
     if (mode.kind !== "paint" || !paintType || draftTiles.length === 0) return;
     const typeId = mode.typeId;
     const plan = planPaint(draftTiles, typeId);
-    if (plan.fresh.length === 0) return setDraftTiles([]);
+    if (plan.fresh.length === 0) return clearDraft();
     if (plan.blocked)
       return say(
         `${paintType.name} can't go on top of buildings or past the edge of your land.`,
@@ -746,7 +757,7 @@ export function CityBoard(props: {
         `That costs ${formatCoins(plan.cost)} coins. You have ${formatCoins(balance)}.`,
         "bad",
       );
-    setDraftTiles([]);
+    clearDraft();
     start(async () => {
       const r = await buyTiles(
         typeId,
@@ -778,15 +789,34 @@ export function CityBoard(props: {
   function onStroke(tiles: Tile[]) {
     if (tiles.length === 0 || (pending && mode.kind === "bulldoze")) return;
     if (mode.kind === "paint" && paintType) {
-      // Add the stroke to the preview (several strokes can be confirmed together).
       setMessage(null);
-      setDraftTiles((old) => {
-        const seen = new Set(old.map((t) => key(t.x, t.y)));
-        // Tapping a single tile that's already in the preview takes it out again (to fix mistakes before Build).
-        if (tiles.length === 1 && seen.has(key(tiles[0].x, tiles[0].y)))
-          return old.filter((t) => t.x !== tiles[0].x || t.y !== tiles[0].y);
-        return [...old, ...tiles.filter((t) => !seen.has(key(t.x, t.y)))];
-      });
+      const same = (a: Tile | null, b: Tile) => !!a && a.x === b.x && a.y === b.y;
+      const seen = new Set(draftTiles.map((t) => key(t.x, t.y)));
+      if (mode.typeId === "tree" || mode.typeId === "water") {
+        // Trees and water fill the box dragged (like the bulldozer); a single tap adds or takes out one tile.
+        if (tiles.length === 1 && seen.has(key(tiles[0].x, tiles[0].y))) {
+          const t = tiles[0];
+          setSegments((old) => old.map((sg) => ({ ...sg, tiles: sg.tiles.filter((x) => x.x !== t.x || x.y !== t.y) })).filter((sg) => sg.tiles.length));
+          return;
+        }
+        setSegments((old) => [...old, { tiles: tiles.filter((t) => !seen.has(key(t.x, t.y))), prevAnchor: null }]);
+        return;
+      }
+      if (tiles.length === 1) {
+        const t = tiles[0];
+        // Tapping the pin again ends this road (the next tap starts a new one).
+        if (same(anchor, t)) return setAnchor(null);
+        // Tapping a tile already in the preview: carry on (branch) from there.
+        if (seen.has(key(t.x, t.y))) return setAnchor(t);
+        // First tap: the start of a road. Later taps: draw from the pin to here.
+        const add = anchor ? strokePath(anchor, t).filter((p) => !seen.has(key(p.x, p.y))) : [t];
+        setSegments((old) => [...old, { tiles: add, prevAnchor: anchor }]);
+        setAnchor(t);
+        return;
+      }
+      // A dragged stroke (mouse): add it as one stretch and carry on from its end.
+      setSegments((old) => [...old, { tiles: tiles.filter((t) => !seen.has(key(t.x, t.y))), prevAnchor: anchor }]);
+      setAnchor(tiles[tiles.length - 1]);
       return;
     }
     if (mode.kind === "bulldoze") {
@@ -1186,6 +1216,7 @@ export function CityBoard(props: {
     onConfirm: () => void;
     onCancel: () => void;
     onTurn?: () => void;
+    onUndo?: () => void;
   } | null =
     mode.kind === "paint" && paintType && draftPlan
       ? {
@@ -1201,12 +1232,16 @@ export function CityBoard(props: {
             ]
               .filter(Boolean)
               .join(" · ") ||
-            "Draw more, tap a highlighted tile to take it out, or Build.",
+            (!isRoadType(mode.typeId)
+              ? "Drag another box, tap a tile to take it out, or Build."
+              : anchor
+                ? "Tap to keep going, tap the pin to stop, or Build."
+                : "Tap to start another stretch, or Build."),
           problem:
             draftPlan.fresh.length === 0
               ? "That's all there already."
               : draftPlan.blocked
-                ? "Part of it is on a building or past your land. Tap those tiles to take them out."
+                ? "Part of it is on a building or past your land. Undo that stretch and go around."
                 : draftPlan.sideBySide
                   ? "Roads can't run side by side. Leave a tile between them."
                   : draftPlan.fresh.length > MAX_STROKE_TILES
@@ -1216,7 +1251,13 @@ export function CityBoard(props: {
                       : undefined,
           confirmLabel: "Build",
           onConfirm: confirmPaint,
-          onCancel: () => setDraftTiles([]),
+          onCancel: () => clearDraft(),
+          onUndo: () => {
+            const last = segments[segments.length - 1];
+            if (!last) return;
+            setSegments(segments.slice(0, -1));
+            setAnchor(last.prevAnchor);
+          },
         }
       : (mode.kind === "place" && placingType) ||
           (mode.kind === "move" && movingLot)
@@ -1494,6 +1535,7 @@ export function CityBoard(props: {
               onStroke={onStroke}
               onStrokeChange={setStroke}
               ghostAt={draftSpot}
+              anchorTile={mode.kind === "paint" && isRoadType(mode.typeId) ? anchor : null}
               onGhostMove={(t) => {
                 if (fitsAt(t.x, t.y)) setDraftSpot(t);
               }}
@@ -1563,6 +1605,16 @@ export function CityBoard(props: {
                   </p>
                 </div>
                 <div className="ml-auto flex shrink-0 gap-2">
+                  {draftBar.onUndo && (
+                    <button
+                      type="button"
+                      className="btn-secondary min-h-10 shrink-0 px-3 py-1 text-sm"
+                      onClick={draftBar.onUndo}
+                      aria-label="Undo the last stretch"
+                    >
+                      <Undo2 className="size-4" aria-hidden /> Undo
+                    </button>
+                  )}
                   {draftBar.onTurn && (
                     <button
                       type="button"
@@ -1767,7 +1819,11 @@ export function CityBoard(props: {
                     </p>
                   ) : mode.kind === "paint" && paintType ? (
                     <p className="rounded-full bg-surface/95 px-3 py-1.5 text-xs text-ink shadow ring-1 ring-line">
-                      Drag to draw {paintType.name.toLowerCase()}, then Build.
+                      {!isRoadType(mode.typeId)
+                        ? `Drag a box to fill it with ${paintType.name.toLowerCase()}, then Build.`
+                        : segments.length === 0
+                          ? "Tap where the road starts, then where it ends."
+                          : "Keep tapping to add more, then Build."}
                       {isRoadType(mode.typeId)
                         ? " Across water it builds a bridge."
                         : ""}

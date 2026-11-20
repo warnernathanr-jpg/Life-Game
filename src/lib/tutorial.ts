@@ -45,7 +45,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "road",
     title: "Lay a road",
-    how: "Tap Roads, pick Dirt Road, drag a short line across your land, then Build. It costs 1 coin a tile.",
+    how: "Tap Roads and pick Dirt Road. Tap where the road starts, then where it ends, and tap Build. It costs 1 coin a tile.",
     where: "city",
     done: (s) => s.has_road,
   },
